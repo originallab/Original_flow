@@ -1,0 +1,31 @@
+# Entorno local de Original Flow.
+# Por ahora solo la base de datos; el backend se agrega cuando exista el paso 1
+# del orden de construccion (docs/ARCHITECTURE.md).
+#
+# Uso:  cp .env.example .env   y luego   docker compose up -d
+#
+# La sintaxis ${VAR:?mensaje} hace que Compose FALLE con un error claro si falta
+# una variable. Sin ella, Compose la deja vacia en silencio y asigna un puerto
+# aleatorio (ver playbook 07-deployment-e-infra.md).
+
+services:
+  db:
+    image: postgres:16
+    container_name: original-flow-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Falta POSTGRES_USER en .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD en .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Falta POSTGRES_DB en .env}
+    ports:
+      - "${POSTGRES_PORT:?Falta POSTGRES_PORT en .env}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db_data:

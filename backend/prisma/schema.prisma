@@ -1,0 +1,335 @@
+// Esquema de datos de Original Flow (14 tablas). Documentado en docs/ARCHITECTURE.md.
+// La URL de la base de datos NO va aquí: se define en backend/prisma.config.ts (Prisma 7).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Cuentas, usuarios y marca
+// ---------------------------------------------------------------------------
+
+model Client {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  workspaces  Workspace[]
+  memberships Membership[]
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+
+  sessions    Session[]
+  memberships Membership[]
+  history     FunnelHistory[]
+  leads       Lead[]
+}
+
+model Session {
+  token     String   @id
+  userId    String?
+  validated Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum MembershipRole {
+  super_admin
+  client_admin
+  marketing_manager
+  vendedor
+  disenador
+  analista
+}
+
+enum MembershipStatus {
+  invited
+  active
+}
+
+model Membership {
+  id           String           @id @default(uuid())
+  userId       String?
+  invitedEmail String?
+  role         MembershipRole
+  status       MembershipStatus @default(invited)
+  clientId     String?
+  workspaceId  String?
+  createdAt    DateTime         @default(now())
+
+  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client    Client?    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([clientId])
+  @@index([workspaceId])
+}
+
+model Workspace {
+  id            String   @id @default(uuid())
+  clientId      String
+  name          String
+  country       String?
+  website       String?
+  industry      String?
+  logoFileId    String?
+  brandPalette  Json?
+  // { provider, apiKeyEnc, currency, methods[] } — la llave va cifrada y nunca se devuelve al frontend
+  paymentConfig Json?
+  createdAt     DateTime @default(now())
+
+  client      Client       @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  memberships Membership[]
+  funnels     Funnel[]
+  leadStages  LeadStage[]
+
+  @@index([clientId])
+}
+
+// ---------------------------------------------------------------------------
+// Funnel, CTA e historial
+// ---------------------------------------------------------------------------
+
+enum FunnelObjective {
+  leads
+  venta
+  citas
+  magnet
+  webinar
+  aplicacion
+  upsell
+  libre
+}
+
+enum FunnelStatus {
+  draft
+  published
+}
+
+model Funnel {
+  id             String          @id @default(uuid())
+  workspaceId    String
+  name           String
+  objective      FunnelObjective
+  status         FunnelStatus    @default(draft)
+  language       String          @default("es")
+  // Nombre del funnel; el servicio de dominios de la empresa lo usa para armar la URL.
+  slug           String          @unique
+  productName    String?
+  price          Decimal?        @db.Decimal(12, 2)
+  currency       String          @default("MXN")
+  targetAudience String?
+  typeConfig     Json?
+  brandBrief     Json?
+  designSpec     Json?
+  content        Json            @default("{\"blocks\":[]}")
+  seo            Json?
+  flow           Json?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  ctas      CTA[]
+  history   FunnelHistory[]
+  leads     Lead[]
+  orders    Order[]
+  events    Event[]
+
+  @@index([workspaceId])
+  @@index([status])
+}
+
+enum CtaActionType {
+  url
+  form_submit
+  scroll_to
+  checkout
+}
+
+model CTA {
+  id          String        @id @default(uuid())
+  funnelId    String
+  blockKey    String
+  label       String
+  actionType  CtaActionType
+  destination String?
+  trackingId  String?
+
+  funnel Funnel @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+
+  @@unique([funnelId, blockKey])
+}
+
+model FunnelHistory {
+  id        String   @id @default(uuid())
+  funnelId  String
+  userId    String
+  label     String?
+  snapshot  Json
+  createdAt DateTime @default(now())
+
+  funnel Funnel @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([funnelId, createdAt])
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Leads, pagos y eventos
+// ---------------------------------------------------------------------------
+
+model LeadStage {
+  id          String  @id @default(uuid())
+  workspaceId String
+  name        String
+  order       Int
+  isFinal     Boolean @default(false)
+  // Etapa a la que pasa un lead cuando paga.
+  isWon       Boolean @default(false)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  leads     Lead[]
+
+  @@unique([workspaceId, order])
+}
+
+enum LeadSource {
+  web_form
+  whatsapp
+}
+
+model Lead {
+  id           String     @id @default(uuid())
+  funnelId     String
+  leadStageId  String
+  name         String?
+  email        String?
+  phone        String?
+  source       LeadSource @default(web_form)
+  utm          Json?
+  assignedTo   String?
+  value        Decimal?   @db.Decimal(12, 2)
+  customFields Json?
+  createdAt    DateTime   @default(now())
+
+  funnel    Funnel    @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+  leadStage LeadStage @relation(fields: [leadStageId], references: [id], onDelete: Restrict)
+  assignee  User?     @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+  orders    Order[]
+  events    Event[]
+
+  @@index([funnelId, createdAt])
+  @@index([leadStageId])
+}
+
+enum OrderStatus {
+  pending
+  paid
+  cancelled
+  failed
+}
+
+// Un cobro hecho dentro de la página. opOrderToken es el order_token de Original Pay.
+model Order {
+  id             String      @id @default(uuid())
+  publicToken    String      @unique @default(uuid())
+  funnelId       String
+  leadId         String?
+  orderNumber    String      @unique
+  amount         Decimal     @db.Decimal(12, 2)
+  currency       String
+  status         OrderStatus @default(pending)
+  paymentMethod  String?
+  opOrderToken   String?     @unique
+  // Clave que envía el cliente en el encabezado Idempotency-Key del checkout:
+  // reintentar la misma petición nunca crea ni cobra una segunda orden.
+  idempotencyKey String?
+  customerEmail  String
+  paymentUrl     String?
+  gateway        Json?
+  paidAt         DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  funnel Funnel @relation(fields: [funnelId], references: [id], onDelete: Restrict)
+  lead   Lead?  @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  // Varios NULL están permitidos; una clave se repite solo en funnels distintos.
+  @@unique([funnelId, idempotencyKey])
+  @@index([funnelId, status])
+  @@index([leadId])
+  @@index([status, createdAt])
+}
+
+model Event {
+  id         String   @id @default(uuid())
+  funnelId   String
+  leadId     String?
+  type       String
+  properties Json?
+  occurredAt DateTime @default(now())
+
+  funnel Funnel @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+  lead   Lead?  @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([funnelId, occurredAt])
+  @@index([type])
+}
+
+// ---------------------------------------------------------------------------
+// Registros (playbook 02): dos tablas separadas, a propósito sin claves foráneas
+// para que sobrevivan al borrado de usuarios, workspaces o funnels.
+// ---------------------------------------------------------------------------
+
+// Log operativo: qué pasó en cada operación relevante (llamadas a servicios de
+// The Original Lab, cobros...). Alto volumen. Nunca guarda datos personales ni secretos.
+model OperationLog {
+  id          String   @id @default(uuid())
+  requestId   String
+  service     String
+  operation   String
+  status      String
+  errorCode   String?
+  durationMs  Int
+  workspaceId String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([requestId])
+  @@index([service, operation, createdAt])
+}
+
+// Log de auditoría: quién hizo qué acción administrativa o sensible, cuándo y desde
+// dónde. Bajo volumen y de solo lectura: la migración agrega un disparador que impide
+// modificar o borrar filas. Los datos personales se redactan antes de guardar.
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String?
+  workspaceId  String?
+  action       String
+  resourceType String
+  resourceId   String?
+  ip           String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([workspaceId, createdAt])
+  @@index([userId, createdAt])
+  @@index([resourceType, resourceId])
+}

@@ -1,0 +1,40 @@
+# Dependencias
+node_modules/
+.pnpm-store/
+
+# Variables de entorno reales (solo se versionan los .env.example)
+.env
+.env.*
+!.env.example
+
+# Compilados y cobertura
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Prisma
+backend/prisma/*.db
+backend/prisma/*.db-journal
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editor y sistema operativo
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Claude Code (configuracion local; no se comparte)
+.claude/settings.local.json
+
+# Temporales
+tmp/
+*.tmp
+
+# Cliente de Prisma generado (se crea con `pnpm db:generate`)
+backend/src/generated/
