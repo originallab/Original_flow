@@ -22,7 +22,13 @@ Pasos 1 a 6 del orden de construcción hechos: servidor base del backend, base d
 
 ## Stack
 
-Backend: Node.js, TypeScript, Express, Zod, Prisma, PostgreSQL, Vitest, PNPM. Frontend: React, TypeScript, Tailwind, shadcn/ui, lucide, Vite, PNPM (aún vacío). Servicios: Original Auth, Original Pay, Media-as-a-Service, Original AI Engine. Sin Redis, sin n8n, sin servicio de correo (no existe).
+Backend: Node.js, TypeScript, Express, Zod, Prisma, PostgreSQL, Vitest, PNPM. Frontend: React 19, TypeScript, Tailwind 4, lucide, Vite, React Router, Vitest + Testing Library, PNPM (base lista; shadcn/ui se agrega componente por componente cuando haga falta). Servicios: Original Auth, Original Pay, Media-as-a-Service, Original AI Engine. Sin Redis, sin n8n, sin servicio de correo (no existe).
+
+## Reglas de diseño del front (decididas por la persona; no cambiar sin preguntar)
+
+- **El logotipo completo «ORIGINAL FLOW» (no el isotipo) va arriba a la izquierda en TODAS las pantallas de la plataforma.** Es **morado (#7725BE) siempre**, en claro y en oscuro: no cambia de color, tamaño ni forma. Por eso `shared/ui/Logo.tsx` no recibe props de estilo ni de tamaño; no lo recolorees ni lo escales.
+- **Modo oscuro:** fondo un poco más claro y grisáceo que el diseño original (`--bg: #17161c`), con las superficies subiendo en la misma proporción. Los tokens están en `frontend/src/index.css`; el modo oscuro nunca redefine `--brand` ni `--violet`.
+- Las pantallas se construyen siguiendo los mockups de `docs/design` (cuando estén en el repo) y `DESIGN.md`. Las landing publicadas usan la marca **del cliente**, no la de Original Flow.
 
 ## Reglas de código que más importan
 
@@ -33,4 +39,4 @@ Backend: Node.js, TypeScript, Express, Zod, Prisma, PostgreSQL, Vitest, PNPM. Fr
 
 ## Comandos
 
-Base de datos local (desde la raíz, tras copiar `.env.example` a `.env`): `docker compose up -d`. Backend (desde `backend/`, con PNPM): `pnpm dev`, `pnpm test`, `pnpm typecheck`, `pnpm build`, `pnpm db:deploy`, `pnpm db:migrate`. Las pruebas de base de datos exigen `TEST_DATABASE_URL`. Los imports relativos llevan extensión `.js` (módulos ES `nodenext`).
+Base de datos local (desde la raíz, tras copiar `.env.example` a `.env`): `docker compose up -d`. Backend (desde `backend/`, con PNPM): `pnpm dev`, `pnpm test`, `pnpm typecheck`, `pnpm build`, `pnpm db:deploy`, `pnpm db:migrate`. Las pruebas de base de datos exigen `TEST_DATABASE_URL`. Los imports relativos del backend llevan extensión `.js` (módulos ES `nodenext`). Frontend (desde `frontend/`): `pnpm dev` (puerto 5173, con proxy de `/api` al backend), `pnpm test`, `pnpm typecheck`, `pnpm build`.

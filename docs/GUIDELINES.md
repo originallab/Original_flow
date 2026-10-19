@@ -66,6 +66,20 @@ Reglas específicas de este proyecto. Para lo general se remite al **project-pla
 - El archivo de variables se llama **`.env`** a propósito y `compose.yml` usa `${VAR:?mensaje}`: así, si falta una variable, Compose falla con un error claro en vez de asignar en silencio un puerto aleatorio (problema documentado en el playbook, `07`).
 - Si algo se conecta a la base equivocada sin error, lo primero es `docker port original-flow-db` para comparar el puerto real con el esperado.
 
+## Diseño del frontend
+
+- **Logotipo:** siempre el completo («ORIGINAL FLOW», no el isotipo), arriba a la izquierda en todas las pantallas de la plataforma, **morado (#7725BE) siempre** y con el mismo tamaño y forma en claro y en oscuro. El componente `Logo` no acepta props de color ni tamaño a propósito; una prueba lo vigila.
+- **Modo oscuro:** fondo un poco más claro y grisáceo que el del diseño original, con las superficies escalonadas por encima. Los tokens viven en `frontend/src/index.css`; los colores se usan por token de Tailwind (`bg-surface`, `text-text-2`...), nunca con valores sueltos.
+- **Tema:** claro, oscuro o el del sistema; solo se guarda la preferencia visual en el navegador (nunca el token de sesión en `localStorage`).
+- **Las páginas públicas de los clientes** usan la marca del cliente, no la de Original Flow, y se dibujan en este mismo proyecto en `/p/:slug`.
+
+## Sesión en el frontend
+
+- **Todo `fetch` pasa por `services/`** y lo consumen solo los hooks o proveedores; los componentes no llaman a la API.
+- **El token de sesión vive solo en `features/auth/sessionStore.ts`** (hoy `sessionStorage`; nunca `localStorage`). Está aislado para poder cambiarlo por una cookie `HttpOnly` cuando Original Auth confirme su mecanismo.
+- **Rutas privadas:** se declaran bajo `ProtectedRoute` una sola vez; sin sesión mandan a `/login` y recuerdan a dónde iba la persona. Si el servidor no responde, la sesión guardada no se borra y se ofrece reintentar; solo un `401` la descarta.
+- **Acceso simulado a Original Auth** (`VITE_AUTH_MODE=mock_callback`): solo en desarrollo y con credenciales inventadas. No debe existir en producción: una compilación de producción no incluye el código ni los valores (hay una comprobación manual en el cierre de la pieza y pruebas que lo protegen). Nunca se usan llaves reales en variables `VITE_*`.
+
 ## Documentación
 
 - Existen y se mantienen vivos: `PROJECT_CONTEXT.md`, `ARCHITECTURE.md`, `STRUCTURE.md` y `GUIDELINES.md`, más `API_MVP.md` y `CLAUDE.md` en la raíz.

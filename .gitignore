@@ -38,3 +38,6 @@ tmp/
 
 # Cliente de Prisma generado (se crea con `pnpm db:generate`)
 backend/src/generated/
+
+# Configuracion local de la vista previa de Claude (no se comparte)
+.claude/launch.json

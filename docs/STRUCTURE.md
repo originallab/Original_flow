@@ -39,7 +39,21 @@ original_flow/
 │   │       ├── media-aas/
 │   │       └── ai-engine/
 │   └── tests/               pruebas con Vitest (config, app, errores, límite, esquema de datos, auth, /me, workspaces, tipos de funnel, funnels, publicación y captura pública); helpers/testApp.ts, db.ts y auth.ts
-├── frontend/                React + Vite + Tailwind (vacío hasta que empiece el frontend)
+├── frontend/                React + TypeScript + Vite + Tailwind (PNPM)
+│   ├── index.html           aplica el tema guardado antes de pintar (sin parpadeo)
+│   ├── vite.config.ts       Vite, Tailwind, alias @ y proxy de /api hacia el backend (puerto 3000)
+│   ├── .env.example         VITE_API_URL (solo variables VITE_*; nunca secretos)
+│   ├── public/              favicon (isotipo en morado)
+│   ├── src/
+│   │   ├── main.tsx, router.tsx   arranque y rutas (las privadas cuelgan de ProtectedRoute; cada pieza registra aquí sus pantallas)
+│   │   ├── index.css        tokens de diseño claro/oscuro (docs/DESIGN.md) y tema de Tailwind
+│   │   ├── assets/brand/    logotipo completo en morado (original-flow-logo.png)
+│   │   ├── shared/          ui/ (Logo, ThemeToggle), theme/ (ThemeProvider) y utils/ (cn)
+│   │   ├── services/        un archivo por entidad del backend: api.ts (cliente base) y auth.ts (sesión, /me, acceso simulado)
+│   │   ├── features/auth/   AuthProvider (estado de sesión), ProtectedRoute y sessionStore (dónde vive el token)
+│   │   ├── layouts/         PlatformLayout: encabezado con el logo arriba a la izquierda, tema y cierre de sesión
+│   │   └── pages/           LoginPage y HomePage (temporal); orquestadores de pantalla
+│   └── tests/               Vitest + Testing Library (logo, tema, tokens, API, sesión y login); helpers/fakeBackend.ts simula el backend
 └── docs/
     ├── PROJECT_CONTEXT.md   qué es, alcance, decisiones, stack, servicios y pendientes
     ├── ARCHITECTURE.md      arquitectura, modelo de datos y orden de construcción
