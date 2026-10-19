@@ -4,9 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { BrandPreview } from '@/features/workspaces/components/BrandPreview';
 import { BusinessForm } from '@/features/workspaces/components/BusinessForm';
+import { LogoUpload } from '@/features/workspaces/components/LogoUpload';
 import { LoadState } from '@/features/workspaces/LoadState';
 import { PaletteEditor } from '@/features/workspaces/components/PaletteEditor';
-import { SUGGESTED_PALETTE, valuesOf } from '@/features/workspaces/brand';
+import { AI_SAMPLE_PALETTE, SUGGESTED_PALETTE, valuesOf } from '@/features/workspaces/brand';
+import { useLogoFile } from '@/features/workspaces/useLogoFile';
 import { useWorkspaces } from '@/features/workspaces/WorkspaceProvider';
 import { ApiError } from '@/services/api';
 import { createWorkspace, updateWorkspace, type BrandPalette, type Workspace } from '@/services/workspaces';
@@ -44,6 +46,8 @@ function OnboardingSteps() {
   const [palette, setPalette] = useState<BrandPalette>(SUGGESTED_PALETTE);
   const [brandBusy, setBrandBusy] = useState(false);
   const [brandError, setBrandError] = useState<string | null>(null);
+  const { logo, choose, clear } = useLogoFile();
+  const [suggested, setSuggested] = useState(false);
 
   async function createBusiness(values: ReturnType<typeof valuesOf>) {
     if (!token) return;
@@ -127,11 +131,30 @@ function OnboardingSteps() {
           <>
             <h1 className="mt-2 font-heading text-2xl font-semibold">Configura tu marca</h1>
             <p className="mt-2 mb-6 text-text-2">
-              Elige los colores de tu negocio; se usarán en tus landing pages publicadas, nunca en la plataforma de Original Flow.
+              Sube una imagen de tu marca para que la IA te proponga una paleta, o elige los colores a mano. Se usarán en tus landing pages
+              publicadas, nunca en la plataforma de Original Flow.
             </p>
-            <PaletteEditor value={palette} onChange={setPalette} />
+            <LogoUpload
+              logo={logo}
+              onChoose={(file) => {
+                setSuggested(false);
+                return choose(file);
+              }}
+              onClear={() => {
+                clear();
+                setSuggested(false);
+              }}
+              onSuggest={() => {
+                setPalette(AI_SAMPLE_PALETTE);
+                setSuggested(true);
+              }}
+              suggested={suggested}
+            />
             <div className="mt-6">
-              <BrandPreview palette={palette} name={created.name} />
+              <PaletteEditor value={palette} onChange={setPalette} />
+            </div>
+            <div className="mt-6">
+              <BrandPreview palette={palette} name={created.name} logoSrc={logo?.url} />
             </div>
             {brandError && (
               <p role="alert" className="mt-4 rounded-lg border border-border-strong bg-surface-2 px-3 py-2 text-sm text-text">

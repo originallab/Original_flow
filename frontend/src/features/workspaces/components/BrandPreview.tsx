@@ -4,13 +4,17 @@ import type { BrandPalette } from '@/services/workspaces';
  * Cómo se verá una landing con esta paleta. Usa los colores del CLIENTE (no los de la plataforma),
  * por eso van como estilos en línea y no como tokens de Original Flow.
  */
-export function BrandPreview({ palette, name }: { palette: BrandPalette; name: string }) {
+export function BrandPreview({ palette, name, logoSrc }: { palette: BrandPalette; name: string; logoSrc?: string | null }) {
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-wider text-muted">Así se verá en tus landing pages</p>
       <div className="mt-2 overflow-hidden rounded-xl border border-border" aria-label="Vista previa de la marca">
         <div className="flex items-center justify-between px-5 py-3" style={{ background: palette.background, color: palette.text }}>
-          <span className="text-sm font-semibold">{name || 'Tu negocio'}</span>
+          {logoSrc ? (
+            <img src={logoSrc} alt={`Logo de ${name || 'tu negocio'}`} className="h-6 max-w-36 object-contain object-left" />
+          ) : (
+            <span className="text-sm font-semibold">{name || 'Tu negocio'}</span>
+          )}
           <span className="rounded-md px-3 py-1 text-xs font-semibold" style={{ background: palette.primary, color: palette.background }}>
             Reservar mi lugar
           </span>

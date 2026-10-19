@@ -28,6 +28,15 @@ export function normalizeHex(input: string): string | null {
   return `#${hex.toUpperCase()}`;
 }
 
+/** CÁSCARA: la «sugerencia de la IA» de ejemplo, hasta que se conecte Original AI Engine. */
+export const AI_SAMPLE_PALETTE: BrandPalette = {
+  primary: '#2F5BEA',
+  secondary: '#1B2A6B',
+  accent: '#FF8A4C',
+  background: '#F1F4FE',
+  text: '#12172B',
+};
+
 export const INDUSTRIES = [
   { value: 'educacion', label: 'Cursos y educación' },
   { value: 'ecommerce', label: 'Ecommerce' },
