@@ -15,7 +15,7 @@ Monorepo simple (decisión documentada en `docs/PROJECT_CONTEXT.md`):
 | Carpeta | Contenido |
 | --- | --- |
 | `backend/` | API en Node.js + TypeScript + Express + Zod + Prisma |
-| `frontend/` | React + TypeScript + Vite + Tailwind (tema claro/oscuro, logo, acceso, alta del negocio y «Mi negocio»; los funnels y el editor llegan en las siguientes piezas) |
+| `frontend/` | React + TypeScript + Vite + Tailwind (tema claro/oscuro, logo, acceso, alta del negocio, «Mi negocio» y, como cáscara con datos de ejemplo, la lista de funnels y el asistente de creación; el editor llega en la siguiente pieza) |
 | `docs/` | Documentación del proyecto. **Empieza por `docs/PROJECT_CONTEXT.md`** |
 
 El mapa completo de carpetas está en `docs/STRUCTURE.md`.
@@ -46,14 +46,14 @@ Requisitos: Node.js LTS, PNPM, Docker y Git.
    Comprueba que responde en `http://localhost:3000/health`.
 4. Otros comandos del backend: `pnpm test`, `pnpm typecheck`, `pnpm build`, `pnpm db:migrate` (crear una migración nueva al cambiar `schema.prisma`) y `pnpm db:studio`.
 5. Las pruebas de base de datos usan una base **real** y solo corren si defines `TEST_DATABASE_URL` (con las migraciones aplicadas). Usa una base de pruebas aparte, nunca la de desarrollo con datos que te importen.
-6. Arranca el frontend (con el backend corriendo en el puerto 3000):
+6. Arranca el frontend. **Para solo navegar por las pantallas no necesitas backend, base de datos ni Docker**: copia `frontend/.env.example` como `frontend/.env` y deja `VITE_DEMO_MODE=true` (viene así); la aplicación responde sola y guarda lo que hagas en tu navegador. Para trabajar contra el backend real, pon `VITE_DEMO_MODE=false` y arranca el backend en el puerto 3000.
    ```bash
    cd frontend && pnpm install
    ```
    ```bash
    pnpm dev
    ```
-   Para iniciar sesión sin las credenciales reales de Original Auth, usa el **acceso simulado**: copia `frontend/.env.example` como `frontend/.env` y, en `backend/.env`, deja `AUTH_MODE=mock_callback` con `ORIGINALAUTH_TOKEN_APP=token-app-de-desarrollo` y `ORIGINALAUTH_SECRET_KEY=cambia-este-secreto-local` (los mismos valores inventados que trae `.env.example`). La pantalla de acceso te deja entrar con cualquier correo. Ese modo solo existe en desarrollo: no entra en la compilación de producción.
+   Con el backend real, para iniciar sesión sin las credenciales reales de Original Auth usa el **acceso simulado**: copia `frontend/.env.example` como `frontend/.env` y, en `backend/.env`, deja `AUTH_MODE=mock_callback` con `ORIGINALAUTH_TOKEN_APP=token-app-de-desarrollo` y `ORIGINALAUTH_SECRET_KEY=cambia-este-secreto-local` (los mismos valores inventados que trae `.env.example`). La pantalla de acceso te deja entrar con cualquier correo. Ese modo solo existe en desarrollo: no entra en la compilación de producción.
    Se abre en `http://localhost:5173`; las llamadas a `/api` pasan por el servidor de Vite hacia el backend, así que no hay que configurar CORS para trabajar en local. Comandos: `pnpm test`, `pnpm typecheck`, `pnpm build`.
 
 ## Documentación

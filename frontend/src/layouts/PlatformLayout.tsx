@@ -1,4 +1,4 @@
-import { Building2, Home, LogOut, Plus } from 'lucide-react';
+import { Building2, Funnel, Home, LogOut, Plus } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useWorkspaces } from '@/features/workspaces/WorkspaceProvider';
@@ -8,6 +8,7 @@ import { cn } from '@/shared/utils/cn';
 
 const NAV = [
   { to: '/', label: 'Inicio', icon: Home, end: true },
+  { to: '/funnels', label: 'Funnels', icon: Funnel, end: false },
   { to: '/negocio', label: 'Mi negocio', icon: Building2, end: false },
 ];
 

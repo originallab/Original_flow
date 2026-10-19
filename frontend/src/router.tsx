@@ -3,9 +3,12 @@ import { ProtectedRoute } from '@/features/auth/ProtectedRoute';
 import { RequireWorkspace } from '@/features/workspaces/RequireWorkspace';
 import { OnboardingLayout } from '@/layouts/OnboardingLayout';
 import { PlatformLayout } from '@/layouts/PlatformLayout';
+import { WizardLayout } from '@/layouts/WizardLayout';
 import { BusinessPage } from '@/pages/BusinessPage';
+import { FunnelsPage } from '@/pages/FunnelsPage';
 import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
+import { NewFunnelPage } from '@/pages/NewFunnelPage';
 import { OnboardingPage } from '@/pages/OnboardingPage';
 
 /** Rutas de la aplicación. Cada pieza del front registra aquí sus pantallas. */
@@ -25,9 +28,12 @@ export const routes: RouteObject[] = [
             element: <PlatformLayout />,
             children: [
               { path: '/', element: <HomePage /> },
+              { path: '/funnels', element: <FunnelsPage /> },
               { path: '/negocio', element: <BusinessPage /> },
             ],
           },
+          // El asistente de creación ocupa toda la pantalla (sin el menú de la plataforma).
+          { element: <WizardLayout />, children: [{ path: '/funnels/nuevo', element: <NewFunnelPage /> }] },
         ],
       },
     ],
