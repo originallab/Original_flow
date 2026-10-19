@@ -47,7 +47,7 @@ original_flow/
 │   ├── src/
 │   │   ├── main.tsx, router.tsx   arranque y rutas (las privadas cuelgan de ProtectedRoute; cada pieza registra aquí sus pantallas)
 │   │   ├── index.css        tokens de diseño claro/oscuro (docs/DESIGN.md) y tema de Tailwind
-│   │   ├── assets/brand/    logotipo completo en morado (original-flow-logo.png)
+│   │   ├── assets/brand/    logotipo en dos capas: original-flow-logo.png (todo en morado salvo la palabra ORIGINAL) y original-flow-logo-word.png (solo esa palabra, como máscara)
 │   │   ├── shared/          ui/ (Logo, ThemeToggle), theme/ (ThemeProvider) y utils/ (cn)
 │   │   ├── services/        un archivo por entidad del backend: api.ts (cliente base) y auth.ts (sesión, /me, acceso simulado)
 │   │   ├── features/auth/   AuthProvider (estado de sesión), ProtectedRoute y sessionStore (dónde vive el token)

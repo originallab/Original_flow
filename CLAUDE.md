@@ -26,7 +26,7 @@ Backend: Node.js, TypeScript, Express, Zod, Prisma, PostgreSQL, Vitest, PNPM. Fr
 
 ## Reglas de diseño del front (decididas por la persona; no cambiar sin preguntar)
 
-- **El logotipo completo «ORIGINAL FLOW» (no el isotipo) va arriba a la izquierda en TODAS las pantallas de la plataforma.** Es **morado (#7725BE) siempre**, en claro y en oscuro: no cambia de color, tamaño ni forma. Por eso `shared/ui/Logo.tsx` no recibe props de estilo ni de tamaño; no lo recolorees ni lo escales.
+- **El logotipo completo «ORIGINAL FLOW» (no el isotipo) va arriba a la izquierda en TODAS las pantallas de la plataforma.** El embudo, «FLOW» y la línea son **morados (#7725BE) siempre**; **solo la palabra «ORIGINAL» cambia con el tema: negra en modo claro y blanca en modo oscuro** (token `--logo-word`). No cambia de tamaño ni de forma. Por eso `shared/ui/Logo.tsx` no recibe props de estilo ni de tamaño; no lo recolorees ni lo escales.
 - **Modo oscuro:** fondo un poco más claro y grisáceo que el diseño original (`--bg: #17161c`), con las superficies subiendo en la misma proporción. Los tokens están en `frontend/src/index.css`; el modo oscuro nunca redefine `--brand` ni `--violet`.
 - Las pantallas se construyen siguiendo los mockups de `docs/design` (cuando estén en el repo) y `DESIGN.md`. Las landing publicadas usan la marca **del cliente**, no la de Original Flow.
 

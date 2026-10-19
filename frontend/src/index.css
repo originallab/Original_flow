@@ -11,6 +11,8 @@
  */
 :root {
   --brand: #7725be;
+  /* Solo la palabra ORIGINAL del logotipo cambia con el tema: negra en claro, blanca en oscuro. */
+  --logo-word: #000000;
 
   --bg: #f7f6fb;
   --surface: #ffffff;
@@ -38,6 +40,7 @@
  * el carácter oscuro. Las superficies suben en la misma proporción para conservar la jerarquía.
  */
 [data-theme='dark'] {
+  --logo-word: #ffffff;
   --bg: #17161c;
   --surface: #211f28;
   --surface-2: #28262f;

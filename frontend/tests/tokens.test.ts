@@ -20,6 +20,11 @@ describe('tokens de diseño', () => {
     expect(oscuro).not.toContain('--violet:');
   });
 
+  it('la palabra ORIGINAL del logo es negra en modo claro y blanca en modo oscuro', () => {
+    expect(claro).toContain('--logo-word: #000000');
+    expect(oscuro).toContain('--logo-word: #ffffff');
+  });
+
   it('el fondo oscuro es un poco más claro que el del diseño original (#0A090E), pero sigue siendo oscuro', () => {
     const fondo = valor(oscuro, '--bg');
     expect(fondo).toBeDefined();

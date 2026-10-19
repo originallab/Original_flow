@@ -68,7 +68,7 @@ Reglas específicas de este proyecto. Para lo general se remite al **project-pla
 
 ## Diseño del frontend
 
-- **Logotipo:** siempre el completo («ORIGINAL FLOW», no el isotipo), arriba a la izquierda en todas las pantallas de la plataforma, **morado (#7725BE) siempre** y con el mismo tamaño y forma en claro y en oscuro. El componente `Logo` no acepta props de color ni tamaño a propósito; una prueba lo vigila.
+- **Logotipo:** siempre el completo («ORIGINAL FLOW», no el isotipo), arriba a la izquierda en todas las pantallas de la plataforma, con el mismo tamaño y forma en claro y en oscuro. El embudo, «FLOW» y la línea son **morados (#7725BE) siempre**; **solo la palabra «ORIGINAL» cambia con el tema: negra en claro y blanca en oscuro**. El componente `Logo` no acepta props de color ni tamaño a propósito; pruebas lo vigilan.
 - **Modo oscuro:** fondo un poco más claro y grisáceo que el del diseño original, con las superficies escalonadas por encima. Los tokens viven en `frontend/src/index.css`; los colores se usan por token de Tailwind (`bg-surface`, `text-text-2`...), nunca con valores sueltos.
 - **Tema:** claro, oscuro o el del sistema; solo se guarda la preferencia visual en el navegador (nunca el token de sesión en `localStorage`).
 - **Las páginas públicas de los clientes** usan la marca del cliente, no la de Original Flow, y se dibujan en este mismo proyecto en `/p/:slug`.
