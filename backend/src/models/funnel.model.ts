@@ -100,6 +100,10 @@ export function createFunnelModel(prisma: PrismaClient) {
       });
     },
 
+    setDesignSpec(id: string, designSpec: Prisma.InputJsonValue): Promise<FunnelRecord> {
+      return prisma.funnel.update({ where: { id }, data: { designSpec }, select: FULL_FIELDS });
+    },
+
     setTypeConfig(id: string, typeConfig: Prisma.InputJsonValue): Promise<FunnelRecord> {
       return prisma.funnel.update({ where: { id }, data: { typeConfig }, select: FULL_FIELDS });
     },

@@ -4,6 +4,7 @@ import { getRequestId } from '../middleware/requestId.js';
 import {
   blockParamsSchema,
   contentBodySchema,
+  designSpecBodySchema,
   createFunnelBodySchema,
   ctaParamsSchema,
   funnelIdParamsSchema,
@@ -79,6 +80,12 @@ export function createFunnelsRouter(
     const { id, key } = blockParamsSchema.parse(req.params);
     const body = patchBlockBodySchema.parse(req.body);
     res.json(await content.patchBlock(getAuth(res).userId, id, key, body));
+  });
+
+  router.put('/:id/design-spec', async (req, res) => {
+    const { id } = funnelIdParamsSchema.parse(req.params);
+    const body = designSpecBodySchema.parse(req.body);
+    res.json(await content.putDesignSpec(getAuth(res).userId, id, body, contextOf(req, getRequestId(res))));
   });
 
   router.put('/:id/type-config', async (req, res) => {
