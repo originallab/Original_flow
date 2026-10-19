@@ -5,6 +5,7 @@ import { OnboardingLayout } from '@/layouts/OnboardingLayout';
 import { PlatformLayout } from '@/layouts/PlatformLayout';
 import { WizardLayout } from '@/layouts/WizardLayout';
 import { BusinessPage } from '@/pages/BusinessPage';
+import { EditorPage } from '@/pages/EditorPage';
 import { FunnelsPage } from '@/pages/FunnelsPage';
 import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
@@ -34,6 +35,8 @@ export const routes: RouteObject[] = [
           },
           // El asistente de creación ocupa toda la pantalla (sin el menú de la plataforma).
           { element: <WizardLayout />, children: [{ path: '/funnels/nuevo', element: <NewFunnelPage /> }] },
+          // El editor también ocupa toda la pantalla (lleva su propia barra con el logotipo).
+          { path: '/funnels/:id/editor', element: <EditorPage /> },
         ],
       },
     ],

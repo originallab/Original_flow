@@ -79,8 +79,8 @@ Reglas específicas de este proyecto. Para lo general se remite al **project-pla
 - **El token de sesión vive solo en `features/auth/sessionStore.ts`** (hoy `sessionStorage`; nunca `localStorage`). Está aislado para poder cambiarlo por una cookie `HttpOnly` cuando Original Auth confirme su mecanismo.
 - **Rutas privadas:** se declaran bajo `ProtectedRoute` una sola vez; sin sesión mandan a `/login` y recuerdan a dónde iba la persona. Si el servidor no responde, la sesión guardada no se borra y se ofrece reintentar; solo un `401` la descarta.
 - **Acceso simulado a Original Auth** (`VITE_AUTH_MODE=mock_callback`) y **modo demostración** (`VITE_DEMO_MODE=true`): solo en desarrollo y con valores inventados. No deben existir en producción: una prueba (`tests/productionBundle.test.ts`) compila en modo producción con todo encendido y falla si queda cualquier rastro. Para que Vite pueda eliminarlos, cada uso lleva un `import.meta.env.DEV` explícito en el lugar donde se decide (no solo dentro de una función auxiliar). Nunca se usan llaves reales en variables `VITE_*`.
-- **Modo demostración** (`services/demo.ts`): responde dentro del navegador los mismos endpoints, formatos y errores que el backend (autenticación, `/me` y negocios) y guarda en `localStorage`. Cada vez que se conecte un endpoint nuevo en el front, se agrega también aquí. Las pruebas no dependen del `.env` de quien las corre (arrancan con el modo demostración apagado).
-- **Cáscaras:** una pantalla puede construirse primero solo como maqueta navegable (datos de ejemplo en `features/<dominio>/catalog.ts`, sin llamadas a la API) y lo dice en pantalla. Al conectarla se reemplaza el catálogo por el servicio.
+- **Modo demostración** (`services/demo.ts`): responde dentro del navegador los mismos endpoints, formatos y errores que el backend (autenticación, `/me` y negocios) y guarda en `localStorage`. Cada vez que se conecte un endpoint nuevo en el front, se agrega también aquí (hoy: autenticación, `/me`, negocios y funnels: crear, listar, abrir, guardar contenido y diseño). Las pruebas no dependen del `.env` de quien las corre (arrancan con el modo demostración apagado).
+- **Cáscaras:** una pantalla puede construirse primero solo como maqueta navegable (datos de ejemplo, sin llamadas a la API) y lo dice en pantalla. Al conectarla se usa el servicio, y el modo demostración lo responde sin backend.
 
 ## Negocios en el frontend
 
@@ -91,6 +91,14 @@ Reglas específicas de este proyecto. Para lo general se remite al **project-pla
 - **País:** se elige en un `Combobox` (`shared/ui/Combobox.tsx`, patrón ARIA) con la lista de `features/workspaces/countries.ts`; se guarda el nombre en español. Un valor antiguo que no esté en la lista se muestra tal cual hasta que se elija otro.
 - **Imagen de la marca:** `useLogoFile` la guarda solo en el navegador (sin subirla) y libera la dirección temporal al cambiarla o salir. Tipos PNG, JPG, WebP o SVG, hasta 5 MB. «Sugerir paleta con IA» es hoy una maqueta con una paleta de ejemplo; se conecta a Original AI Engine y a Media-as-a-Service más adelante.
 - **La marca del cliente** (paleta de 5 colores) se muestra con estilos en línea, porque no es parte de los tokens de la plataforma; la plataforma nunca se pinta con ella.
+
+## Páginas: bloques, generación y editor
+
+- **El catálogo de bloques es la fuente de verdad en el front** (`shared/blocks/catalog.ts`): de ahí salen los campos del panel de propiedades, el contenido inicial y la validación (`validate.ts`), que copia las reglas del backend (`backend/src/funnel-types/blocks.ts`). Si el backend cambia un bloque, se cambia aquí y la prueba de validación lo refleja; el modo demostración usa esa misma validación para responder como el servidor.
+- **La primera versión de la página la arma un `PageGenerator`** (`features/funnels/generation`). Hoy es `templateGenerator` (plantilla + textos de lo que la persona escribió + paleta de la marca). Para usar IA se escribe otro generador que devuelva el mismo `GeneratedPage` (por ejemplo llamando a `POST /funnels/:id/generate`) y se cambia `pageGenerator`; el asistente y el editor no se tocan. Si el generador ya guardó la página, marca `persisted`.
+- **El asistente crea el borrador y luego lo llena** (`createDraft` + `fillDraft`): si armar la página falla se reintenta sobre el mismo funnel, sin crear otro.
+- **Autoguardado del editor:** con debounce (`features/editor/constants.ts`), una petición a la vez (lo que cambie mientras se guarda se manda después), **nunca se guarda con campos inválidos** (se avisa y no se pierde lo escrito mientras la persona siga en la pantalla), al salir se guarda lo pendiente y salir con cambios que no se pudieron guardar pide confirmar. Un campo opcional que se deja vacío se quita del contenido (el backend rechaza textos vacíos).
+- **Renderizador de páginas** (`features/pageRenderer`): usa solo los colores y el estilo de la página (la marca del cliente); es el mismo que usará la página pública.
 
 ## Documentación
 

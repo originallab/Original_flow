@@ -22,7 +22,7 @@ export type FieldDef =
       min: number;
       max: number;
       /** Texto simple, o un objeto con sus campos. */
-      of: { kind: 'text'; max: number } | { kind: 'object'; fields: FieldDef[]; create: () => Record<string, unknown> };
+      of: { kind: 'text'; max: number; /** Texto con el que nace un elemento nuevo (por defecto «Nuevo <elemento>»). */ sample?: string } | { kind: 'object'; fields: FieldDef[]; create: () => Record<string, unknown> };
       /** Solo se muestra (y se valida) si esto se cumple para el elemento que lo contiene. */
       showIf?: (parent: Record<string, unknown>) => boolean;
     };
@@ -123,7 +123,7 @@ export const BLOCKS: Record<BlockType, BlockDef> = {
             }),
             { kind: 'select', key: 'type', label: 'Tipo de campo', options: FORM_FIELD_TYPES },
             { kind: 'boolean', key: 'required', label: 'Es obligatorio' },
-            { kind: 'list', key: 'options', label: 'Opciones', itemLabel: 'Opción', min: 0, max: 30, of: { kind: 'text', max: 80 }, showIf: (field) => field.type === 'select' },
+            { kind: 'list', key: 'options', label: 'Opciones', itemLabel: 'Opción', min: 0, max: 30, of: { kind: 'text', max: 80, sample: 'Nueva opción' }, showIf: (field) => field.type === 'select' },
           ],
         },
       },
