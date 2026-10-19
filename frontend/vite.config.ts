@@ -17,5 +17,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['tests/setup.ts'],
     include: ['tests/**/*.test.{ts,tsx}'],
+    // Las pruebas de pantalla escriben mucho texto y corren en paralelo: con 5 s a veces se pasaban por lentitud, no por un error.
+    testTimeout: 20_000,
   },
 });
