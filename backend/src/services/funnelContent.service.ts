@@ -10,7 +10,7 @@ import { getFunnelType } from '../funnel-types/index.js';
 import { AppError } from '../lib/errors.js';
 import type { CtaModel } from '../models/cta.model.js';
 import type { DesiredCta, FunnelModel, FunnelRecord } from '../models/funnel.model.js';
-import type { Block, PatchBlockBody, PatchCtaBody } from '../schemas/funnel.schemas.js';
+import type { Block, DesignSpecBody, PatchBlockBody, PatchCtaBody } from '../schemas/funnel.schemas.js';
 import type { AuditService } from './audit.service.js';
 import type { RequestContext } from './auth.service.js';
 import type { FunnelService } from './funnel.service.js';
@@ -83,6 +83,22 @@ export function createFunnelContentService({ funnels, ctas, funnelService, audit
       }
       blocks[index] = merged;
       return persist(funnel, blocks);
+    },
+
+    /** PUT /funnels/:id/design-spec: guarda la plantilla, la paleta y las tipografías de la página. */
+    async putDesignSpec(userId: string, funnelId: string, body: DesignSpecBody, ctx: RequestContext) {
+      const { funnel } = await funnelService.load(userId, funnelId, 'funnel:edit');
+      const saved = await funnels.setDesignSpec(funnel.id, body as Prisma.InputJsonValue);
+      await audit.record({
+        action: 'funnel.design_update',
+        resourceType: 'funnel',
+        resourceId: funnel.id,
+        workspaceId: funnel.workspaceId,
+        userId,
+        ip: ctx.ip,
+        metadata: { template: body.template },
+      });
+      return { designSpec: saved.designSpec };
     },
 
     /** PUT /funnels/:id/type-config: guarda y valida los ajustes con el esquema del tipo de funnel. */

@@ -384,6 +384,8 @@ Todos se validan con Zod al escribir.
   "fonts": { "heading": "Poppins", "body": "Inter" }, "style": "minimalista" }
 ```
 
+Cuando la persona elige una plantilla, `designSpec` lleva además `"template"` (`claridad`, `impacto`, `minimal`, `encuentro`, `recurso` o `agenda`); la paleta y las tipografías son opcionales y, si faltan, la plantilla usa las suyas.
+
 **`content`**: la página. Cada bloque tiene `key` (único), `type`, `order`, `content` (depende del tipo) y `style`. Tipos de bloque: encabezado, texto, imagen, video, formulario, botón, contador, precios, testimonios, faq, logos, beneficios, calendario, agenda y requisitos.
 
 ```json

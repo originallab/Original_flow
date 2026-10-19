@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { BLOCK_TYPES, validateBlockContent } from '../funnel-types/blocks.js';
+import { TEMPLATES } from '../funnel-types/templates.js';
 import { paginationQuerySchema } from '../lib/pagination.js';
 import { SLUG_PATTERN } from '../lib/slug.js';
 
@@ -99,6 +100,25 @@ export const patchBlockBodySchema = z
   .partial()
   .refine((body) => Object.keys(body).length > 0, 'debe enviar al menos un campo');
 export type PatchBlockBody = z.infer<typeof patchBlockBodySchema>;
+
+const hexColor = z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'debe ser un color hexadecimal como #0E7A63');
+
+/** Nombre de una tipografía. Solo letras, números y espacios: el front lo usa para cargar la fuente y en CSS. */
+const fontName = z.string().trim().regex(/^[A-Za-z0-9 ]{1,60}$/, 'solo letras, números y espacios');
+
+/**
+ * PUT /funnels/:id/design-spec: la plantilla, la paleta y las tipografías de la página.
+ * La paleta y las tipografías son opcionales: si faltan, la plantilla usa las suyas. Más
+ * adelante la IA llenará este mismo objeto.
+ */
+export const designSpecBodySchema = z.object({
+  template: z.enum(TEMPLATES),
+  palette: z
+    .object({ primary: hexColor, secondary: hexColor, accent: hexColor, background: hexColor, text: hexColor })
+    .optional(),
+  fonts: z.object({ heading: fontName, body: fontName }).optional(),
+});
+export type DesignSpecBody = z.infer<typeof designSpecBodySchema>;
 
 /** PUT /funnels/:id/type-config: la forma exacta depende del tipo de funnel. */
 export const typeConfigBodySchema = z.record(z.string(), z.unknown());
