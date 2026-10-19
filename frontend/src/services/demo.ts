@@ -1,4 +1,5 @@
-import { ApiError } from './apiError';
+import { asObject, fail, invalid, notFound, unauthorized, uuid, type DemoDb, type DemoWorkspace } from './demoCore';
+import { demoFunnelsRoute } from './demoFunnels';
 import type { Workspace } from './workspaces';
 
 /**
@@ -14,26 +15,13 @@ export const isDemoMode = () => import.meta.env.DEV && import.meta.env.VITE_DEMO
 
 const STORAGE_KEY = 'of-demo-db';
 
-interface DemoSession {
-  email: string;
-  name: string | null;
-  validated: boolean;
-}
-
-type DemoWorkspace = Workspace & { ownerEmail: string };
-
-interface DemoDb {
-  sessions: Record<string, DemoSession>;
-  workspaces: DemoWorkspace[];
-}
-
 interface DemoRequest {
   method: string;
   body?: unknown;
   token?: string | null;
 }
 
-const emptyDb = (): DemoDb => ({ sessions: {}, workspaces: [] });
+const emptyDb = (): DemoDb => ({ sessions: {}, workspaces: [], funnels: [] });
 
 // Copia en memoria por si el navegador no deja usar localStorage (por ejemplo, en una ventana privada).
 let memory: DemoDb | null = null;
@@ -56,14 +44,7 @@ function write(db: DemoDb) {
   }
 }
 
-const uuid = () => crypto.randomUUID();
-const fail = (status: number, code: string, message: string, details: unknown = {}) => new ApiError(status, code, message, details, 'req_demo');
-const unauthorized = () => fail(401, 'UNAUTHORIZED', 'Autenticación requerida o inválida');
-const notFound = () => fail(404, 'NOT_FOUND', 'Recurso no encontrado');
-const invalid = (details: { path: string; message: string }[]) => fail(422, 'VALIDATION_ERROR', 'Datos inválidos', details);
-
 const HEX = /^#[0-9A-Fa-f]{6}$/;
-const asObject = (body: unknown): Record<string, unknown> => (body && typeof body === 'object' ? (body as Record<string, unknown>) : {});
 
 /** Las mismas reglas del backend (schemas/workspace.schemas.ts) para el alta (`creating`) y la edición de un negocio. */
 function validateWorkspace(body: Record<string, unknown>, creating: boolean) {
@@ -98,7 +79,8 @@ const publicWorkspace = ({ ownerEmail: _owner, ...workspace }: DemoWorkspace): W
 
 /** Responde una petición como lo haría el backend. Lanza `ApiError` con el mismo formato que el real. */
 export async function demoRequest<T>(path: string, { method, body, token }: DemoRequest): Promise<T> {
-  const route = path.split('?')[0] ?? path;
+  const [route = path, queryText = ''] = path.split('?');
+  const query = new URLSearchParams(queryText);
   const db = read();
   const data = asObject(body);
 
@@ -191,6 +173,10 @@ export async function demoRequest<T>(path: string, { method, body, token }: Demo
     write(db);
     return respond(publicWorkspace(workspace));
   }
+
+  // Funnels (crear, listar, abrir, guardar contenido y diseño).
+  const funnelsAnswer = demoFunnelsRoute({ route, query, method, data, db, sessionOf, save: () => write(db) });
+  if (funnelsAnswer.handled) return respond(funnelsAnswer.value);
 
   throw notFound();
 }
