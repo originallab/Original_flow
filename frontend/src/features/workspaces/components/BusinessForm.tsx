@@ -1,9 +1,11 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { ApiError } from '@/services/api';
 import { Button } from '@/shared/ui/Button';
+import { Combobox } from '@/shared/ui/Combobox';
 import { TextField } from '@/shared/ui/TextField';
 import { cn } from '@/shared/utils/cn';
 import { INDUSTRIES, type BusinessValues } from '../brand';
+import { COUNTRY_OPTIONS } from '../countries';
 
 interface Props {
   initial: BusinessValues;
@@ -70,7 +72,7 @@ export function BusinessForm({ initial, submitLabel, onSubmit, readOnly = false,
       />
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <TextField label="País" value={values.country} onChange={(e) => set('country')(e.target.value)} error={errors.country} disabled={readOnly} maxLength={80} />
+        <Combobox label="País" options={COUNTRY_OPTIONS} value={values.country} onChange={set('country')} error={errors.country} disabled={readOnly} placeholder="Elige un país" />
         <TextField
           label="Sitio web (opcional)"
           value={values.website}
