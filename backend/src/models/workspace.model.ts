@@ -48,6 +48,19 @@ export function createWorkspaceModel(prisma: PrismaClient) {
       return prisma.workspace.findUnique({ where: { id }, select: PUBLIC_FIELDS });
     },
 
+    /**
+     * La configuración de pagos tal como está guardada (con la llave cifrada). Es solo para los
+     * servicios de pagos: nunca se devuelve por la API.
+     */
+    async findPaymentConfig(id: string): Promise<unknown> {
+      const row = await prisma.workspace.findUnique({ where: { id }, select: { paymentConfig: true } });
+      return row?.paymentConfig ?? null;
+    },
+
+    async setPaymentConfig(id: string, paymentConfig: Prisma.InputJsonValue): Promise<void> {
+      await prisma.workspace.update({ where: { id }, data: { paymentConfig } });
+    },
+
     /** ¿El workspace ya conectó Original Pay? Solo devuelve sí o no; la configuración nunca sale del modelo. */
     async hasPaymentsConnected(id: string): Promise<boolean> {
       const row = await prisma.workspace.findUnique({ where: { id }, select: { paymentConfig: true } });

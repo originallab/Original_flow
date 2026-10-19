@@ -9,7 +9,9 @@ import {
   memberParamsSchema,
   updateWorkspaceBodySchema,
 } from '../schemas/workspace.schemas.js';
+import { connectPaymentsBodySchema } from '../schemas/payments.schemas.js';
 import type { RequestContext } from '../services/auth.service.js';
+import type { PaymentsService } from '../services/payments.service.js';
 import type { WorkspaceService } from '../services/workspace.service.js';
 
 function contextOf(req: Request, requestId: string): RequestContext {
@@ -17,7 +19,7 @@ function contextOf(req: Request, requestId: string): RequestContext {
 }
 
 /** Workspaces y su equipo. Privado: la autenticación se declara una vez para todo el router. */
-export function createWorkspacesRouter(workspaces: WorkspaceService, requireAuth: RequestHandler): Router {
+export function createWorkspacesRouter(workspaces: WorkspaceService, payments: PaymentsService, requireAuth: RequestHandler): Router {
   const router = Router();
   router.use(requireAuth);
 
@@ -40,6 +42,17 @@ export function createWorkspacesRouter(workspaces: WorkspaceService, requireAuth
     const { id } = idParamsSchema.parse(req.params);
     const body = updateWorkspaceBodySchema.parse(req.body);
     res.json(await workspaces.update(getAuth(res).userId, id, body, contextOf(req, getRequestId(res))));
+  });
+
+  router.put('/:id/payments', async (req, res) => {
+    const { id } = idParamsSchema.parse(req.params);
+    const body = connectPaymentsBodySchema.parse(req.body);
+    res.json(await payments.connect(getAuth(res).userId, id, body, contextOf(req, getRequestId(res))));
+  });
+
+  router.get('/:id/payments', async (req, res) => {
+    const { id } = idParamsSchema.parse(req.params);
+    res.json(await payments.getStatus(getAuth(res).userId, id));
   });
 
   router.get('/:id/members', async (req, res) => {

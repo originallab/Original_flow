@@ -13,7 +13,9 @@ export type Action =
   | 'funnel:list'
   | 'funnel:edit'
   | 'funnel:delete'
-  | 'funnel:publish';
+  | 'funnel:publish'
+  | 'payments:manage'
+  | 'order:read';
 
 const PERMISSIONS: Record<Action, readonly MembershipRole[]> = {
   'workspace:read': ['super_admin', 'client_admin', 'marketing_manager', 'vendedor', 'disenador', 'analista'],
@@ -25,6 +27,9 @@ const PERMISSIONS: Record<Action, readonly MembershipRole[]> = {
   'funnel:delete': ['super_admin', 'client_admin'],
   // El diseñador edita pero no publica ni despublica.
   'funnel:publish': ['super_admin', 'client_admin', 'marketing_manager'],
+  // Conectar Original Pay (la llave del negocio): solo quien administra.
+  'payments:manage': ['super_admin', 'client_admin'],
+  'order:read': ['super_admin', 'client_admin', 'marketing_manager', 'vendedor', 'analista'],
 };
 
 export function can(role: MembershipRole, action: Action): boolean {
