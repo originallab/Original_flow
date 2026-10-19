@@ -15,7 +15,7 @@ Monorepo simple (decisión documentada en `docs/PROJECT_CONTEXT.md`):
 | Carpeta | Contenido |
 | --- | --- |
 | `backend/` | API en Node.js + TypeScript + Express + Zod + Prisma |
-| `frontend/` | React + Vite + Tailwind (todavía vacío) |
+| `frontend/` | React + TypeScript + Vite + Tailwind (base lista: tema claro/oscuro, logo, cliente de API) |
 | `docs/` | Documentación del proyecto. **Empieza por `docs/PROJECT_CONTEXT.md`** |
 
 El mapa completo de carpetas está en `docs/STRUCTURE.md`.
@@ -46,7 +46,14 @@ Requisitos: Node.js LTS, PNPM, Docker y Git.
    Comprueba que responde en `http://localhost:3000/health`.
 4. Otros comandos del backend: `pnpm test`, `pnpm typecheck`, `pnpm build`, `pnpm db:migrate` (crear una migración nueva al cambiar `schema.prisma`) y `pnpm db:studio`.
 5. Las pruebas de base de datos usan una base **real** y solo corren si defines `TEST_DATABASE_URL` (con las migraciones aplicadas). Usa una base de pruebas aparte, nunca la de desarrollo con datos que te importen.
-6. El frontend se agrega en pasos posteriores; este README se actualiza con cada uno.
+6. Arranca el frontend (con el backend corriendo en el puerto 3000):
+   ```bash
+   cd frontend && pnpm install
+   ```
+   ```bash
+   pnpm dev
+   ```
+   Se abre en `http://localhost:5173`; las llamadas a `/api` pasan por el servidor de Vite hacia el backend, así que no hay que configurar CORS para trabajar en local. Comandos: `pnpm test`, `pnpm typecheck`, `pnpm build`.
 
 ## Documentación
 

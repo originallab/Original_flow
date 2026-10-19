@@ -39,7 +39,21 @@ original_flow/
 │   │       ├── media-aas/
 │   │       └── ai-engine/
 │   └── tests/               pruebas con Vitest (config, app, errores, límite, esquema de datos, auth, /me, workspaces, tipos de funnel, funnels, publicación y captura pública); helpers/testApp.ts, db.ts y auth.ts
-├── frontend/                React + Vite + Tailwind (vacío hasta que empiece el frontend)
+├── frontend/                React + TypeScript + Vite + Tailwind (PNPM)
+│   ├── index.html           aplica el tema guardado antes de pintar (sin parpadeo)
+│   ├── vite.config.ts       Vite, Tailwind, alias @ y proxy de /api hacia el backend (puerto 3000)
+│   ├── .env.example         VITE_API_URL (solo variables VITE_*; nunca secretos)
+│   ├── public/              favicon (isotipo en morado)
+│   ├── src/
+│   │   ├── main.tsx, router.tsx   arranque y rutas (cada pieza del front registra aquí sus pantallas)
+│   │   ├── index.css        tokens de diseño claro/oscuro (docs/DESIGN.md) y tema de Tailwind
+│   │   ├── assets/brand/    logotipo completo en morado (original-flow-logo.png)
+│   │   ├── shared/          ui/ (Logo, ThemeToggle), theme/ (ThemeProvider) y utils/ (cn)
+│   │   ├── services/        un archivo por entidad del backend; api.ts es el cliente base
+│   │   ├── features/        un dominio autocontenido por carpeta (hooks + components)
+│   │   ├── layouts/         estructura visual sin lógica de negocio
+│   │   └── pages/           orquestadores de pantalla (BasePage es temporal)
+│   └── tests/               Vitest + Testing Library (logo, tema, tokens, cliente de API)
 └── docs/
     ├── PROJECT_CONTEXT.md   qué es, alcance, decisiones, stack, servicios y pendientes
     ├── ARCHITECTURE.md      arquitectura, modelo de datos y orden de construcción
