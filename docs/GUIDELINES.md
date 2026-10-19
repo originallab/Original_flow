@@ -80,6 +80,14 @@ Reglas específicas de este proyecto. Para lo general se remite al **project-pla
 - **Rutas privadas:** se declaran bajo `ProtectedRoute` una sola vez; sin sesión mandan a `/login` y recuerdan a dónde iba la persona. Si el servidor no responde, la sesión guardada no se borra y se ofrece reintentar; solo un `401` la descarta.
 - **Acceso simulado a Original Auth** (`VITE_AUTH_MODE=mock_callback`): solo en desarrollo y con credenciales inventadas. No debe existir en producción: una compilación de producción no incluye el código ni los valores (hay una comprobación manual en el cierre de la pieza y pruebas que lo protegen). Nunca se usan llaves reales en variables `VITE_*`.
 
+## Negocios en el frontend
+
+- **El negocio activo** sale de `useWorkspaces()` (`features/workspaces/`); las pantallas de la plataforma cuelgan de `RequireWorkspace`, que espera a la lista y manda a `/bienvenida` si la persona todavía no tiene ninguno. La elección se recuerda en `localStorage` (`of-workspace`): es una preferencia, no un dato sensible.
+- **Editar solo manda lo que cambió** (`diffWorkspace`): un campo opcional que se vacía se manda como `null` y, si no cambió nada, no hay llamada.
+- **Errores de validación (422):** `ApiError.fieldErrors()` convierte `details` en un mensaje por campo; cada formulario los muestra junto a su campo.
+- **Permisos en pantalla:** solo con `canManageWorkspace(role)` (`shared/utils/permissions.ts`). Es para decidir qué mostrar; el backend vuelve a comprobar todo.
+- **La marca del cliente** (paleta de 5 colores) se muestra con estilos en línea, porque no es parte de los tokens de la plataforma; la plataforma nunca se pinta con ella.
+
 ## Documentación
 
 - Existen y se mantienen vivos: `PROJECT_CONTEXT.md`, `ARCHITECTURE.md`, `STRUCTURE.md` y `GUIDELINES.md`, más `API_MVP.md` y `CLAUDE.md` en la raíz.

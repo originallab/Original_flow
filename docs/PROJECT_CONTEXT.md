@@ -170,7 +170,7 @@ Decisiones o datos que faltan y que bloquean partes concretas.
 | Anti-spam del formulario | El límite de 10 leads por minuto por IP no frena a un atacante con muchas IP ni a un robot que comparte la IP de una oficina. Falta decidir una protección adicional (por ejemplo un campo trampa o un captcha) | Antes de producción |
 | Descarga del recurso de un magnet | Hoy el servidor devuelve el `resourceFileId`; convertirlo en un enlace de descarga depende de Media-as-a-Service | Paso 9 |
 | Acceso real a Original Auth en el front | Falta el camino de redirección (`VITE_TOKEN_APP`, `/auth/return`, `/auth/error`, consulta repetida a `/auth/validate`) y probar con las credenciales reales y una URL pública para el callback | Cuando lleguen las credenciales |
-| Endpoint de diseño sin mezclar | `PUT /funnels/:id/design-spec` (plantilla, paleta y tipografías) está en la rama `feat/funnel-design-spec`, todavía no mezclada en `dev`; el wizard y el editor del front lo necesitan | Antes de la pieza de funnels del front |
+| Alta del negocio: logo y paleta con IA | El alta (3 pasos) ya permite editar la paleta a mano, pero todavía no sube el logo ni genera la paleta con IA (necesitan Media-as-a-Service y el AI Engine). Tampoco hay paso de equipo | Cuando se integren esos servicios |
 | Primer `super_admin` | No existe forma de crear el primero (no nace de ningún flujo); hace falta un procedimiento, por ejemplo un script de arranque | Administración de la plataforma |
 | Limpieza de sesiones | Las sesiones vencidas se rechazan pero no se borran; falta una tarea programada que las elimine | Antes de producción |
 | Escribir en los registros | Falta el servicio que escribe en `OperationLog` y `AuditLog` desde cada integración y acción sensible | Pasos 2 y 3 |

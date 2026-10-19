@@ -1,12 +1,9 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AuthProvider } from '@/features/auth/AuthProvider';
 import { sessionStore } from '@/features/auth/sessionStore';
-import { routes } from '@/router';
-import { ThemeProvider } from '@/shared/theme/ThemeProvider';
 import { createFakeBackend, stubMockEnv, type FakeBackend } from './helpers/fakeBackend';
+import { montar as montarApp } from './helpers/renderApp';
 
 let backend: FakeBackend;
 beforeEach(() => {
@@ -19,17 +16,7 @@ afterEach(() => {
   sessionStorage.clear();
 });
 
-function montar(ruta: string) {
-  const router = createMemoryRouter(routes, { initialEntries: [ruta] });
-  render(
-    <ThemeProvider>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
-    </ThemeProvider>,
-  );
-  return router;
-}
+const montar = (ruta: string) => montarApp(ruta).router;
 
 const escribir = async (campo: RegExp, texto: string) => {
   const input = screen.getByLabelText(campo);
@@ -92,7 +79,7 @@ describe('inicio de sesión (Original Auth simulado)', () => {
     expect(router.state.location.pathname).toBe('/');
     expect(sessionStore.get()).toMatch(/^[0-9a-f-]{36}$/);
     // El orden de llamadas es el del flujo real de Original Auth.
-    expect(backend.calls.map((c) => `${c.method} ${c.path}`)).toEqual(['GET /auth/session', 'POST /auth/callback', 'POST /auth/validate', 'GET /me']);
+    expect(backend.calls.map((c) => `${c.method} ${c.path}`)).toEqual(['GET /auth/session', 'POST /auth/callback', 'POST /auth/validate', 'GET /me', 'GET /workspaces']);
   });
 
   it('el token se guarda en sessionStorage y nunca en localStorage', async () => {
@@ -196,16 +183,10 @@ describe('reglas de diseño en las pantallas de acceso y de la plataforma', () =
 });
 
 describe('inicio', () => {
-  it('lista los negocios de la persona cuando los tiene', async () => {
-    backend.state.workspaces = [{ id: 'w1', name: 'Academia Nimbral', clientId: 'c1' }];
+  it('muestra el negocio con el que se está trabajando', async () => {
+    backend.state.workspaces[0]!.name = 'Academia Nimbral';
     sessionStore.set(backend.seedSession('ana@correo.com', 'Ana'));
     montar('/');
-    expect(await screen.findByText('Academia Nimbral')).toBeInTheDocument();
-  });
-
-  it('sin negocios avisa que el alta llega en la siguiente pieza', async () => {
-    sessionStore.set(backend.seedSession('ana@correo.com', 'Ana'));
-    montar('/');
-    expect(await screen.findByText(/todavía no tienes un negocio/i)).toBeInTheDocument();
+    expect(await screen.findByText('Academia Nimbral', { selector: 'strong' })).toBeInTheDocument();
   });
 });

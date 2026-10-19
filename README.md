@@ -15,7 +15,7 @@ Monorepo simple (decisión documentada en `docs/PROJECT_CONTEXT.md`):
 | Carpeta | Contenido |
 | --- | --- |
 | `backend/` | API en Node.js + TypeScript + Express + Zod + Prisma |
-| `frontend/` | React + TypeScript + Vite + Tailwind (base lista: tema claro/oscuro, logo, cliente de API) |
+| `frontend/` | React + TypeScript + Vite + Tailwind (tema claro/oscuro, logo, acceso, alta del negocio y «Mi negocio»; los funnels y el editor llegan en las siguientes piezas) |
 | `docs/` | Documentación del proyecto. **Empieza por `docs/PROJECT_CONTEXT.md`** |
 
 El mapa completo de carpetas está en `docs/STRUCTURE.md`.

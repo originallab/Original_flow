@@ -36,6 +36,7 @@ Backend: Node.js, TypeScript, Express, Zod, Prisma, PostgreSQL, Vitest, PNPM. Fr
 - Máximo ~500 líneas por archivo. Variables de entorno solo en `backend/src/config/`.
 - Toda entrada pasa por un schema Zod. Un recurso ajeno responde `404`, nunca `403`.
 - Los campos JSON se validan al escribir y se leen de forma defensiva.
+- Frontend: todo `fetch` vive en `services/`; los roles solo se comparan en `shared/utils/permissions.ts`; el token de sesión solo se toca en `features/auth/sessionStore.ts`; los colores de la plataforma salen de los tokens (la marca del cliente va en estilos en línea).
 
 ## Comandos
 
