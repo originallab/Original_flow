@@ -45,15 +45,15 @@ original_flow/
 │   ├── .env.example         VITE_API_URL (solo variables VITE_*; nunca secretos)
 │   ├── public/              favicon (isotipo en morado)
 │   ├── src/
-│   │   ├── main.tsx, router.tsx   arranque y rutas (cada pieza del front registra aquí sus pantallas)
+│   │   ├── main.tsx, router.tsx   arranque y rutas (las privadas cuelgan de ProtectedRoute; cada pieza registra aquí sus pantallas)
 │   │   ├── index.css        tokens de diseño claro/oscuro (docs/DESIGN.md) y tema de Tailwind
 │   │   ├── assets/brand/    logotipo completo en morado (original-flow-logo.png)
 │   │   ├── shared/          ui/ (Logo, ThemeToggle), theme/ (ThemeProvider) y utils/ (cn)
-│   │   ├── services/        un archivo por entidad del backend; api.ts es el cliente base
-│   │   ├── features/        un dominio autocontenido por carpeta (hooks + components)
-│   │   ├── layouts/         estructura visual sin lógica de negocio
-│   │   └── pages/           orquestadores de pantalla (BasePage es temporal)
-│   └── tests/               Vitest + Testing Library (logo, tema, tokens, cliente de API)
+│   │   ├── services/        un archivo por entidad del backend: api.ts (cliente base) y auth.ts (sesión, /me, acceso simulado)
+│   │   ├── features/auth/   AuthProvider (estado de sesión), ProtectedRoute y sessionStore (dónde vive el token)
+│   │   ├── layouts/         PlatformLayout: encabezado con el logo arriba a la izquierda, tema y cierre de sesión
+│   │   └── pages/           LoginPage y HomePage (temporal); orquestadores de pantalla
+│   └── tests/               Vitest + Testing Library (logo, tema, tokens, API, sesión y login); helpers/fakeBackend.ts simula el backend
 └── docs/
     ├── PROJECT_CONTEXT.md   qué es, alcance, decisiones, stack, servicios y pendientes
     ├── ARCHITECTURE.md      arquitectura, modelo de datos y orden de construcción
