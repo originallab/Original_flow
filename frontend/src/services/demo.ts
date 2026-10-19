@@ -1,0 +1,196 @@
+import { ApiError } from './apiError';
+import type { Workspace } from './workspaces';
+
+/**
+ * MODO DEMOSTRACIÓN: un «backend de mentira» que corre dentro del navegador para poder navegar por
+ * las pantallas sin servidor ni base de datos. Responde los mismos endpoints, con los mismos
+ * formatos y errores, que el backend real (docs/API_MVP.md), pero NO valida nada de verdad.
+ *
+ * - Solo existe en desarrollo y solo si `VITE_DEMO_MODE=true`: en una compilación de producción
+ *   Vite elimina este código (`import.meta.env.DEV` vale `false` allí).
+ * - Los datos se guardan en este navegador (`localStorage`, clave `of-demo-db`); no van a ningún lado.
+ */
+export const isDemoMode = () => import.meta.env.DEV && import.meta.env.VITE_DEMO_MODE === 'true';
+
+const STORAGE_KEY = 'of-demo-db';
+
+interface DemoSession {
+  email: string;
+  name: string | null;
+  validated: boolean;
+}
+
+type DemoWorkspace = Workspace & { ownerEmail: string };
+
+interface DemoDb {
+  sessions: Record<string, DemoSession>;
+  workspaces: DemoWorkspace[];
+}
+
+interface DemoRequest {
+  method: string;
+  body?: unknown;
+  token?: string | null;
+}
+
+const emptyDb = (): DemoDb => ({ sessions: {}, workspaces: [] });
+
+// Copia en memoria por si el navegador no deja usar localStorage (por ejemplo, en una ventana privada).
+let memory: DemoDb | null = null;
+
+function read(): DemoDb {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? { ...emptyDb(), ...(JSON.parse(raw) as Partial<DemoDb>) } : emptyDb();
+  } catch {
+    return memory ?? emptyDb();
+  }
+}
+
+function write(db: DemoDb) {
+  memory = db;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  } catch {
+    // Sin almacenamiento: los datos duran lo que dure esta carga de la página.
+  }
+}
+
+const uuid = () => crypto.randomUUID();
+const fail = (status: number, code: string, message: string, details: unknown = {}) => new ApiError(status, code, message, details, 'req_demo');
+const unauthorized = () => fail(401, 'UNAUTHORIZED', 'Autenticación requerida o inválida');
+const notFound = () => fail(404, 'NOT_FOUND', 'Recurso no encontrado');
+const invalid = (details: { path: string; message: string }[]) => fail(422, 'VALIDATION_ERROR', 'Datos inválidos', details);
+
+const HEX = /^#[0-9A-Fa-f]{6}$/;
+const asObject = (body: unknown): Record<string, unknown> => (body && typeof body === 'object' ? (body as Record<string, unknown>) : {});
+
+/** Las mismas reglas del backend (schemas/workspace.schemas.ts) para el alta (`creating`) y la edición de un negocio. */
+function validateWorkspace(body: Record<string, unknown>, creating: boolean) {
+  const errors: { path: string; message: string }[] = [];
+  const text = (key: string, max: number, nullable: boolean) => {
+    const value = body[key];
+    if (value === undefined) {
+      if (creating && key === 'name') errors.push({ path: key, message: 'Requerido' });
+      return;
+    }
+    if (value === null && nullable) return;
+    if (typeof value !== 'string' || value.trim() === '' || value.trim().length > max) {
+      errors.push({ path: key, message: `Debe tener entre 1 y ${max} caracteres` });
+    }
+  };
+  text('name', 120, false);
+  text('country', 80, !creating);
+  text('website', 200, !creating);
+  text('industry', 80, !creating);
+  const palette = body.brandPalette;
+  if (palette !== undefined && palette !== null) {
+    for (const key of ['primary', 'secondary', 'accent', 'background', 'text']) {
+      const value = asObject(palette)[key];
+      if (typeof value !== 'string' || !HEX.test(value)) errors.push({ path: `brandPalette.${key}`, message: 'debe ser un color hexadecimal como #0E7A63' });
+    }
+  }
+  if (!creating && Object.keys(body).length === 0) errors.push({ path: '', message: 'debe enviar al menos un campo' });
+  return errors;
+}
+
+const publicWorkspace = ({ ownerEmail: _owner, ...workspace }: DemoWorkspace): Workspace => workspace;
+
+/** Responde una petición como lo haría el backend. Lanza `ApiError` con el mismo formato que el real. */
+export async function demoRequest<T>(path: string, { method, body, token }: DemoRequest): Promise<T> {
+  const route = path.split('?')[0] ?? path;
+  const db = read();
+  const data = asObject(body);
+
+  const sessionOf = () => {
+    const session = token ? db.sessions[token] : undefined;
+    if (!session?.validated) throw unauthorized();
+    return session;
+  };
+  const respond = (value: unknown) => value as T;
+
+  if (route === '/auth/session' && method === 'GET') {
+    const session = uuid();
+    db.sessions[session] = { email: '', name: null, validated: false };
+    write(db);
+    return respond({ session });
+  }
+
+  if (route === '/auth/callback' && method === 'POST') {
+    const session = db.sessions[String(data.session)];
+    if (!session) return respond({ validated: 0 });
+    Object.assign(session, { email: String(data.email ?? ''), name: data.name ? String(data.name) : null, validated: true });
+    write(db);
+    return respond({ validated: 1 });
+  }
+
+  if (route === '/auth/validate' && method === 'POST') {
+    const session = db.sessions[String(data.session)];
+    if (!session?.validated) return respond({ validated: 0 });
+    return respond({ validated: 1, userId: `demo-${session.email}`, email: session.email, profileComplete: false });
+  }
+
+  if (route === '/me' && method === 'GET') {
+    const session = sessionOf();
+    const own = db.workspaces.filter((w) => w.ownerEmail === session.email);
+    return respond({
+      user: { id: `demo-${session.email}`, email: session.email, name: session.name },
+      memberships: own.map((w) => ({ id: `m-${w.id}`, role: 'client_admin', clientId: w.clientId, workspaceId: w.id })),
+      workspaces: own.map(({ id, name, clientId }) => ({ id, name, clientId })),
+    });
+  }
+
+  if (route.startsWith('/auth/session/') && method === 'DELETE') {
+    delete db.sessions[decodeURIComponent(route.slice('/auth/session/'.length))];
+    write(db);
+    return respond(undefined);
+  }
+
+  if (route === '/workspaces' && method === 'GET') {
+    const session = sessionOf();
+    const items = db.workspaces.filter((w) => w.ownerEmail === session.email).map(publicWorkspace);
+    return respond({ items, total: items.length, page: 1, pageSize: 100 });
+  }
+
+  if (route === '/workspaces' && method === 'POST') {
+    const session = sessionOf();
+    const errors = validateWorkspace(data, true);
+    if (errors.length > 0) throw invalid(errors);
+    const trimmed = (key: string) => (typeof data[key] === 'string' ? (data[key] as string).trim() : null);
+    const existing = db.workspaces.find((w) => w.ownerEmail === session.email);
+    const workspace: DemoWorkspace = {
+      id: uuid(),
+      clientId: existing?.clientId ?? uuid(),
+      name: trimmed('name') ?? '',
+      country: trimmed('country'),
+      website: trimmed('website'),
+      industry: trimmed('industry'),
+      logoFileId: null,
+      brandPalette: null,
+      createdAt: new Date().toISOString(),
+      role: 'client_admin',
+      ownerEmail: session.email,
+    };
+    db.workspaces.push(workspace);
+    write(db);
+    return respond(publicWorkspace(workspace));
+  }
+
+  const one = /^\/workspaces\/([^/]+)$/.exec(route);
+  if (one && method === 'PATCH') {
+    const session = sessionOf();
+    const workspace = db.workspaces.find((w) => w.id === decodeURIComponent(one[1] ?? '') && w.ownerEmail === session.email);
+    if (!workspace) throw notFound();
+    const errors = validateWorkspace(data, false);
+    if (errors.length > 0) throw invalid(errors);
+    for (const key of ['name', 'country', 'website', 'industry', 'logoFileId'] as const) {
+      const value = data[key];
+      if (value !== undefined) workspace[key] = typeof value === 'string' ? value.trim() : (null as never);
+    }
+    if (data.brandPalette !== undefined) workspace.brandPalette = data.brandPalette as Workspace['brandPalette'];
+    write(db);
+    return respond(publicWorkspace(workspace));
+  }
+
+  throw notFound();
+}

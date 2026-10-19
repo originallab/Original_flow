@@ -2,11 +2,10 @@ import { useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { LoginError, useAuth } from '@/features/auth/AuthProvider';
 import { ApiError } from '@/services/api';
+import { isMockAuth } from '@/services/auth';
+import { isDemoMode } from '@/services/demo';
 import { Logo } from '@/shared/ui/Logo';
 import { ThemeToggle } from '@/shared/ui/ThemeToggle';
-
-/** ¿Está activo el acceso simulado a Original Auth? Solo en desarrollo y solo si se pidió con VITE_AUTH_MODE. */
-const isMockAuth = () => import.meta.env.DEV && import.meta.env.VITE_AUTH_MODE === 'mock_callback';
 
 function messageFor(err: unknown): string {
   if (err instanceof LoginError) return err.message;
@@ -56,10 +55,12 @@ export function LoginPage() {
           <h1 className="font-heading text-2xl font-semibold">Inicia sesión</h1>
           <p className="mt-2 text-sm text-text-2">Accede a tu cuenta de Original Flow con Original Auth.</p>
 
-          {isMockAuth() ? (
+          {import.meta.env.DEV && isMockAuth() ? (
             <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
               <p className="rounded-lg border border-violet-tint-border bg-violet-tint px-3 py-2 text-xs text-violet-tint-text">
-                Modo de desarrollo: Original Auth está simulado. Entra con cualquier correo.
+                {isDemoMode()
+                  ? 'Modo demostración: no hace falta el servidor. Entra con cualquier correo; lo que hagas se guarda solo en este navegador.'
+                  : 'Modo de desarrollo: Original Auth está simulado. Entra con cualquier correo.'}
               </p>
 
               <label className="block text-sm">

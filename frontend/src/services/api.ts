@@ -2,34 +2,12 @@
  * Cliente de la API del backend. Todo `fetch` de la aplicación pasa por aquí (nunca desde un
  * componente): cada entidad tiene su archivo en services/ y lo consumen solo los hooks.
  */
+import { ApiError } from './apiError';
+import { demoRequest, isDemoMode } from './demo';
+
 const BASE_URL: string = import.meta.env.VITE_API_URL ?? '/api/v1';
 
-/** Error de la API con el formato del backend: { success:false, error:{ code, message, details }, requestId }. */
-export class ApiError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly code: string,
-    message: string,
-    public readonly details: unknown = {},
-    public readonly requestId?: string,
-  ) {
-    super(message);
-    this.name = 'ApiError';
-  }
-
-  /**
-   * Los errores de validación del backend (422) traen `details: [{ path, message }]`. Devuelve el
-   * mensaje de cada campo, por ejemplo `{ name: '...', 'brandPalette.primary': '...' }`.
-   */
-  fieldErrors(): Record<string, string> {
-    if (!Array.isArray(this.details)) return {};
-    const errors: Record<string, string> = {};
-    for (const item of this.details as { path?: unknown; message?: unknown }[]) {
-      if (typeof item?.path === 'string' && typeof item.message === 'string' && !(item.path in errors)) errors[item.path] = item.message;
-    }
-    return errors;
-  }
-}
+export { ApiError };
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -40,6 +18,10 @@ interface RequestOptions {
 }
 
 export async function apiFetch<T>(path: string, { method = 'GET', body, token, signal }: RequestOptions = {}): Promise<T> {
+  // Modo demostración (solo en desarrollo): responde la propia aplicación, sin servidor.
+  // El `import.meta.env.DEV` explícito permite que Vite elimine todo esto de la compilación de producción.
+  if (import.meta.env.DEV && isDemoMode()) return demoRequest<T>(path, { method, body, token });
+
   let response: Response;
   try {
     response = await fetch(`${BASE_URL}${path}`, {
@@ -62,6 +44,10 @@ export async function apiFetch<T>(path: string, { method = 'GET', body, token, s
   const data: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const envelope = data as { error?: { code?: string; message?: string; details?: unknown }; requestId?: string } | null;
+    // 502/503/504 sin el formato del backend: el servidor no está (por ejemplo, el proxy de desarrollo sin backend detrás).
+    if (!envelope?.error && [502, 503, 504].includes(response.status)) {
+      throw new ApiError(response.status, 'SERVER_UNAVAILABLE', 'No se pudo conectar con el servidor. Intenta de nuevo en un momento.');
+    }
     throw new ApiError(
       response.status,
       envelope?.error?.code ?? 'UNKNOWN_ERROR',
