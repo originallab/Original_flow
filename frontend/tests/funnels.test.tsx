@@ -1,8 +1,8 @@
-import { screen, within } from '@testing-library/react';
+import { createEvent, fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sessionStore } from '@/features/auth/sessionStore';
-import { GOALS, SAMPLE_FUNNELS, TEMPLATES, WIZARD_STEPS } from '@/features/funnels/catalog';
+import { GOALS, SAMPLE_FUNNELS, TEMPLATES, TONES, WIZARD_STEPS } from '@/features/funnels/catalog';
 import { createFakeBackend, stubMockEnv, type FakeBackend } from './helpers/fakeBackend';
 import { montar } from './helpers/renderApp';
 
@@ -119,21 +119,96 @@ describe('asistente de creación (cáscara)', () => {
     expect(screen.getByRole('radio', { name: 'Claridad' })).not.toBeChecked();
   });
 
-  it('el resumen refleja lo elegido y lo escrito', async () => {
+  it('el resumen refleja lo elegido y todo lo escrito en el formulario', async () => {
     montar('/funnels/nuevo');
     await userEvent.click(await screen.findByRole('radio', { name: 'Lead magnet' }));
     await continuar();
     await userEvent.type(await screen.findByLabelText(/nombre del funnel/i), 'Guía de plantillas');
     await userEvent.type(screen.getByLabelText(/qué ofreces/i), 'Un pack de 10 plantillas');
+    await userEvent.type(screen.getByLabelText(/qué resultado obtiene/i), 'Ahorra 5 horas a la semana');
+    await userEvent.type(screen.getByLabelText(/precio u oferta/i), 'Gratis');
     await userEvent.type(screen.getByLabelText(/a quién va dirigido/i), 'Freelancers');
+    await userEvent.type(screen.getByLabelText(/dudas u objeciones/i), 'No tengo tiempo');
+    await userEvent.click(screen.getByRole('radio', { name: 'Directo' }));
+    await userEvent.type(screen.getByLabelText(/texto del botón principal/i), 'Quiero mi guía');
+    await userEvent.type(screen.getByLabelText(/instrucciones adicionales/i), 'Evita la palabra «barato»');
     await continuar();
     await userEvent.click(await screen.findByRole('radio', { name: 'Recurso' }));
     await continuar();
     await screen.findByRole('heading', { name: /todo listo/i });
     const resumen = screen.getByText('Objetivo', { selector: 'dt' }).closest('dl')!;
-    for (const texto of ['Lead magnet', 'Guía de plantillas', 'Un pack de 10 plantillas', 'Freelancers', 'Recurso · Lead magnet']) {
+    for (const texto of [
+      'Lead magnet',
+      'Guía de plantillas',
+      'Un pack de 10 plantillas',
+      'Ahorra 5 horas a la semana',
+      'Gratis',
+      'Freelancers',
+      'No tengo tiempo',
+      'Directo',
+      'Quiero mi guía',
+      'Evita la palabra «barato»',
+      'Recurso · Lead magnet',
+    ]) {
       expect(within(resumen).getByText(texto)).toBeInTheDocument();
     }
+    expect(within(resumen).queryByText('Sin definir')).not.toBeInTheDocument();
+  });
+
+  it('el paso 2 es un formulario con las instrucciones para la IA, organizado en secciones', async () => {
+    montar('/funnels/nuevo');
+    await screen.findByRole('heading', { name: /qué quieres lograr/i });
+    await continuar();
+    const formulario = await screen.findByRole('form', { name: /instrucciones para la ia/i });
+    expect(screen.getByText(/instrucciones que usará la ia/i)).toBeInTheDocument();
+    for (const seccion of ['Tu producto', 'Tu público', 'Cómo debe sonar tu página']) {
+      expect(within(formulario).getByRole('heading', { name: seccion })).toBeInTheDocument();
+    }
+    for (const campo of [/nombre del funnel/i, /qué ofreces/i, /qué resultado obtiene/i, /precio u oferta/i, /a quién va dirigido/i, /dudas u objeciones/i, /texto del botón principal/i, /instrucciones adicionales/i]) {
+      expect(within(formulario).getByLabelText(campo)).toHaveValue('');
+    }
+    expect(within(formulario).getAllByRole('radio').map((r) => r.getAttribute('value'))).toEqual(TONES.map((t) => t.id));
+  });
+
+  it('el tono «Cercano» viene elegido y se puede cambiar (uno solo a la vez)', async () => {
+    montar('/funnels/nuevo');
+    await screen.findByRole('heading', { name: /qué quieres lograr/i });
+    await continuar();
+    expect(await screen.findByRole('radio', { name: 'Cercano' })).toBeChecked();
+    await userEvent.click(screen.getByRole('radio', { name: 'Profesional' }));
+    expect(screen.getByRole('radio', { name: 'Profesional' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'Cercano' })).not.toBeChecked();
+  });
+
+  it('Enter dentro del formulario no recarga la pantalla ni cambia de paso', async () => {
+    montar('/funnels/nuevo');
+    await screen.findByRole('heading', { name: /qué quieres lograr/i });
+    await continuar();
+    await userEvent.type(await screen.findByLabelText(/nombre del funnel/i), 'Mi funnel{Enter}');
+    expect(screen.getByLabelText(/nombre del funnel/i)).toHaveValue('Mi funnel');
+    expect(screen.getByText('Paso 2 de 4')).toBeInTheDocument();
+  });
+
+  it('enviar el formulario se cancela (no recarga la página)', async () => {
+    montar('/funnels/nuevo');
+    await screen.findByRole('heading', { name: /qué quieres lograr/i });
+    await continuar();
+    const formulario = await screen.findByRole('form', { name: /instrucciones para la ia/i });
+    const envio = createEvent.submit(formulario);
+    fireEvent(formulario, envio);
+    expect(envio.defaultPrevented).toBe(true);
+  });
+
+  it('un texto largo con saltos de línea se conserva en el formulario y en el resumen', async () => {
+    montar('/funnels/nuevo');
+    await screen.findByRole('heading', { name: /qué quieres lograr/i });
+    await continuar();
+    await userEvent.type(await screen.findByLabelText(/instrucciones adicionales/i), 'Primera línea{Enter}Segunda línea');
+    expect(screen.getByLabelText(/instrucciones adicionales/i)).toHaveValue('Primera línea\nSegunda línea');
+    await continuar();
+    await continuar();
+    const dd = (await screen.findByText(/Primera línea/)).closest('dd')!;
+    expect(dd).toHaveClass('whitespace-pre-line');
   });
 
   it('lo que no se llenó aparece como «Sin definir» en el resumen, sin errores', async () => {
@@ -143,7 +218,8 @@ describe('asistente de creación (cáscara)', () => {
     await continuar();
     await continuar();
     expect(await screen.findByText('Sin nombre')).toBeInTheDocument();
-    expect(screen.getAllByText('Sin definir')).toHaveLength(2);
+    expect(screen.getAllByText('Sin definir')).toHaveLength(7);
+    expect(screen.getByText('Cercano')).toBeInTheDocument(); // el tono ya viene elegido
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 

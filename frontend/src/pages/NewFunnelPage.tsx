@@ -1,18 +1,17 @@
 import { ArrowLeft, ArrowUpRight, Info, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GOALS, TEMPLATES, WIZARD_STEPS } from '@/features/funnels/catalog';
+import { EMPTY_BRIEF, GOALS, TEMPLATES, TONES, WIZARD_STEPS } from '@/features/funnels/catalog';
+import { BriefForm } from '@/features/funnels/components/BriefForm';
 import { ChoiceCard } from '@/features/funnels/components/ChoiceCard';
 import { TemplateThumb } from '@/features/funnels/components/TemplateThumb';
 import { WizardRail } from '@/features/funnels/components/WizardRail';
 import { Button } from '@/shared/ui/Button';
-import { TextAreaField } from '@/shared/ui/TextAreaField';
-import { TextField } from '@/shared/ui/TextField';
 import { cn } from '@/shared/utils/cn';
 
 const HEADINGS = [
   { title: '¿Qué quieres lograr con este funnel?', text: 'Elige el objetivo principal. Vas a poder ajustar cada detalle más adelante, incluyendo con ayuda de Original AI Engine.' },
-  { title: 'Cuéntanos de tu producto y tu público', text: 'Con esto la IA entiende qué ofreces y a quién se lo ofreces.' },
+  { title: 'Cuéntanos de tu producto y tu público', text: 'Este formulario son las instrucciones que usará la IA para armar tu página. Entre más detalle des, mejor saldrá.' },
   { title: 'Elige una plantilla', text: 'Un punto de partida ya diseñado. Lo personalizas con la marca de tu negocio.' },
   { title: 'Todo listo para generar tu funnel', text: 'Revisa el resumen. Podrás cambiar cualquier cosa en el editor.' },
 ];
@@ -27,9 +26,7 @@ export function NewFunnelPage() {
   const [step, setStep] = useState(0);
   const [goalId, setGoalId] = useState(GOALS[0]!.id);
   const [templateId, setTemplateId] = useState(TEMPLATES[0]!.id);
-  const [name, setName] = useState('');
-  const [offer, setOffer] = useState('');
-  const [audience, setAudience] = useState('');
+  const [brief, setBrief] = useState(EMPTY_BRIEF);
 
   const last = step === WIZARD_STEPS.length - 1;
   const goal = GOALS.find((g) => g.id === goalId)!;
@@ -67,11 +64,7 @@ export function NewFunnelPage() {
             )}
 
             {step === 1 && (
-              <div className="max-w-xl space-y-5">
-                <TextField label="Nombre del funnel" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Curso de Excel · Inscripción" maxLength={120} />
-                <TextAreaField label="¿Qué ofreces?" value={offer} onChange={(e) => setOffer(e.target.value)} placeholder="Describe tu producto o servicio en pocas líneas." />
-                <TextAreaField label="¿A quién va dirigido?" value={audience} onChange={(e) => setAudience(e.target.value)} placeholder="Tu cliente ideal: quién es y qué problema tiene." />
-              </div>
+              <BriefForm value={brief} onChange={setBrief} />
             )}
 
             {step === 2 && (
@@ -92,14 +85,20 @@ export function NewFunnelPage() {
                 <dl className="divide-y divide-border rounded-xl border border-border bg-surface">
                   {[
                     ['Objetivo', goal.name],
-                    ['Nombre del funnel', name.trim() || 'Sin nombre'],
-                    ['Qué ofreces', offer.trim() || 'Sin definir'],
-                    ['Público', audience.trim() || 'Sin definir'],
+                    ['Nombre del funnel', brief.name.trim() || 'Sin nombre'],
+                    ['Qué ofreces', brief.offer.trim() || 'Sin definir'],
+                    ['Resultado para tu cliente', brief.result.trim() || 'Sin definir'],
+                    ['Precio u oferta', brief.price.trim() || 'Sin definir'],
+                    ['Público', brief.audience.trim() || 'Sin definir'],
+                    ['Dudas u objeciones', brief.objections.trim() || 'Sin definir'],
+                    ['Tono', TONES.find((t) => t.id === brief.tone)?.name ?? 'Sin definir'],
+                    ['Botón principal', brief.cta.trim() || 'Sin definir'],
+                    ['Instrucciones adicionales', brief.extra.trim() || 'Sin definir'],
                     ['Plantilla', `${template.name} · ${template.tag}`],
                   ].map(([term, value]) => (
                     <div key={term} className="grid gap-1 px-5 py-3 sm:grid-cols-[10rem_1fr]">
                       <dt className="text-sm text-muted">{term}</dt>
-                      <dd className="text-sm">{value}</dd>
+                      <dd className="whitespace-pre-line break-words text-sm">{value}</dd>
                     </div>
                   ))}
                 </dl>

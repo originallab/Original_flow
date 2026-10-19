@@ -88,6 +88,8 @@ Reglas específicas de este proyecto. Para lo general se remite al **project-pla
 - **Editar solo manda lo que cambió** (`diffWorkspace`): un campo opcional que se vacía se manda como `null` y, si no cambió nada, no hay llamada.
 - **Errores de validación (422):** `ApiError.fieldErrors()` convierte `details` en un mensaje por campo; cada formulario los muestra junto a su campo.
 - **Permisos en pantalla:** solo con `canManageWorkspace(role)` (`shared/utils/permissions.ts`). Es para decidir qué mostrar; el backend vuelve a comprobar todo.
+- **País:** se elige en un `Combobox` (`shared/ui/Combobox.tsx`, patrón ARIA) con la lista de `features/workspaces/countries.ts`; se guarda el nombre en español. Un valor antiguo que no esté en la lista se muestra tal cual hasta que se elija otro.
+- **Imagen de la marca:** `useLogoFile` la guarda solo en el navegador (sin subirla) y libera la dirección temporal al cambiarla o salir. Tipos PNG, JPG, WebP o SVG, hasta 5 MB. «Sugerir paleta con IA» es hoy una maqueta con una paleta de ejemplo; se conecta a Original AI Engine y a Media-as-a-Service más adelante.
 - **La marca del cliente** (paleta de 5 colores) se muestra con estilos en línea, porque no es parte de los tokens de la plataforma; la plataforma nunca se pinta con ella.
 
 ## Documentación

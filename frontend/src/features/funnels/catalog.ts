@@ -24,6 +24,29 @@ export const GOALS: Goal[] = [
   { id: 'custom', name: 'Funnel libre', description: 'Arma un flujo completamente personalizado.', icon: Shuffle },
 ];
 
+/** Lo que la persona le cuenta a la IA sobre su producto, su público y cómo debe sonar la página. */
+export interface Brief {
+  name: string;
+  offer: string;
+  result: string;
+  price: string;
+  audience: string;
+  objections: string;
+  tone: string;
+  cta: string;
+  extra: string;
+}
+
+export const TONES = [
+  { id: 'cercano', name: 'Cercano' },
+  { id: 'profesional', name: 'Profesional' },
+  { id: 'inspirador', name: 'Inspirador' },
+  { id: 'directo', name: 'Directo' },
+  { id: 'divertido', name: 'Divertido' },
+] as const;
+
+export const EMPTY_BRIEF: Brief = { name: '', offer: '', result: '', price: '', audience: '', objections: '', tone: TONES[0].id, cta: '', extra: '' };
+
 export interface Template {
   id: string;
   name: string;
