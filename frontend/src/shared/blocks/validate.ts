@@ -32,6 +32,7 @@ function checkField(def: FieldDef, value: unknown, path: (string | number)[], is
       const trimmed = value.trim();
       if (trimmed === '') return add(def.required ? 'Este campo es obligatorio.' : 'No puede quedar vacío.');
       if (trimmed.length > def.max) return add(`Máximo ${def.max} caracteres.`);
+      if (def.min !== undefined && trimmed.length < def.min) return add(`Mínimo ${def.min} caracteres.`);
       if (def.pattern && !def.pattern.regex.test(trimmed)) return add(def.pattern.message);
       return;
     }

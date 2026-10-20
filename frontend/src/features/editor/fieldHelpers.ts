@@ -38,3 +38,17 @@ export function moveItem<T>(items: T[], index: number, delta: number): T[] {
   [next[index], next[target]] = [next[target]!, next[index]!];
   return next;
 }
+
+/** ¿Tienen el mismo contenido? (sin importar el orden de las claves de los objetos). */
+export function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  return keysA.every((key) => key in b && deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
+}
+
+/** Una copia profunda de datos JSON. */
+export const cloneJson = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;

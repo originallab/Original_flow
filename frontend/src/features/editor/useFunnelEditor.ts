@@ -17,7 +17,7 @@ import { AUTOSAVE_DELAY_MS } from './constants';
  * - error: no se pudo guardar (por ejemplo, sin conexión); se puede reintentar.
  */
 export type SaveStatus = 'saved' | 'dirty' | 'saving' | 'invalid' | 'error';
-export type LoadStatus = 'loading' | 'ready' | 'error' | 'notfound';
+export type LoadStatus = 'loading' | 'ready' | 'error' | 'notfound' | 'forbidden';
 
 /** Mensajes de error por bloque y por campo: `{ 'encabezado': { title: '…' } }`. */
 export type BlockErrors = Record<string, Record<string, string>>;
@@ -66,6 +66,8 @@ export function useFunnelEditor(funnelId: string) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [status, setStatusState] = useState<SaveStatus>('saved');
   const [serverIssues, setServerIssues] = useState<Issue[]>([]);
+  /** Sube cada vez que el contenido se guarda (para refrescar lo que depende de él, como los CTA). */
+  const [contentVersion, setContentVersion] = useState(0);
 
   const latest = useRef<Block[]>([]);
   const statusRef = useRef<SaveStatus>('saved');
@@ -106,7 +108,8 @@ export function useFunnelEditor(funnelId: string) {
         setLoad('ready');
       })
       .catch((err: unknown) => {
-        if (!cancelled) setLoad(err instanceof ApiError && err.status === 404 ? 'notfound' : 'error');
+        if (cancelled) return;
+        setLoad(err instanceof ApiError && err.status === 404 ? 'notfound' : err instanceof ApiError && err.status === 403 ? 'forbidden' : 'error');
       });
     return () => {
       cancelled = true;
@@ -149,6 +152,7 @@ export function useFunnelEditor(funnelId: string) {
     } else {
       setStatus('saved');
     }
+    if (alive.current) setContentVersion((version) => version + 1);
   }, [funnelId, setStatus]);
 
   const commit = useCallback(
@@ -226,6 +230,21 @@ export function useFunnelEditor(funnelId: string) {
     [commit],
   );
 
+  /**
+   * Guarda ya lo que esté pendiente. Devuelve `true` si todo quedó guardado y `false` si hay campos con
+   * errores o no se pudo guardar (por ejemplo, para no publicar una página a medias).
+   */
+  const saveNow = useCallback(async (): Promise<boolean> => {
+    clearTimeout(timer.current);
+    for (let waited = 0; statusRef.current === 'saving' && waited < 5000; waited += 25) await new Promise((resolve) => setTimeout(resolve, 25));
+    if (statusRef.current === 'dirty' || statusRef.current === 'error') await flush();
+    for (let waited = 0; statusRef.current === 'saving' && waited < 5000; waited += 25) await new Promise((resolve) => setTimeout(resolve, 25));
+    return statusRef.current === 'saved';
+  }, [flush]);
+
+  /** Pone al día los datos del funnel (nombre, dirección, estado, ajustes…) sin tocar los bloques que se están editando. */
+  const applyFunnel = useCallback((updated: Funnel) => setFunnel((previous) => ({ ...updated, content: previous?.content ?? updated.content })), []);
+
   const errors = useMemo(() => collectErrors(blocks, serverIssues), [blocks, serverIssues]);
 
   return {
@@ -242,5 +261,8 @@ export function useFunnelEditor(funnelId: string) {
     removeBlock,
     moveBlock,
     retrySave: () => void flush(),
+    saveNow,
+    applyFunnel,
+    contentVersion,
   };
 }

@@ -9,6 +9,7 @@ import { EditorPage } from '@/pages/EditorPage';
 import { FunnelsPage } from '@/pages/FunnelsPage';
 import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
+import { NotFoundPage } from '@/pages/NotFoundPage';
 import { NewFunnelPage } from '@/pages/NewFunnelPage';
 import { OnboardingPage } from '@/pages/OnboardingPage';
 
@@ -41,6 +42,8 @@ export const routes: RouteObject[] = [
       },
     ],
   },
+  // Cualquier otra dirección.
+  { path: '*', element: <NotFoundPage /> },
 ];
 
 export const router = createBrowserRouter(routes);

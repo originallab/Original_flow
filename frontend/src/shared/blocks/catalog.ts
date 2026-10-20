@@ -7,7 +7,7 @@ import type { BlockType, Issue } from './types';
  */
 
 export type FieldDef =
-  | { kind: 'text'; key: string; label: string; max: number; required?: boolean; multiline?: boolean; hint?: string; pattern?: { regex: RegExp; message: string } }
+  | { kind: 'text'; key: string; label: string; max: number; /** Largo mínimo (por defecto, uno). */ min?: number; required?: boolean; multiline?: boolean; hint?: string; pattern?: { regex: RegExp; message: string } }
   | { kind: 'url'; key: string; label: string; required?: boolean; hint?: string }
   | { kind: 'datetime'; key: string; label: string; required?: boolean }
   | { kind: 'number'; key: string; label: string; min: number; max?: number; integer?: boolean; required?: boolean; hint?: string }

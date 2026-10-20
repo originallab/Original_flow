@@ -54,6 +54,17 @@ export function FieldEditor({ def, value, onChange, errors, path, parent }: Prop
         </div>
       );
 
+    case 'group':
+      return (
+        <fieldset className="space-y-4 rounded-xl border border-border bg-surface-2 p-3">
+          <legend className="px-1 text-sm font-medium">{def.label}</legend>
+          {def.fields.map((field) => {
+            const group = typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+            return <FieldEditor key={field.key} def={field} value={group[field.key]} onChange={(next) => onChange(withKey(group, field.key, next))} errors={errors} path={`${path}.${field.key}`} parent={group} />;
+          })}
+        </fieldset>
+      );
+
     case 'number':
       return (
         <div className="text-sm">
@@ -64,13 +75,14 @@ export function FieldEditor({ def, value, onChange, errors, path, parent }: Prop
             id={id}
             type="number"
             min={def.min}
-            step="any"
+            max={def.max}
+            step={def.integer ? 1 : 'any'}
             value={typeof value === 'number' ? value : ''}
             onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))}
             aria-invalid={error ? true : undefined}
             className={inputClass(Boolean(error))}
           />
-          {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+          {(error || def.hint) && <p className={cn('mt-1 text-xs', error ? 'text-red-500' : 'text-muted')}>{error ?? def.hint}</p>}
         </div>
       );
 

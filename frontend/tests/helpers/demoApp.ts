@@ -3,7 +3,8 @@ import { sessionStore } from '@/features/auth/sessionStore';
 import { EMPTY_BRIEF, type Brief } from '@/features/funnels/catalog';
 import { buildPage } from '@/features/funnels/generation/templateGenerator';
 import { createSession, mockCallback } from '@/services/auth';
-import { createFunnel, saveContent, saveDesignSpec, type Funnel, type FunnelObjective } from '@/services/funnels';
+import { createFunnel, saveContent, saveDesignSpec, saveTypeConfig, updateFunnel, type Funnel, type FunnelObjective } from '@/services/funnels';
+import { FUNNEL_TYPES, validateTypeConfig } from '@/shared/funnelTypes';
 import { createWorkspace, updateWorkspace, type BrandPalette, type Workspace } from '@/services/workspaces';
 import type { Block, DesignSpec, TemplateId } from '@/shared/blocks/types';
 
@@ -27,12 +28,16 @@ export async function startDemo({ email = 'ana@correo.com', name = 'Ana', worksp
 export async function seedFunnel(
   token: string,
   workspace: Workspace,
-  { name = 'Mi funnel', objective = 'leads', templateId = 'claridad', brief = {}, blocks, design }: { name?: string; objective?: FunnelObjective; templateId?: TemplateId; brief?: Partial<Brief>; blocks?: Block[]; design?: DesignSpec } = {},
+  { name = 'Mi funnel', objective = 'leads', templateId = 'claridad', brief = {}, blocks, design, typeConfig, price }: { name?: string; objective?: FunnelObjective; templateId?: TemplateId; brief?: Partial<Brief>; blocks?: Block[]; design?: DesignSpec; typeConfig?: Record<string, unknown> | null; price?: number } = {},
 ): Promise<Funnel> {
   const funnel = await createFunnel(token, { workspaceId: workspace.id, name, objective });
   const page = buildPage({ workspace, objective, brief: { ...EMPTY_BRIEF, ...brief }, templateId });
   await saveDesignSpec(token, funnel.id, design ?? page.designSpec);
   await saveContent(token, funnel.id, blocks ?? page.blocks);
+  // Como el asistente: los ajustes del tipo quedan listos si no piden datos que solo la persona sabe.
+  const config = typeConfig === undefined ? FUNNEL_TYPES[objective].initial() : typeConfig;
+  if (config && validateTypeConfig(objective, config).length === 0) await saveTypeConfig(token, funnel.id, config);
+  if (price !== undefined) await updateFunnel(token, funnel.id, { price });
   return funnel;
 }
 
