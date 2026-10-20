@@ -10,7 +10,9 @@ export type FieldDef =
   | { kind: 'text'; key: string; label: string; max: number; required?: boolean; multiline?: boolean; hint?: string; pattern?: { regex: RegExp; message: string } }
   | { kind: 'url'; key: string; label: string; required?: boolean; hint?: string }
   | { kind: 'datetime'; key: string; label: string; required?: boolean }
-  | { kind: 'number'; key: string; label: string; min: number; required?: boolean }
+  | { kind: 'number'; key: string; label: string; min: number; max?: number; integer?: boolean; required?: boolean; hint?: string }
+  /** Varios campos que viven juntos dentro de un objeto (por ejemplo `thankYou.message`). */
+  | { kind: 'group'; key: string; label: string; fields: FieldDef[]; required?: boolean }
   | { kind: 'boolean'; key: string; label: string }
   | { kind: 'select'; key: string; label: string; options: { value: string; label: string }[] }
   | {

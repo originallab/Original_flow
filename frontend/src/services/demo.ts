@@ -21,7 +21,7 @@ interface DemoRequest {
   token?: string | null;
 }
 
-const emptyDb = (): DemoDb => ({ sessions: {}, workspaces: [], funnels: [] });
+const emptyDb = (): DemoDb => ({ sessions: {}, workspaces: [], funnels: [], ctas: [] });
 
 // Copia en memoria por si el navegador no deja usar localStorage (por ejemplo, en una ventana privada).
 let memory: DemoDb | null = null;

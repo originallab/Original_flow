@@ -1,5 +1,5 @@
 import { ApiError } from './apiError';
-import type { Funnel } from './funnels';
+import type { Cta, Funnel } from './funnels';
 import type { Workspace } from './workspaces';
 
 /** Piezas comunes del modo demostración (ver demo.ts): la «base de datos» en el navegador y los errores con el formato del backend. */
@@ -16,6 +16,7 @@ export interface DemoDb {
   sessions: Record<string, DemoSession>;
   workspaces: DemoWorkspace[];
   funnels: Funnel[];
+  ctas: Cta[];
 }
 
 export const uuid = () => crypto.randomUUID();
@@ -24,3 +25,29 @@ export const unauthorized = () => fail(401, 'UNAUTHORIZED', 'Autenticación requ
 export const notFound = (code = 'NOT_FOUND', message = 'Recurso no encontrado') => fail(404, code, message);
 export const invalid = (details: { path: string; message: string }[]) => fail(422, 'VALIDATION_ERROR', 'Datos inválidos', details);
 export const asObject = (body: unknown): Record<string, unknown> => (body && typeof body === 'object' && !Array.isArray(body) ? (body as Record<string, unknown>) : {});
+
+/** Lo que reciben los endpoints de funnels de la demostración. */
+export interface FunnelsContext {
+  route: string;
+  query: URLSearchParams;
+  method: string;
+  data: Record<string, unknown>;
+  db: DemoDb;
+  /** La persona de la sesión (lanza 401 si no hay una válida). */
+  sessionOf: () => DemoSession;
+  /** Guarda los cambios de la base de demostración. */
+  save: () => void;
+}
+
+export type Answer = { handled: false } | { handled: true; value: unknown };
+export const done = (value: unknown): Answer => ({ handled: true, value });
+export const skip: Answer = { handled: false };
+
+/** Un funnel de los negocios de la persona (404 si no existe o es de otra persona, nunca 403). */
+export function ownFunnel({ db, sessionOf }: FunnelsContext, id: string): Funnel {
+  const session = sessionOf();
+  const funnel = db.funnels.find((f) => f.id === id);
+  const mine = funnel && db.workspaces.some((w) => w.id === funnel.workspaceId && w.ownerEmail === session.email);
+  if (!funnel || !mine) throw notFound('FUNNEL_NOT_FOUND', 'Funnel no encontrado');
+  return funnel;
+}

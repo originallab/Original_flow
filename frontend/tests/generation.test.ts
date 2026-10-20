@@ -7,6 +7,7 @@ import type { GeneratedPage, GenerationInput, PageGenerator } from '@/features/f
 import { getFunnel, OBJECTIVES, type FunnelObjective } from '@/services/funnels';
 import type { BrandPalette, Workspace } from '@/services/workspaces';
 import { BLOCKS } from '@/shared/blocks/catalog';
+import { FUNNEL_TYPES } from '@/shared/funnelTypes';
 import { validateBlocks } from '@/shared/blocks/validate';
 import { startDemo } from './helpers/demoApp';
 
@@ -216,6 +217,31 @@ describe('crear el borrador y armar la página (con el modo demostración)', () 
     const guardado = await getFunnel(token, borrador.id);
     expect(guardado.designSpec?.template).toBe('claridad');
     expect(guardado.content.blocks.map((b) => b.type)).toEqual(['encabezado', 'beneficios', 'formulario', 'calendario']);
+  });
+
+  it.each([
+    ['leads', true],
+    ['venta', true],
+    ['aplicacion', true],
+    ['citas', false],
+    ['webinar', false],
+    ['magnet', false],
+  ] as const)('«%s»: los ajustes del tipo se guardan ya listos solo si no piden datos que la persona debe poner (%s)', async (objetivo, listos) => {
+    const { token, workspace } = await startDemo();
+    const datos = entrada(objetivo, {}, { workspace });
+    const borrador = await createDraft(token, datos);
+    await fillDraft(token, borrador, datos);
+    const guardado = await getFunnel(token, borrador.id);
+    if (listos) expect(guardado.typeConfig).toEqual(FUNNEL_TYPES[objetivo].initial());
+    else expect(guardado.typeConfig).toBeNull();
+  });
+
+  it('un generador que ya guardó la página (persisted) tampoco toca los ajustes del tipo', async () => {
+    const { token, workspace } = await startDemo();
+    const datos = entrada('leads', {}, { workspace });
+    const borrador = await createDraft(token, datos);
+    await fillDraft(token, borrador, datos, { id: 'servidor', generate: async () => ({ designSpec: { template: 'minimal' }, blocks: [], persisted: true }) });
+    expect((await getFunnel(token, borrador.id)).typeConfig).toBeNull();
   });
 
   it('se puede usar OTRO generador (por ejemplo, con IA) sin cambiar nada más', async () => {

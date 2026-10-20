@@ -1,6 +1,7 @@
 import { TEMPLATE_IDS, type DesignSpec } from '@/shared/blocks/types';
 import { validateBlocks } from '@/shared/blocks/validate';
-import { asObject, fail, invalid, notFound, uuid, type DemoDb, type DemoSession } from './demoCore';
+import { asObject, done, fail, invalid, notFound, ownFunnel, skip, uuid, type Answer, type DemoDb, type FunnelsContext } from './demoCore';
+import { demoFunnelActionsRoute, syncCtas } from './demoFunnelActions';
 import { OBJECTIVES, type Currency, type Funnel, type FunnelStatus } from './funnels';
 
 /**
@@ -9,28 +10,11 @@ import { OBJECTIVES, type Currency, type Funnel, type FunnelStatus } from './fun
  * guardar el contenido (validado bloque por bloque) y el diseño.
  */
 
-interface Context {
-  route: string;
-  query: URLSearchParams;
-  method: string;
-  data: Record<string, unknown>;
-  db: DemoDb;
-  /** La persona de la sesión (lanza 401 si no hay una válida). */
-  sessionOf: () => DemoSession;
-  /** Guarda los cambios de la base de demostración. */
-  save: () => void;
-}
-
-type Answer = { handled: false } | { handled: true; value: unknown };
-
 const HEX = /^#[0-9A-Fa-f]{6}$/;
 const FONT = /^[A-Za-z0-9 ]{1,60}$/;
 const CURRENCIES: Currency[] = ['MXN', 'USD', 'CLP'];
 const UNAVAILABLE = new Set(['upsell', 'libre']);
 const LIST_FIELDS = ['id', 'workspaceId', 'name', 'objective', 'status', 'language', 'slug', 'productName', 'price', 'currency', 'targetAudience', 'createdAt', 'updatedAt'] as const;
-
-const done = (value: unknown): Answer => ({ handled: true, value });
-const skip: Answer = { handled: false };
 
 /** Sin acentos, en minúsculas y con guiones (como `slugify` del backend). */
 function slugify(name: string): string {
@@ -91,15 +75,9 @@ function validateDesign(data: Record<string, unknown>) {
   return errors;
 }
 
-export function demoFunnelsRoute({ route, query, method, data, db, sessionOf, save }: Context): Answer {
-  /** Un funnel de los negocios de la persona (404 si no existe o es de otra persona, nunca 403). */
-  const own = (id: string): Funnel => {
-    const session = sessionOf();
-    const funnel = db.funnels.find((f) => f.id === id);
-    const mine = funnel && db.workspaces.some((w) => w.id === funnel.workspaceId && w.ownerEmail === session.email);
-    if (!funnel || !mine) throw notFound('FUNNEL_NOT_FOUND', 'Funnel no encontrado');
-    return funnel;
-  };
+export function demoFunnelsRoute(ctx: FunnelsContext): Answer {
+  const { route, query, method, data, db, sessionOf, save } = ctx;
+  const own = (id: string): Funnel => ownFunnel(ctx, id);
   const ownWorkspace = (id: unknown) => {
     const session = sessionOf();
     const workspace = db.workspaces.find((w) => w.id === id && w.ownerEmail === session.email);
@@ -161,6 +139,7 @@ export function demoFunnelsRoute({ route, query, method, data, db, sessionOf, sa
     if (issues.length > 0) throw invalid(issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message })));
     funnel.content = { blocks: (data.blocks as Funnel['content']['blocks']).map((block) => ({ ...block, style: block.style ?? {} })) };
     funnel.updatedAt = new Date().toISOString();
+    syncCtas(ctx, funnel);
     save();
     return done({ blocks: funnel.content.blocks, updatedAt: funnel.updatedAt });
   }
@@ -176,5 +155,6 @@ export function demoFunnelsRoute({ route, query, method, data, db, sessionOf, sa
     return done({ designSpec: funnel.designSpec });
   }
 
-  return skip;
+  // Editar el funnel, sus ajustes y CTA, publicar y despublicar.
+  return demoFunnelActionsRoute(ctx);
 }

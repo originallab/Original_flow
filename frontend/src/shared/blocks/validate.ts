@@ -47,7 +47,16 @@ function checkField(def: FieldDef, value: unknown, path: (string | number)[], is
     }
     case 'number': {
       if (isBlank(value)) return def.required ? add('Este campo es obligatorio.') : undefined;
-      if (typeof value !== 'number' || !Number.isFinite(value) || value < def.min) return add(`Debe ser un número, mínimo ${def.min}.`);
+      const range = def.max === undefined ? `mínimo ${def.min}` : `entre ${def.min} y ${def.max}`;
+      const outOfRange = typeof value !== 'number' || !Number.isFinite(value) || value < def.min || (def.max !== undefined && value > def.max);
+      if (outOfRange || (def.integer && !Number.isInteger(value))) return add(`Debe ser un número${def.integer ? ' entero' : ''}, ${range}.`);
+      return;
+    }
+    case 'group': {
+      if (isBlank(value) && !def.required) return;
+      if (!isBlank(value) && !isObject(value)) return add('Debe ser un grupo de campos.');
+      const group = isObject(value) ? value : {};
+      for (const field of def.fields) checkField(field, group[field.key], [...path, field.key], issues, group);
       return;
     }
     case 'boolean': {
@@ -79,14 +88,35 @@ function checkField(def: FieldDef, value: unknown, path: (string | number)[], is
   }
 }
 
+/** Problemas de un objeto según sus campos (vacío si es válido). Las rutas son relativas al objeto. */
+export function validateFields(fields: FieldDef[], value: unknown): Issue[] {
+  if (!isObject(value)) return [{ path: [], message: 'Debe ser un objeto.' }];
+  const issues: Issue[] = [];
+  for (const field of fields) checkField(field, value[field.key], [field.key], issues, value);
+  return issues;
+}
+
 /** Problemas del `content` de un bloque según su tipo (vacío si es válido). Las rutas son relativas al `content`. */
 export function validateBlockContent(type: Block['type'], content: unknown): Issue[] {
   if (!isObject(content)) return [{ path: [], message: 'El contenido debe ser un objeto.' }];
   const def = BLOCKS[type];
-  const issues: Issue[] = [];
-  for (const field of def.fields) checkField(field, content[field.key], [field.key], issues, content);
+  const issues = validateFields(def.fields, content);
   if (issues.length === 0 && def.refine) issues.push(...def.refine(content));
   return issues;
+}
+
+/** Copia del objeto con solo los campos que conocen las definiciones (el backend descarta los demás). */
+export function pruneToFields(fields: FieldDef[], value: unknown): Record<string, unknown> {
+  const source = isObject(value) ? value : {};
+  const result: Record<string, unknown> = {};
+  for (const field of fields) {
+    const item = source[field.key];
+    if (item === undefined) continue;
+    if (field.kind === 'group') result[field.key] = pruneToFields(field.fields, item);
+    else if (field.kind === 'list' && field.of.kind === 'object' && Array.isArray(item)) result[field.key] = item.map((entry) => pruneToFields((field.of as { fields: FieldDef[] }).fields, entry));
+    else result[field.key] = item;
+  }
+  return result;
 }
 
 /** Problemas de todos los bloques, con rutas como las del backend: `['blocks', 0, 'content', 'title']`. */
