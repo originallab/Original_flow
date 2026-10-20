@@ -15,9 +15,11 @@ interface RequestOptions {
   /** Token de sesión (Authorization: Bearer). */
   token?: string | null;
   signal?: AbortSignal;
+  /** La petición termina aunque se cierre la página (para los eventos que se mandan al salir). */
+  keepalive?: boolean;
 }
 
-export async function apiFetch<T>(path: string, { method = 'GET', body, token, signal }: RequestOptions = {}): Promise<T> {
+export async function apiFetch<T>(path: string, { method = 'GET', body, token, signal, keepalive }: RequestOptions = {}): Promise<T> {
   // Modo demostración (solo en desarrollo): responde la propia aplicación, sin servidor.
   // El `import.meta.env.DEV` explícito permite que Vite elimine todo esto de la compilación de producción.
   if (import.meta.env.DEV && isDemoMode()) return demoRequest<T>(path, { method, body, token });
@@ -33,6 +35,7 @@ export async function apiFetch<T>(path: string, { method = 'GET', body, token, s
       },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal,
+      keepalive,
     });
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') throw err;

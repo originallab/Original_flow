@@ -1,5 +1,6 @@
 import { asObject, fail, invalid, notFound, unauthorized, uuid, type DemoDb, type DemoWorkspace } from './demoCore';
 import { demoFunnelsRoute } from './demoFunnels';
+import { demoPublicRoute } from './demoPublic';
 import type { Workspace } from './workspaces';
 
 /**
@@ -21,7 +22,7 @@ interface DemoRequest {
   token?: string | null;
 }
 
-const emptyDb = (): DemoDb => ({ sessions: {}, workspaces: [], funnels: [], ctas: [] });
+const emptyDb = (): DemoDb => ({ sessions: {}, workspaces: [], funnels: [], ctas: [], leads: [], events: [] });
 
 // Copia en memoria por si el navegador no deja usar localStorage (por ejemplo, en una ventana privada).
 let memory: DemoDb | null = null;
@@ -90,6 +91,13 @@ export async function demoRequest<T>(path: string, { method, body, token }: Demo
     return session;
   };
   const respond = (value: unknown) => value as T;
+
+  // Endpoints públicos: los usa el visitante de una página publicada, sin sesión.
+  if (route.startsWith('/public/')) {
+    const publicAnswer = demoPublicRoute({ route, method, data, db, save: () => write(db) });
+    if (publicAnswer.handled) return respond(publicAnswer.value);
+    throw notFound();
+  }
 
   if (route === '/auth/session' && method === 'GET') {
     const session = uuid();
