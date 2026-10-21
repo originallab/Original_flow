@@ -1,5 +1,6 @@
 import { ApiError } from './apiError';
 import type { Cta, Funnel } from './funnels';
+import type { LeadStage } from './leads';
 import type { Workspace } from './workspaces';
 
 /** Piezas comunes del modo demostración (ver demo.ts): la «base de datos» en el navegador y los errores con el formato del backend. */
@@ -22,6 +23,9 @@ export interface DemoLead {
   utm: { utm_source?: string; utm_medium?: string; utm_campaign?: string; referrer?: string };
   source: 'web_form';
   customFields: Record<string, string | number | boolean | null>;
+  /** Etapa del tablero; los leads de antes de existir el tablero no la traen y cuentan como de la primera. */
+  leadStageId?: string;
+  value?: number | null;
   createdAt: string;
 }
 
@@ -39,6 +43,7 @@ export interface DemoDb {
   workspaces: DemoWorkspace[];
   funnels: Funnel[];
   ctas: Cta[];
+  leadStages: LeadStage[];
   leads: DemoLead[];
   events: DemoEvent[];
 }

@@ -1,6 +1,7 @@
 import { afterSubmitFor } from '@/shared/afterSubmit';
 import { normalizeLead, validateLead, type LeadBody } from '@/shared/leads';
 import { asObject, done, invalid, notFound, skip, uuid, type Answer, type DemoDb } from './demoCore';
+import { stagesOf } from './demoLeads';
 
 /**
  * Los endpoints públicos de la demostración (ver demo.ts), sin sesión y con las reglas del backend
@@ -61,6 +62,9 @@ export function demoPublicRoute({ route, method, data, db, save }: Context): Ans
       // El visitante no decide a dónde va ni de dónde viene el lead; el servidor deja constancia del consentimiento.
       source: 'web_form',
       customFields: { ...lead.customFields, _consentAt: new Date().toISOString() },
+      // Entra en la primera etapa del tablero del negocio.
+      leadStageId: stagesOf(db, funnel.workspaceId)[0]?.id,
+      value: null,
       createdAt: new Date().toISOString(),
     });
     db.events.push({ id: uuid(), funnelId: funnel.id, type: 'lead_created', properties: lead.utm.utm_source ? { source: lead.utm.utm_source } : {}, createdAt: new Date().toISOString() });

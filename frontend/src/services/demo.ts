@@ -1,5 +1,6 @@
 import { asObject, fail, invalid, notFound, unauthorized, uuid, type DemoDb, type DemoWorkspace } from './demoCore';
 import { demoFunnelsRoute } from './demoFunnels';
+import { demoLeadsRoute } from './demoLeads';
 import { demoPublicRoute } from './demoPublic';
 import type { Workspace } from './workspaces';
 
@@ -22,7 +23,7 @@ interface DemoRequest {
   token?: string | null;
 }
 
-const emptyDb = (): DemoDb => ({ sessions: {}, workspaces: [], funnels: [], ctas: [], leads: [], events: [] });
+const emptyDb = (): DemoDb => ({ sessions: {}, workspaces: [], funnels: [], ctas: [], leadStages: [], leads: [], events: [] });
 
 // Copia en memoria por si el navegador no deja usar localStorage (por ejemplo, en una ventana privada).
 let memory: DemoDb | null = null;
@@ -185,6 +186,10 @@ export async function demoRequest<T>(path: string, { method, body, token }: Demo
   // Funnels (crear, listar, abrir, guardar contenido y diseño).
   const funnelsAnswer = demoFunnelsRoute({ route, query, method, data, db, sessionOf, save: () => write(db) });
   if (funnelsAnswer.handled) return respond(funnelsAnswer.value);
+
+  // Leads y las etapas de su tablero.
+  const leadsAnswer = demoLeadsRoute({ route, query, method, data, db, sessionOf, save: () => write(db) });
+  if (leadsAnswer.handled) return respond(leadsAnswer.value);
 
   throw notFound();
 }

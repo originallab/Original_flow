@@ -19,3 +19,13 @@ export function canPublishFunnels(role: string | undefined): boolean {
 export function canManageWorkspace(role: string | undefined): boolean {
   return role === 'super_admin' || role === 'client_admin';
 }
+
+/** Ver los leads y el dashboard: todos menos el diseñador. */
+export function canViewLeads(role: string | undefined): boolean {
+  return role === 'super_admin' || role === 'client_admin' || role === 'marketing_manager' || role === 'vendedor' || role === 'analista';
+}
+
+/** Mover y editar leads: lo mismo que verlos, salvo el analista, que solo mira. */
+export function canManageLeads(role: string | undefined): boolean {
+  return canViewLeads(role) && role !== 'analista';
+}
