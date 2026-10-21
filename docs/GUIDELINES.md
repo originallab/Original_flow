@@ -110,6 +110,14 @@ Reglas específicas de este proyecto. Para lo general se remite al **project-pla
 - **Todo lo que escribió quien llenó el formulario se muestra como texto**, nunca como HTML. Los enlaces `mailto:` y `tel:` solo se generan si el dato tiene una forma segura (un correo con `?`, `&` o `%` se muestra sin enlace, para que no precargue destinatarios ni texto). Los campos internos de `customFields` (los que empiezan con guion bajo, como `_consentAt`) no se muestran.
 - **El valor estimado no lleva símbolo de moneda**: el lead no guarda en qué divisa está.
 
+## Equipo en el frontend
+
+- **`/equipo`** (`features/team`) lo ve solo quien administra el negocio (`canManageWorkspace`: super admin y administrador); los demás roles no ven «Equipo» en el menú y, si entran por la dirección, solo ven un aviso sin que se pida nada al servidor. Es lo mismo que exige el backend para listar, invitar y quitar.
+- **Invitar** es por correo y rol (los cinco invitables; `super_admin` nunca). **No se manda ningún correo** (no existe el servicio): si la persona ya tiene cuenta queda activa y se dice; si no, queda «Invitado», se le explica a quien invita que tiene que avisarle y que tendrá acceso cuando entre con ese correo. Cada rol muestra una línea de lo que puede hacer (`shared/roles.ts`, que sigue la tabla de permisos de `docs/API_MVP.md`); quién puede qué se decide solo en `utils/permissions.ts`.
+- **Los errores se explican en su sitio**: correo vacío o mal escrito (sin pedir nada), persona que ya es parte o ya fue invitada (`409`, en el campo del correo, sin vaciarlo para que lo corrija) y los demás, con «Inténtalo de nuevo».
+- **Quitar** pide confirmar y avisa qué acceso se pierde (a un administrador, el de todos los negocios del cliente). Si el servidor dice que es el único administrador (`409 LAST_CLIENT_ADMIN`) se explica y la persona sigue; si ya no estaba (`404`) se cierra y se vuelve a pedir el equipo. A uno mismo no se le ofrece «Quitar».
+- **Todavía no hay**: cambiar el rol de alguien (el backend no tiene ese endpoint) ni reenviar una invitación. En la demostración, quien creó el negocio no se puede quitar, y una persona invitada no puede entrar con su rol (el acceso de la demostración es solo del dueño), así que los roles se prueban en las pruebas y no navegando.
+
 ## Dashboard en el frontend
 
 - **Es la pantalla de inicio (`/`)** para quien puede verla (`canViewDashboard`: todos menos el diseñador, que ve un saludo y no pide nada). Todo sale de `/analytics/*`; el front solo dibuja la respuesta.

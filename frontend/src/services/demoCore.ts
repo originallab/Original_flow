@@ -1,6 +1,7 @@
 import { ApiError } from './apiError';
 import type { Cta, Funnel } from './funnels';
 import type { LeadStage } from './leads';
+import type { Member } from './members';
 import type { Workspace } from './workspaces';
 
 /** Piezas comunes del modo demostración (ver demo.ts): la «base de datos» en el navegador y los errores con el formato del backend. */
@@ -44,6 +45,8 @@ export interface DemoDb {
   funnels: Funnel[];
   ctas: Cta[];
   leadStages: LeadStage[];
+  /** Las personas invitadas a los negocios (el dueño de cada negocio no se guarda aquí: sale del propio negocio). */
+  members: Member[];
   leads: DemoLead[];
   events: DemoEvent[];
 }

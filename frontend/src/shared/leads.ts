@@ -23,7 +23,7 @@ export interface LeadBody {
   customFields?: Record<string, CustomFieldValue>;
 }
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+export const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const PHONE = /^[0-9+()\-.\s]{6,30}$/;
 const FIELD_NAME = /^[a-zA-Z][a-zA-Z0-9_]{0,39}$/;
 const UTM_LIMITS: Record<keyof Utm, number> = { utm_source: 100, utm_medium: 100, utm_campaign: 100, referrer: 300 };

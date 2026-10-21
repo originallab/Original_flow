@@ -14,6 +14,7 @@ import { NotFoundPage } from '@/pages/NotFoundPage';
 import { NewFunnelPage } from '@/pages/NewFunnelPage';
 import { OnboardingPage } from '@/pages/OnboardingPage';
 import { PublicPage } from '@/pages/PublicPage';
+import { TeamPage } from '@/pages/TeamPage';
 
 /** Rutas de la aplicación. Cada pieza del front registra aquí sus pantallas. */
 export const routes: RouteObject[] = [
@@ -37,6 +38,7 @@ export const routes: RouteObject[] = [
               { path: '/funnels', element: <FunnelsPage /> },
               { path: '/leads', element: <LeadsPage /> },
               { path: '/negocio', element: <BusinessPage /> },
+              { path: '/equipo', element: <TeamPage /> },
             ],
           },
           // El asistente de creación ocupa toda la pantalla (sin el menú de la plataforma).

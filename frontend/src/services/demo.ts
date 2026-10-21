@@ -2,6 +2,7 @@ import { asObject, fail, invalid, notFound, unauthorized, uuid, type DemoDb, typ
 import { demoAnalyticsRoute } from './demoAnalytics';
 import { demoFunnelsRoute } from './demoFunnels';
 import { demoLeadsRoute } from './demoLeads';
+import { demoMembersRoute } from './demoMembers';
 import { demoPublicRoute } from './demoPublic';
 import type { Workspace } from './workspaces';
 
@@ -24,7 +25,7 @@ interface DemoRequest {
   token?: string | null;
 }
 
-const emptyDb = (): DemoDb => ({ sessions: {}, workspaces: [], funnels: [], ctas: [], leadStages: [], leads: [], events: [] });
+const emptyDb = (): DemoDb => ({ sessions: {}, workspaces: [], funnels: [], ctas: [], leadStages: [], members: [], leads: [], events: [] });
 
 // Copia en memoria por si el navegador no deja usar localStorage (por ejemplo, en una ventana privada).
 let memory: DemoDb | null = null;
@@ -195,6 +196,10 @@ export async function demoRequest<T>(path: string, { method, body, token }: Demo
   // Analítica del dashboard.
   const analyticsAnswer = demoAnalyticsRoute({ route, query, method, data, db, sessionOf, save: () => write(db) });
   if (analyticsAnswer.handled) return respond(analyticsAnswer.value);
+
+  // Equipo e invitaciones.
+  const membersAnswer = demoMembersRoute({ route, query, method, data, db, sessionOf, save: () => write(db) });
+  if (membersAnswer.handled) return respond(membersAnswer.value);
 
   throw notFound();
 }

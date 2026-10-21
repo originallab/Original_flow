@@ -1,11 +1,11 @@
-import { Building2, Funnel, Home, LogOut, Plus, Users } from 'lucide-react';
+import { Building2, Funnel, Home, LogOut, Plus, UserPlus, Users } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useWorkspaces } from '@/features/workspaces/WorkspaceProvider';
 import { Logo } from '@/shared/ui/Logo';
 import { ThemeToggle } from '@/shared/ui/ThemeToggle';
 import { cn } from '@/shared/utils/cn';
-import { canViewLeads } from '@/shared/utils/permissions';
+import { canManageWorkspace, canViewLeads } from '@/shared/utils/permissions';
 
 interface NavItem {
   to: string;
@@ -21,6 +21,7 @@ const NAV: NavItem[] = [
   { to: '/funnels', label: 'Funnels', icon: Funnel, end: false },
   { to: '/leads', label: 'Leads', icon: Users, end: false, allowed: canViewLeads },
   { to: '/negocio', label: 'Mi negocio', icon: Building2, end: false },
+  { to: '/equipo', label: 'Equipo', icon: UserPlus, end: false, allowed: canManageWorkspace },
 ];
 
 function Nav({ vertical, role }: { vertical: boolean; role: string | undefined }) {
