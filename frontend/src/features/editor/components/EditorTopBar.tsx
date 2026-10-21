@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowLeft, Check, Eye, Loader2, Pencil, Rocket } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Check, Eye, History, Loader2, Pencil, Rocket } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/shared/ui/Button';
 import { Logo } from '@/shared/ui/Logo';
@@ -18,6 +18,7 @@ interface Props {
   /** La persona puede publicar (el diseñador, por ejemplo, no). */
   canPublish: boolean;
   onPublish: () => void;
+  onOpenHistory: () => void;
 }
 
 const STATUS_TEXT: Record<SaveStatus, string> = {
@@ -29,7 +30,7 @@ const STATUS_TEXT: Record<SaveStatus, string> = {
 };
 
 /** Barra superior del editor: el logotipo a la izquierda (como en toda la plataforma), el nombre del funnel, el estado del guardado y la vista previa. */
-export function EditorTopBar({ name, templateName, status, preview, onTogglePreview, onRetry, published, canPublish, onPublish }: Props) {
+export function EditorTopBar({ name, templateName, status, preview, onTogglePreview, onRetry, published, canPublish, onPublish, onOpenHistory }: Props) {
   const failing = status === 'invalid' || status === 'error';
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border bg-surface px-3 sm:gap-4 sm:px-6">
@@ -39,7 +40,7 @@ export function EditorTopBar({ name, templateName, status, preview, onTogglePrev
         <ArrowLeft size={15} aria-hidden /> <span className="hidden sm:inline">Funnels</span>
         <span className="sr-only sm:hidden">Volver a funnels</span>
       </Link>
-      <div className="hidden min-w-0 md:block">
+      <div className="hidden min-w-0 lg:block">
         <p className="flex items-center gap-2 text-sm font-medium">
           <span className="truncate">{name}</span>
           <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium', published ? 'bg-violet-tint text-violet-tint-text' : 'bg-chip text-text-2')}>{published ? 'Publicado' : 'Borrador'}</span>
@@ -60,9 +61,13 @@ export function EditorTopBar({ name, templateName, status, preview, onTogglePrev
             Reintentar
           </Button>
         )}
-        <Button size="sm" variant={preview ? 'primary' : 'secondary'} aria-pressed={preview} aria-label={preview ? 'Volver a editar' : 'Vista previa'} onClick={onTogglePreview}>
+        <Button size="sm" variant={preview ? 'primary' : 'secondary'} aria-pressed={preview} aria-label={preview ? 'Volver a editar' : 'Vista previa'} title={preview ? 'Volver a editar' : 'Vista previa'} onClick={onTogglePreview}>
           {preview ? <Pencil size={14} aria-hidden /> : <Eye size={14} aria-hidden />}
-          <span className="hidden sm:inline">{preview ? 'Volver a editar' : 'Vista previa'}</span>
+          <span className="hidden whitespace-nowrap lg:inline">{preview ? 'Volver a editar' : 'Vista previa'}</span>
+        </Button>
+        <Button size="sm" variant="secondary" aria-label="Historial de versiones" title="Historial de versiones" onClick={onOpenHistory}>
+          <History size={14} aria-hidden />
+          <span className="hidden whitespace-nowrap lg:inline">Historial</span>
         </Button>
         <Button
           size="sm"
@@ -72,9 +77,12 @@ export function EditorTopBar({ name, templateName, status, preview, onTogglePrev
           onClick={onPublish}
         >
           {published ? <Check size={14} aria-hidden /> : <Rocket size={14} aria-hidden />}
-          <span className="hidden sm:inline">{published ? 'Publicado' : 'Publicar'}</span>
+          <span className="hidden whitespace-nowrap sm:inline">{published ? 'Publicado' : 'Publicar'}</span>
         </Button>
-        <ThemeToggle />
+        {/* En un celular angosto no cabe todo en la barra: el tema se cambia desde el resto de la plataforma. */}
+        <div className="max-[430px]:hidden">
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   );

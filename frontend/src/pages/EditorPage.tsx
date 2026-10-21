@@ -7,13 +7,14 @@ import { PropertiesPanel } from '@/features/editor/components/PropertiesPanel';
 import { PublishDialog, type SettingsSection } from '@/features/editor/components/PublishDialog';
 import { SettingsPanel } from '@/features/editor/settings/SettingsPanel';
 import { useFunnelEditor } from '@/features/editor/useFunnelEditor';
+import { HistoryDialog } from '@/features/history/components/HistoryDialog';
 import { templateOf } from '@/features/funnels/catalog';
 import { PageRenderer } from '@/features/pageRenderer/PageRenderer';
 import { useWorkspaces } from '@/features/workspaces/WorkspaceProvider';
 import { Button, buttonStyles } from '@/shared/ui/Button';
 import { Logo } from '@/shared/ui/Logo';
 import { cn } from '@/shared/utils/cn';
-import { canPublishFunnels } from '@/shared/utils/permissions';
+import { canPublishFunnels, canRestoreHistory } from '@/shared/utils/permissions';
 
 /** Pantalla de espera o de error del editor: el logotipo siempre va arriba a la izquierda. */
 function Gate({ children }: { children: ReactNode }) {
@@ -43,6 +44,7 @@ export function EditorPage() {
   const [preview, setPreview] = useState(false);
   const [panel, setPanel] = useState<'block' | 'settings'>('block');
   const [publishing, setPublishing] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
 
   if (editor.load === 'loading') {
@@ -107,6 +109,7 @@ export function EditorPage() {
         published={funnel.status === 'published'}
         canPublish={canPublishFunnels(role)}
         onPublish={() => setPublishing(true)}
+        onOpenHistory={() => setHistoryOpen(true)}
       />
 
       {/* En pantallas chicas los tres bloques se apilan y se desplaza toda la pantalla; en grandes, cada columna se desplaza sola. */}
@@ -151,6 +154,10 @@ export function EditorPage() {
           </aside>
         )}
       </div>
+
+      {historyOpen && (
+        <HistoryDialog funnelId={funnel.id} token={token} canRestore={canRestoreHistory(role)} saveNow={editor.saveNow} onRestored={editor.replaceFunnel} onClose={() => setHistoryOpen(false)} />
+      )}
 
       {publishing && (
         <PublishDialog

@@ -245,6 +245,25 @@ export function useFunnelEditor(funnelId: string) {
   /** Pone al día los datos del funnel (nombre, dirección, estado, ajustes…) sin tocar los bloques que se están editando. */
   const applyFunnel = useCallback((updated: Funnel) => setFunnel((previous) => ({ ...updated, content: previous?.content ?? updated.content })), []);
 
+  /**
+   * Cambia todo lo que muestra el editor por un funnel que acaba de restaurarse (bloques, diseño y demás), como si
+   * se acabara de abrir. Lo que estaba pendiente de guardar ya debió guardarse antes de restaurar.
+   */
+  const replaceFunnel = useCallback(
+    (restored: Funnel) => {
+      clearTimeout(timer.current);
+      const sorted = renumber([...restored.content.blocks].sort((a, b) => a.order - b.order));
+      latest.current = sorted;
+      setFunnel(restored);
+      setBlocks(sorted);
+      setSelectedKey(sorted[0]?.key ?? null);
+      setServerIssues([]);
+      setStatus('saved');
+      setContentVersion((version) => version + 1);
+    },
+    [setStatus],
+  );
+
   const errors = useMemo(() => collectErrors(blocks, serverIssues), [blocks, serverIssues]);
 
   return {
@@ -263,6 +282,7 @@ export function useFunnelEditor(funnelId: string) {
     retrySave: () => void flush(),
     saveNow,
     applyFunnel,
+    replaceFunnel,
     contentVersion,
   };
 }

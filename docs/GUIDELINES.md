@@ -110,6 +110,14 @@ Reglas específicas de este proyecto. Para lo general se remite al **project-pla
 - **Todo lo que escribió quien llenó el formulario se muestra como texto**, nunca como HTML. Los enlaces `mailto:` y `tel:` solo se generan si el dato tiene una forma segura (un correo con `?`, `&` o `%` se muestra sin enlace, para que no precargue destinatarios ni texto). Los campos internos de `customFields` (los que empiezan con guion bajo, como `_consentAt`) no se muestran.
 - **El valor estimado no lleva símbolo de moneda**: el lead no guarda en qué divisa está.
 
+## Historial de versiones en el frontend
+
+- **Se abre desde el botón «Historial» de la barra del editor** (`features/history`). Muestra las versiones del funnel de la más nueva a la más vieja, con su nombre, quién la guardó y cuándo (relativo, con la fecha completa al pasar el cursor). Publicar guarda solo una versión «Publicado»; las demás las guarda la persona con un nombre (1 a 120 caracteres, `shared/history.ts`).
+- **Guardar una versión primero guarda lo que esté pendiente en el editor** (`saveNow`), para que lo último que se escribió entre en la versión. Si la página tiene campos con errores no se guarda ni se restaura, y se explica.
+- **Restaurar pide confirmar y se puede deshacer**: antes de aplicar la versión, el servidor guarda cómo estaba la página en una versión nueva («Antes de restaurar «X»»). Se restauran el contenido, el diseño, la marca, el SEO y el flujo; **no** el nombre, el precio, la dirección, el estado ni los ajustes del tipo. Al terminar, el editor cambia todo lo que muestra por el funnel restaurado (`replaceFunnel`) como si se acabara de abrir. Los CTA se ajustan a los botones y formularios de la versión.
+- **Permisos**: guardar y ver versiones, quien edita funnels (incluido el diseñador); restaurar, quien puede publicar (`canRestoreHistory`, en `permissions.ts`): el diseñador no ve el botón «Restaurar».
+- **Todavía no hay vista previa de una versión** (la API no devuelve la copia en la lista) ni comparar versiones.
+
 ## Equipo en el frontend
 
 - **`/equipo`** (`features/team`) lo ve solo quien administra el negocio (`canManageWorkspace`: super admin y administrador); los demás roles no ven «Equipo» en el menú y, si entran por la dirección, solo ven un aviso sin que se pida nada al servidor. Es lo mismo que exige el backend para listar, invitar y quitar.

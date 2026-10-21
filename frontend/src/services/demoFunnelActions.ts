@@ -1,7 +1,7 @@
 import { pruneToFields } from '@/shared/blocks/validate';
 import { FUNNEL_TYPES, validateTypeConfig } from '@/shared/funnelTypes';
 import { findPublishProblems } from '@/shared/publish';
-import { done, fail, invalid, notFound, ownFunnel, skip, uuid, type Answer, type FunnelsContext } from './demoCore';
+import { done, fail, invalid, notFound, ownFunnel, recordVersion, skip, uuid, type Answer, type FunnelsContext } from './demoCore';
 import type { Cta, CtaActionType, Currency, Funnel } from './funnels';
 
 /**
@@ -147,6 +147,8 @@ export function demoFunnelActionsRoute(ctx: FunnelsContext): Answer {
       });
       if (problems.length > 0) throw fail(422, 'FUNNEL_NOT_READY', 'El funnel todavía no se puede publicar', { missing: problems });
       funnel.status = 'published';
+      // Como el backend real: publicar guarda una versión.
+      recordVersion(db, funnel, ctx.sessionOf().email, 'Publicado');
     }
     save();
     return done(funnel);

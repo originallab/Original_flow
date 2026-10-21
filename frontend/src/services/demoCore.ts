@@ -39,11 +39,22 @@ export interface DemoEvent {
   createdAt: string;
 }
 
+/** Una versión guardada de la página: quién la guardó, su nombre y una copia de lo que se versiona. */
+export interface DemoHistoryEntry {
+  id: string;
+  funnelId: string;
+  userEmail: string;
+  label: string | null;
+  snapshot: { content: unknown; designSpec: unknown; brandBrief: unknown; seo: unknown; flow: unknown };
+  createdAt: string;
+}
+
 export interface DemoDb {
   sessions: Record<string, DemoSession>;
   workspaces: DemoWorkspace[];
   funnels: Funnel[];
   ctas: Cta[];
+  history: DemoHistoryEntry[];
   leadStages: LeadStage[];
   /** Las personas invitadas a los negocios (el dueño de cada negocio no se guarda aquí: sale del propio negocio). */
   members: Member[];
@@ -82,4 +93,18 @@ export function ownFunnel({ db, sessionOf }: FunnelsContext, id: string): Funnel
   const mine = funnel && db.workspaces.some((w) => w.id === funnel.workspaceId && w.ownerEmail === session.email);
   if (!funnel || !mine) throw notFound('FUNNEL_NOT_FOUND', 'Funnel no encontrado');
   return funnel;
+}
+
+/** Guarda una versión con la copia de la página tal como está ahora (la usan publicar y el historial). */
+export function recordVersion(db: DemoDb, funnel: Funnel, userEmail: string, label: string | null): DemoHistoryEntry {
+  const entry: DemoHistoryEntry = {
+    id: uuid(),
+    funnelId: funnel.id,
+    userEmail,
+    label,
+    snapshot: structuredClone({ content: funnel.content, designSpec: funnel.designSpec, brandBrief: funnel.brandBrief, seo: funnel.seo, flow: funnel.flow }),
+    createdAt: new Date().toISOString(),
+  };
+  db.history.push(entry);
+  return entry;
 }

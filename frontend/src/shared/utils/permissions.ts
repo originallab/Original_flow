@@ -15,6 +15,11 @@ export function canPublishFunnels(role: string | undefined): boolean {
   return role === 'super_admin' || role === 'client_admin' || role === 'marketing_manager';
 }
 
+/** Restaurar una versión del historial: lo mismo que publicar (el diseñador guarda versiones pero no restaura). */
+export function canRestoreHistory(role: string | undefined): boolean {
+  return canPublishFunnels(role);
+}
+
 /** Editar los datos del negocio y gestionar su equipo: super admin y administrador del cliente. */
 export function canManageWorkspace(role: string | undefined): boolean {
   return role === 'super_admin' || role === 'client_admin';

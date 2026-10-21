@@ -163,6 +163,13 @@ El campo `objective` define el tipo. Cada tipo es una **definición en código**
 | POST | `/funnels/:id/history` | Guarda una versión manual con un nombre; el `userId` sale de la sesión | SA, CA, MM, DI |
 | POST | `/funnels/:id/history/:historyId/restore` | Copia el `snapshot` a las columnas del funnel y crea una entrada nueva, para poder deshacer | SA, CA, MM |
 
+**Forma de las respuestas del historial** (las definió el frontend en el modo demostración; el backend de este paso todavía no existe y debe seguirlas o cambiarse aquí en el mismo commit):
+
+- `GET /funnels/:id/history` → `{ items, total, page, pageSize }`, de la versión más nueva a la más vieja (con la misma hora, la última que se guardó primero). Cada una: `{ id, funnelId, label, createdAt, user: { id, name, email } }`. **No** trae el `snapshot`: pesa y solo hace falta al restaurar.
+- `POST /funnels/:id/history` con `{ label }` (obligatorio, de 1 a 120 caracteres sin contar espacios de los lados; `422` con la ruta `label`) → `201` con la versión guardada, con una copia de `content`, `designSpec`, `brandBrief`, `seo` y `flow` tal como están en ese momento.
+- `POST /funnels/:id/history/:historyId/restore` → `200` con el **funnel completo** ya restaurado. Antes de aplicar la versión guarda **cómo estaba la página** como una versión nueva con la etiqueta `Antes de restaurar «<nombre>»` (o `Antes de restaurar una versión sin nombre`, máximo 120 caracteres) para poder deshacer; luego copia el `snapshot` al funnel (solo esos cinco campos: no cambia nombre, precio, `slug`, estado ni `typeConfig`) y ajusta los CTA a los bloques restaurados, como al guardar el contenido. Una versión que no existe o es de otro funnel responde `404 HISTORY_NOT_FOUND`.
+- Publicar (`POST /funnels/:id/publish`) ya guarda una versión «Publicado». Un funnel ajeno responde `404`.
+
 **Por qué los CTA no tienen `POST`:** nacen y mueren con los bloques cuando se guarda `content`. Lo único que se edita por separado es su destino y su seguimiento.
 
 **Cómo funcionan publicar y la página pública (paso 5, construidos)**

@@ -82,7 +82,7 @@ describe('la barra del editor', () => {
     render(
       <MemoryRouter>
         <ThemeProvider>
-          <EditorTopBar name="Mi funnel" templateName="Claridad" status="saved" preview={false} onTogglePreview={() => undefined} onRetry={() => undefined} published={false} canPublish={false} onPublish={() => undefined} />
+          <EditorTopBar name="Mi funnel" templateName="Claridad" status="saved" preview={false} onTogglePreview={() => undefined} onRetry={() => undefined} published={false} canPublish={false} onPublish={() => undefined} onOpenHistory={() => undefined} />
         </ThemeProvider>
       </MemoryRouter>,
     );
@@ -112,7 +112,7 @@ describe('la barra del editor', () => {
     const barra = (published: boolean) => (
       <MemoryRouter>
         <ThemeProvider>
-          <EditorTopBar name="Mi funnel" templateName="Claridad" status="saved" preview={false} onTogglePreview={() => undefined} onRetry={() => undefined} published={published} canPublish onPublish={() => undefined} />
+          <EditorTopBar name="Mi funnel" templateName="Claridad" status="saved" preview={false} onTogglePreview={() => undefined} onRetry={() => undefined} published={published} canPublish onPublish={() => undefined} onOpenHistory={() => undefined} />
         </ThemeProvider>
       </MemoryRouter>
     );
