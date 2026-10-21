@@ -1,24 +1,31 @@
 import { CalendarDays, Check, Image as ImageIcon, Play } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { Block } from '@/shared/blocks/types';
+import { safeHttpUrl } from '@/shared/utils/safeUrl';
+import { CtaButton, LiveCountdown, PublicButtonLink, PublicForm, type PublicContext } from './public';
 import { readableOn, type PageTheme } from './theme';
 
 /**
  * Cómo se dibuja cada tipo de bloque dentro de la página. Usan solo los colores y el estilo de la
- * página (`theme`), nunca los de la plataforma. Nada aquí es interactivo: es el dibujo de la
- * página, no la página publicada.
+ * página (`theme`), nunca los de la plataforma. Sin `publicCtx` es solo el dibujo (editor y vista
+ * previa); con él, los bloques que pueden hacer algo (formulario, botones, cuenta regresiva, enlaces)
+ * funcionan: es la página publicada.
  */
 
 interface ViewProps {
   block: Block;
   theme: PageTheme;
   currency: string;
+  publicCtx?: PublicContext;
 }
 
 type Obj = Record<string, unknown>;
 const str = (value: unknown) => (typeof value === 'string' ? value : '');
 const list = (value: unknown): Obj[] => (Array.isArray(value) ? value.filter((item): item is Obj => typeof item === 'object' && item !== null) : []);
 const strings = (value: unknown): string[] => (Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []);
+
+/** Una banda de color que, en la página publicada, ocupa todo el ancho de la pantalla aunque el contenido esté centrado. */
+const bleed = (color: string): CSSProperties => ({ background: color, boxShadow: `0 0 0 100vmax ${color}`, clipPath: 'inset(0 -100vmax)' });
 
 function Section({ theme, children, style }: { theme: PageTheme; children: ReactNode; style?: CSSProperties }) {
   return (
@@ -69,7 +76,7 @@ function Countdown({ endsAt }: { endsAt: string }) {
   );
 }
 
-export function BlockView({ block, theme, currency }: ViewProps) {
+export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
   const c = block.content;
   const { palette } = theme;
 
@@ -114,10 +121,24 @@ export function BlockView({ block, theme, currency }: ViewProps) {
             </span>
           </div>
           {str(c.title) && <p className="mt-3 text-sm opacity-80">{str(c.title)}</p>}
+          {publicCtx && safeHttpUrl(c.url) && (
+            <div className="mt-4">
+              <PublicButtonLink theme={theme} href={safeHttpUrl(c.url)!}>
+                Ver el video
+              </PublicButtonLink>
+            </div>
+          )}
         </Section>
       );
 
     case 'formulario':
+      if (publicCtx) {
+        return (
+          <Section theme={theme} style={bleed(`${palette.primary}12`)}>
+            <PublicForm block={block} theme={theme} ctx={publicCtx} />
+          </Section>
+        );
+      }
       return (
         <Section theme={theme} style={{ background: `${palette.primary}12` }}>
           <div className="mx-auto max-w-md text-left">
@@ -151,7 +172,7 @@ export function BlockView({ block, theme, currency }: ViewProps) {
     case 'boton':
       return (
         <Section theme={theme} style={{ textAlign: 'center' }}>
-          <PrimaryButton theme={theme}>{str(c.label)}</PrimaryButton>
+          {publicCtx ? <CtaButton block={block} theme={theme} ctx={publicCtx} /> : <PrimaryButton theme={theme}>{str(c.label)}</PrimaryButton>}
         </Section>
       );
 
@@ -159,7 +180,7 @@ export function BlockView({ block, theme, currency }: ViewProps) {
       return (
         <Section theme={theme} style={{ textAlign: 'center' }}>
           {str(c.label) && <p className="text-sm font-medium opacity-80">{str(c.label)}</p>}
-          <Countdown endsAt={str(c.endsAt)} />
+          {publicCtx ? <LiveCountdown endsAt={str(c.endsAt)} /> : <Countdown endsAt={str(c.endsAt)} />}
         </Section>
       );
 
@@ -209,14 +230,25 @@ export function BlockView({ block, theme, currency }: ViewProps) {
         <Section theme={theme}>
           <div className="mx-auto max-w-2xl text-left">
             <Heading theme={theme}>Preguntas frecuentes</Heading>
-            <dl className="mt-4 space-y-4">
-              {list(c.items).map((item, index) => (
-                <div key={`${str(item.question)}-${index}`}>
-                  <dt className="font-semibold">{str(item.question)}</dt>
-                  <dd className="mt-1 text-sm opacity-80">{str(item.answer)}</dd>
-                </div>
-              ))}
-            </dl>
+            {publicCtx ? (
+              <div className="mt-4 divide-y" style={{ borderColor: `${palette.secondary}33` }}>
+                {list(c.items).map((item, index) => (
+                  <details key={`${str(item.question)}-${index}`} className="group py-3">
+                    <summary className="cursor-pointer list-none font-semibold marker:content-none">{str(item.question)}</summary>
+                    <p className="mt-2 text-sm opacity-80">{str(item.answer)}</p>
+                  </details>
+                ))}
+              </div>
+            ) : (
+              <dl className="mt-4 space-y-4">
+                {list(c.items).map((item, index) => (
+                  <div key={`${str(item.question)}-${index}`}>
+                    <dt className="font-semibold">{str(item.question)}</dt>
+                    <dd className="mt-1 text-sm opacity-80">{str(item.answer)}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
           </div>
         </Section>
       );
@@ -258,7 +290,15 @@ export function BlockView({ block, theme, currency }: ViewProps) {
           <div className="mx-auto max-w-md p-6 text-center" style={card(theme)}>
             <CalendarDays size={28} className="mx-auto" style={{ color: palette.primary }} aria-hidden />
             <p className="mt-2 font-semibold">{str(c.title) || 'Reserva tu cita'}</p>
-            <p className="mt-1 text-sm opacity-70">{str(c.url) ? 'Aquí se abrirá tu calendario.' : 'Aquí aparecerá tu calendario.'}</p>
+            {publicCtx && safeHttpUrl(c.url) ? (
+              <div className="mt-4">
+                <PublicButtonLink theme={theme} href={safeHttpUrl(c.url)!}>
+                  Elegir mi horario
+                </PublicButtonLink>
+              </div>
+            ) : (
+              <p className="mt-1 text-sm opacity-70">{str(c.url) ? 'Aquí se abrirá tu calendario.' : 'Aquí aparecerá tu calendario.'}</p>
+            )}
           </div>
         </Section>
       );

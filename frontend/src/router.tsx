@@ -12,10 +12,13 @@ import { LoginPage } from '@/pages/LoginPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { NewFunnelPage } from '@/pages/NewFunnelPage';
 import { OnboardingPage } from '@/pages/OnboardingPage';
+import { PublicPage } from '@/pages/PublicPage';
 
 /** Rutas de la aplicación. Cada pieza del front registra aquí sus pantallas. */
 export const routes: RouteObject[] = [
   { path: '/login', element: <LoginPage /> },
+  // La página publicada de un funnel: la ve cualquier visitante, sin sesión.
+  { path: '/p/:slug', element: <PublicPage /> },
   {
     // Todo lo que está aquí dentro exige sesión (se declara una sola vez para el grupo).
     element: <ProtectedRoute />,

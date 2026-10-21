@@ -419,10 +419,10 @@ describe('permisos y direcciones que no existen', () => {
 
   it('cualquier dirección que no existe muestra «Esta página no existe», también sin sesión', async () => {
     sessionStorage.clear();
-    const { router } = montar('/p/mi-pagina-publicada');
+    const { router } = montar('/esta/direccion/no-existe');
     expect(await screen.findByRole('heading', { name: /esta página no existe/i })).toBeInTheDocument();
     expect(screen.getByRole('banner').firstElementChild).toBe(screen.getByRole('img', { name: 'Original Flow' }));
     await userEvent.click(screen.getByRole('link', { name: /ir al inicio/i }));
-    await waitFor(() => expect(router.state.location.pathname).not.toBe('/p/mi-pagina-publicada'));
+    await waitFor(() => expect(router.state.location.pathname).not.toBe('/esta/direccion/no-existe'));
   });
 });

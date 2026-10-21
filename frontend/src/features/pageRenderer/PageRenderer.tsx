@@ -1,4 +1,5 @@
 import type { Block, DesignSpec } from '@/shared/blocks/types';
+import type { PublicContext } from './public';
 import { BLOCKS } from '@/shared/blocks/catalog';
 import { cn } from '@/shared/utils/cn';
 import { BlockView } from './blocks';
@@ -8,23 +9,25 @@ interface Props {
   blocks: Block[];
   design: DesignSpec | null | undefined;
   currency?: string;
-  /** `edit`: cada bloque se puede elegir con un clic; `preview`: solo se ve la página. */
-  mode?: 'edit' | 'preview';
+  /** `edit`: cada bloque se puede elegir con un clic; `preview`: solo se ve la página; `public`: la página publicada, con todo funcionando. */
+  mode?: 'edit' | 'preview' | 'public';
   selectedKey?: string | null;
   onSelect?: (key: string) => void;
+  /** Solo en `public`: lo que necesitan el formulario y los botones para funcionar. */
+  publicContext?: PublicContext;
 }
 
 /**
  * Dibuja una página a partir de sus bloques y su diseño (plantilla y paleta). La usa el editor y la
  * usará la página pública. Los colores son SIEMPRE los de la página (la marca del cliente), nunca los de la plataforma.
  */
-export function PageRenderer({ blocks, design, currency = 'MXN', mode = 'preview', selectedKey = null, onSelect }: Props) {
+export function PageRenderer({ blocks, design, currency = 'MXN', mode = 'preview', selectedKey = null, onSelect, publicContext }: Props) {
   const theme = resolveTheme(design);
   const editing = mode === 'edit';
   const ordered = [...blocks].sort((a, b) => a.order - b.order);
 
   return (
-    <article aria-label="Página" data-template={theme.template} className="overflow-hidden font-sans" style={{ background: theme.palette.background, color: theme.palette.text }}>
+    <article aria-label="Página" data-template={theme.template} className={cn('font-sans', mode !== 'public' && 'overflow-hidden')} style={{ background: theme.palette.background, color: theme.palette.text }}>
       {ordered.length === 0 && <p className="px-8 py-16 text-center text-sm opacity-60">Esta página todavía no tiene bloques.</p>}
       {ordered.map((block) => {
         const selected = editing && block.key === selectedKey;
@@ -41,7 +44,7 @@ export function PageRenderer({ blocks, design, currency = 'MXN', mode = 'preview
                 {BLOCKS[block.type].label}
               </span>
             )}
-            <BlockView block={block} theme={theme} currency={currency} />
+            <BlockView block={block} theme={theme} currency={currency} publicCtx={mode === 'public' ? publicContext : undefined} />
           </div>
         );
       })}
