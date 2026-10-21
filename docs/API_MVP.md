@@ -279,6 +279,13 @@ Exige el encabezado **`Idempotency-Key`** (texto de 8 a 64 caracteres; la págin
 | PATCH | `/lead-stages/:id` | Renombra o reordena una etapa | SA, CA |
 | DELETE | `/lead-stages/:id` | Elimina una etapa; `409` si todavía tiene leads | SA, CA |
 
+**Forma de las respuestas** (la definió el frontend en el modo demostración; el backend de este paso todavía no existe y debe seguirla o cambiarse aquí en el mismo commit):
+
+- `GET /workspaces/:id/lead-stages` → `{ items: [{ id, workspaceId, name, order, isFinal, isWon }], total, page, pageSize }`, en orden.
+- `GET /leads` → `{ items, total, page, pageSize }`, del más nuevo al más viejo; `pageSize` hasta 100 (el tablero pide 100). `workspaceId` es obligatorio (`422` si falta, `404` si es de otro cliente); `funnelId` y `stageId` filtran por igualdad; `q` busca, sin importar mayúsculas, dentro del nombre, el correo y el teléfono. Cada lead: `{ id, funnelId, funnelName, leadStageId, name, email, phone, source, utm, assignedTo, value, customFields, createdAt }`, con `value` numérico o `null` y `utm` y `customFields` posiblemente `null`. `customFields` trae también los campos internos con guion bajo (`_consentAt`); la pantalla los oculta. El filtro `source` todavía no se usa.
+- `PATCH /leads/:id` → `{ leadStageId?, value? }` (al menos uno). `leadStageId` debe ser una etapa del mismo negocio y `value` un número de 0 a 9999999999.99 (dos decimales) o `null`; si no, `422` con la ruta del campo. Responde el lead completo.
+- Sin pantalla todavía: `GET /leads/:id`, `POST /leads` (alta manual: `Lead.source` solo admite `web_form` y `whatsapp`), la asignación de vendedor y el manejo de etapas (`POST/PATCH/DELETE`).
+
 ### Analítica del dashboard
 
 Todas aceptan `workspaceId`, `funnelId` (opcional) y un rango (`range=7d|30d|90d` o `from` y `to`). Se calculan en el servidor sobre `Lead` y `Event`; el dashboard solo dibuja la respuesta.

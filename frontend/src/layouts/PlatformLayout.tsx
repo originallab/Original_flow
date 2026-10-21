@@ -1,21 +1,32 @@
-import { Building2, Funnel, Home, LogOut, Plus } from 'lucide-react';
+import { Building2, Funnel, Home, LogOut, Plus, Users } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { useWorkspaces } from '@/features/workspaces/WorkspaceProvider';
 import { Logo } from '@/shared/ui/Logo';
 import { ThemeToggle } from '@/shared/ui/ThemeToggle';
 import { cn } from '@/shared/utils/cn';
+import { canViewLeads } from '@/shared/utils/permissions';
 
-const NAV = [
+interface NavItem {
+  to: string;
+  label: string;
+  icon: typeof Home;
+  end: boolean;
+  /** Quién lo ve (solo para decidir qué mostrar; el backend vuelve a comprobar). */
+  allowed?: (role: string | undefined) => boolean;
+}
+
+const NAV: NavItem[] = [
   { to: '/', label: 'Inicio', icon: Home, end: true },
   { to: '/funnels', label: 'Funnels', icon: Funnel, end: false },
+  { to: '/leads', label: 'Leads', icon: Users, end: false, allowed: canViewLeads },
   { to: '/negocio', label: 'Mi negocio', icon: Building2, end: false },
 ];
 
-function Nav({ vertical }: { vertical: boolean }) {
+function Nav({ vertical, role }: { vertical: boolean; role: string | undefined }) {
   return (
     <nav aria-label="Navegación principal" className={cn('flex gap-1', vertical ? 'flex-col' : 'flex-row overflow-x-auto')}>
-      {NAV.map(({ to, label, icon: Icon, end }) => (
+      {NAV.filter((item) => item.allowed?.(role) ?? true).map(({ to, label, icon: Icon, end }) => (
         <NavLink
           key={to}
           to={to}
@@ -92,10 +103,10 @@ export function PlatformLayout() {
           </button>
 
           <div className="mt-5 md:hidden">
-            <Nav vertical={false} />
+            <Nav vertical={false} role={active?.role} />
           </div>
           <div className="mt-5 hidden md:block">
-            <Nav vertical />
+            <Nav vertical role={active?.role} />
           </div>
         </aside>
 

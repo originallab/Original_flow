@@ -8,6 +8,7 @@ import { BusinessPage } from '@/pages/BusinessPage';
 import { EditorPage } from '@/pages/EditorPage';
 import { FunnelsPage } from '@/pages/FunnelsPage';
 import { HomePage } from '@/pages/HomePage';
+import { LeadsPage } from '@/pages/LeadsPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { NewFunnelPage } from '@/pages/NewFunnelPage';
@@ -34,6 +35,7 @@ export const routes: RouteObject[] = [
             children: [
               { path: '/', element: <HomePage /> },
               { path: '/funnels', element: <FunnelsPage /> },
+              { path: '/leads', element: <LeadsPage /> },
               { path: '/negocio', element: <BusinessPage /> },
             ],
           },
