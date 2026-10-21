@@ -89,8 +89,14 @@ describe('acceso a la pantalla', () => {
 describe('el tablero', () => {
   it('mientras carga dice «Cargando tus leads…»', async () => {
     await negocioConLeads([MARIA]);
+    // La carga se deja pendiente a propósito: en la demostración terminaría casi al instante y el aviso no se alcanzaría a ver.
+    const real = (await vi.importActual<typeof import('@/services/leads')>('@/services/leads')).listLeads;
+    let soltar: () => void = () => undefined;
+    vi.mocked(leadsService.listLeads).mockImplementationOnce((token, workspaceId, filters, signal) => new Promise((resolver) => (soltar = () => resolver(real(token, workspaceId, filters, signal)))));
     montar('/leads');
     expect(await screen.findByText('Cargando tus leads…')).toBeInTheDocument();
+    await waitFor(() => expect(leadsService.listLeads).toHaveBeenCalled()); // el efecto pide los datos un instante después de dibujar
+    soltar();
     await screen.findByRole('region', { name: 'Nuevo' });
     expect(screen.queryByText('Cargando tus leads…')).not.toBeInTheDocument();
   });

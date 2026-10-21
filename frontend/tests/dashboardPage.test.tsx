@@ -57,10 +57,16 @@ function actividadBasica(funnelId: string) {
 describe('el dashboard', () => {
   it('saluda, dice de qué negocio habla y mientras carga lo avisa', async () => {
     await negocioConLeads([]);
+    // La carga se deja pendiente a propósito: en la demostración terminaría casi al instante y el aviso no se alcanzaría a ver.
+    const real = (await vi.importActual<typeof import('@/services/analytics')>('@/services/analytics')).getSummary;
+    let soltar: () => void = () => undefined;
+    vi.mocked(analytics.getSummary).mockImplementationOnce((token, query, signal) => new Promise((resolver) => (soltar = () => resolver(real(token, query, signal)))));
     montar('/');
     expect(await screen.findByRole('heading', { level: 1, name: 'Hola, Ana' })).toBeInTheDocument();
     expect(screen.getByText('Academia Nimbral', { selector: 'strong' })).toBeInTheDocument();
     expect(screen.getByText('Cargando tu dashboard…')).toBeInTheDocument();
+    await waitFor(() => expect(analytics.getSummary).toHaveBeenCalled()); // el efecto pide los datos un instante después de dibujar
+    soltar();
     await screen.findByRole('list', { name: 'Resumen del periodo' });
     expect(screen.queryByText('Cargando tu dashboard…')).not.toBeInTheDocument();
   });
