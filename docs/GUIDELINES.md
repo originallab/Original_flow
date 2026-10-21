@@ -110,6 +110,17 @@ Reglas específicas de este proyecto. Para lo general se remite al **project-pla
 - **Todo lo que escribió quien llenó el formulario se muestra como texto**, nunca como HTML. Los enlaces `mailto:` y `tel:` solo se generan si el dato tiene una forma segura (un correo con `?`, `&` o `%` se muestra sin enlace, para que no precargue destinatarios ni texto). Los campos internos de `customFields` (los que empiezan con guion bajo, como `_consentAt`) no se muestran.
 - **El valor estimado no lleva símbolo de moneda**: el lead no guarda en qué divisa está.
 
+## Dashboard en el frontend
+
+- **Es la pantalla de inicio (`/`)** para quien puede verla (`canViewDashboard`: todos menos el diseñador, que ve un saludo y no pide nada). Todo sale de `/analytics/*`; el front solo dibuja la respuesta.
+- **Una sola fila de filtros arriba** (periodo de 7, 30 o 90 días y funnel) que vale para todo lo que está debajo: las cifras, las gráficas y la tabla siempre coinciden. Al cambiar un filtro se sigue viendo lo anterior, atenuado (`aria-busy`), sin volver a «Cargando…»; si dos cambios se cruzan, gana el último. El abandono por sección es de una sola página, así que pide elegir un funnel.
+- **La forma sigue al dato** (guía de visualización de datos): cifras sueltas con su cambio frente al periodo anterior (flecha y texto, nunca solo color); el embudo y los orígenes como barras con los números siempre escritos al lado; el abandono por sección con **énfasis** (todas las barras en gris y la sección donde más gente se va en el color de la marca, con su etiqueta); el rendimiento por funnel como tabla. No hay doble eje, ni una cifra en cada punto, ni el tooltip como única vía: cada gráfica es una `<table>` con título y encabezados, que es su equivalente accesible.
+- **Colores de las gráficas**: tokens `--chart-1` (un color de serie) y `--chart-ramp-1…6` (etapas en orden, de la más clara a la más intensa), definidos en claro y en oscuro en `index.css` y **validados con el validador de paletas** (banda de luminosidad, contraste contra la superficie, pasos distinguibles). El gris de lo que no se destaca es `--muted`. Para cambiarlos hay que volver a validarlos.
+- **Marcas**: barras de 20 px con la punta de 4 px redondeada y pegadas a una sola línea base; una etapa con poca gente se ve igual (mínimo 1,5 %). Lo que escribió un visitante (por ejemplo un origen) se muestra siempre como texto.
+- **El dinero va por divisa** (cada funnel cobra en la suya): nunca se suman monedas distintas; con una sola divisa se muestra su cambio. Mientras no haya pagos, Ingresos y Ticket promedio dicen «Llega con los pagos.».
+- **Columnas opcionales** (porcentaje de la etapa anterior, parte del total) aparecen solo si la tarjeta tiene ancho de sobra (consultas de contenedor de Tailwind), no según el ancho de la ventana.
+- **La demostración calcula todo** (`services/demoAnalytics.ts`) con las definiciones de `docs/API_MVP.md`; el backend real todavía no tiene estos endpoints.
+
 ## Páginas públicas en el frontend
 
 - **`/p/:slug` no pide sesión y no lleva el logotipo de la plataforma.** Es del cliente. Los mensajes de «no disponible», «no se pudo cargar» y «cargando» son neutros. Un funnel en borrador, inexistente o con la dirección mal escrita responden igual (el servidor da el mismo `404`).

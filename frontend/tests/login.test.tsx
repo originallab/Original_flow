@@ -78,8 +78,8 @@ describe('inicio de sesión (Original Auth simulado)', () => {
     expect(await screen.findByRole('heading', { name: 'Hola, María' })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/');
     expect(sessionStore.get()).toMatch(/^[0-9a-f-]{36}$/);
-    // El orden de llamadas es el del flujo real de Original Auth.
-    expect(backend.calls.map((c) => `${c.method} ${c.path}`)).toEqual(['GET /auth/session', 'POST /auth/callback', 'POST /auth/validate', 'GET /me', 'GET /workspaces']);
+    // El orden de las primeras llamadas es el del flujo real de Original Auth (después, la pantalla de inicio pide lo suyo).
+    expect(backend.calls.slice(0, 5).map((c) => `${c.method} ${c.path}`)).toEqual(['GET /auth/session', 'POST /auth/callback', 'POST /auth/validate', 'GET /me', 'GET /workspaces']);
   });
 
   it('el token se guarda en sessionStorage y nunca en localStorage', async () => {

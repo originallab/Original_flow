@@ -25,6 +25,11 @@ export function canViewLeads(role: string | undefined): boolean {
   return role === 'super_admin' || role === 'client_admin' || role === 'marketing_manager' || role === 'vendedor' || role === 'analista';
 }
 
+/** Ver el dashboard: los mismos roles que ven los leads. */
+export function canViewDashboard(role: string | undefined): boolean {
+  return canViewLeads(role);
+}
+
 /** Mover y editar leads: lo mismo que verlos, salvo el analista, que solo mira. */
 export function canManageLeads(role: string | undefined): boolean {
   return canViewLeads(role) && role !== 'analista';

@@ -312,6 +312,14 @@ Todas aceptan `workspaceId`, `funnelId` (opcional) y un rango (`range=7d|30d|90d
 
 La conversión por origen sale de cruzar los eventos `page_view` de cada `properties.source` con los leads que venían de ese origen en su `utm`.
 
+**Forma y definiciones** (las definió el frontend en el modo demostración; el backend de este paso todavía no existe y debe seguirlas o cambiarse aquí en el mismo commit). Todas piden `workspaceId` (`422` si falta, `404` si es de otro cliente), `range` (`7d`, `30d` o `90d`; por defecto `30d`; otro valor, `422`) y, opcionalmente, `funnelId` (`404` si no es del negocio). El periodo son los últimos N días y el «periodo anterior», los N días previos.
+
+- `GET /analytics/summary` → `{ visits, leads, conversion, revenue, averageTicket }`. Los tres primeros son `{ value, previous }`: visitas = eventos `page_view`, leads = leads creados en el periodo y conversión = leads ÷ visitas en porcentaje con un decimal (0 si no hay visitas). `revenue` y `averageTicket` son listas **por divisa** (`[{ currency, value, previous }]`), vacías mientras no haya órdenes pagadas: cada funnel cobra en su divisa y nunca se suman monedas distintas.
+- `GET /analytics/funnel-conversion` → `{ items: [{ key, label, count, percentOfVisits, percentOfPrevious }] }` con las etapas `visits`, `leads`, `opportunities`, `checkout`, `payments` y `customers` en ese orden. Oportunidades = leads en la penúltima etapa del tablero o en las siguientes; clientes = leads en una etapa `isWon`; `checkout` y `payments` (eventos `checkout_started` y `payment_completed`) solo aparecen si algún funnel del alcance cobra. Los porcentajes llevan un decimal y son `null` cuando no hay con qué dividir.
+- `GET /analytics/sources` → `{ total, items }`: `total` son las visitas y `items`, hasta 10 orígenes del que más trae al que menos (con empate, por nombre) con `{ source, clicks, percent, conversion }`. El origen es `properties.source` (o «Directo» si no viene); un lead cuenta para su `utm_source` o, si no tiene, el sitio de su `referrer`, o «Directo».
+- `GET /analytics/drop-off` → `{ items }`, **`funnelId` obligatorio** (`422` si falta). Una fila por bloque de la página, en su orden, con `{ section, reachedPercent, dropPoints }`: lo que llega es el porcentaje de visitas con un `section_view` de esa sección (entero, tope 100) y `dropPoints` lo que se pierde respecto a la sección anterior (la primera, respecto a 100; nunca negativo).
+- `GET /analytics/funnels` → `{ items: [{ funnelId, name, objective, status, visits, leads, conversion, revenue }] }`, del que más leads trae al que menos (con empate, por nombre); incluye borradores.
+
 ## Archivos y marca con IA
 
 Todos pasan por el backend: el frontend nunca habla directo con Media-as-a-Service ni con Original AI Engine, y las claves de ambos se quedan en el servidor. Los endpoints de IA solo **devuelven propuestas**; no guardan nada hasta que la persona elige.

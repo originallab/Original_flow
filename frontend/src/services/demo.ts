@@ -1,4 +1,5 @@
 import { asObject, fail, invalid, notFound, unauthorized, uuid, type DemoDb, type DemoWorkspace } from './demoCore';
+import { demoAnalyticsRoute } from './demoAnalytics';
 import { demoFunnelsRoute } from './demoFunnels';
 import { demoLeadsRoute } from './demoLeads';
 import { demoPublicRoute } from './demoPublic';
@@ -190,6 +191,10 @@ export async function demoRequest<T>(path: string, { method, body, token }: Demo
   // Leads y las etapas de su tablero.
   const leadsAnswer = demoLeadsRoute({ route, query, method, data, db, sessionOf, save: () => write(db) });
   if (leadsAnswer.handled) return respond(leadsAnswer.value);
+
+  // Analítica del dashboard.
+  const analyticsAnswer = demoAnalyticsRoute({ route, query, method, data, db, sessionOf, save: () => write(db) });
+  if (analyticsAnswer.handled) return respond(analyticsAnswer.value);
 
   throw notFound();
 }

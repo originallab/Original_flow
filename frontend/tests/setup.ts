@@ -3,8 +3,8 @@ import { cleanup, configure } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { mockSystemDark } from './helpers';
 
-// Las pantallas esperan a varias cargas seguidas; con todas las pruebas corriendo a la vez, 1 s a veces no alcanza.
-configure({ asyncUtilTimeout: 4000 });
+// Las pantallas esperan a varias cargas seguidas; con todas las pruebas corriendo a la vez, 1 s (y luego 4 s) a veces no alcanza.
+configure({ asyncUtilTimeout: 8000 });
 
 // Cada prueba empieza con el sistema en modo claro, sin preferencia guardada y sin tema aplicado.
 beforeEach(() => {

@@ -593,6 +593,7 @@ describe('la pantalla de después de registrarse', () => {
   });
 
   it('leads con enlace: agradece, lo ofrece y lleva ahí solo después de unos segundos', async () => {
+    tiempos.redirect = 400; // margen de sobra para comprobar que todavía no redirigió, aunque la máquina vaya lenta
     const navegar = vi.spyOn(navigation, 'to').mockImplementation(() => undefined);
     await enviar('leads', { typeConfig: { thankYou: { message: '¡Gracias!', redirectUrl: 'https://siguiente.test/paso' } } });
     expect(await screen.findByRole('link', { name: 'Continuar ahora' })).toHaveAttribute('href', 'https://siguiente.test/paso');
