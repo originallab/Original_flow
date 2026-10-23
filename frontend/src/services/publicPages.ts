@@ -1,6 +1,7 @@
 import type { AfterSubmit } from '@/shared/afterSubmit';
 import type { Block, DesignSpec } from '@/shared/blocks/types';
 import type { LeadBody } from '@/shared/leads';
+import type { CheckoutBody, PaymentMethod } from '@/shared/payments';
 import { apiFetch } from './api';
 import type { CtaActionType, Currency, FunnelObjective } from './funnels';
 
@@ -32,6 +33,8 @@ export interface PublicPage {
   designSpec: DesignSpec | null;
   seo: PublicSeo | null;
   ctas: PublicCta[];
+  /** Las formas de pago que acepta el negocio; solo viene en funnels que cobran y con Original Pay conectado. */
+  paymentMethods?: PaymentMethod[];
 }
 
 export interface LeadResponse {
@@ -61,4 +64,34 @@ export function sendLead(slug: string, body: LeadBody): Promise<LeadResponse> {
 /** POST /public/funnels/:slug/events: de 1 a 20 eventos por petición. `keepalive` deja que termine aunque se cierre la página. */
 export function sendEvents(slug: string, events: ClientEvent[], keepalive = false): Promise<{ accepted: number }> {
   return apiFetch(`/public/funnels/${encodeURIComponent(slug)}/events`, { method: 'POST', body: { events }, keepalive });
+}
+
+export type OrderStatus = 'pending' | 'paid' | 'cancelled' | 'failed';
+
+/** Lo que devuelve `POST /public/funnels/:slug/checkout`: la orden y a dónde mandar a la persona a pagar. */
+export interface CheckoutResponse {
+  publicToken: string;
+  status: OrderStatus;
+  paymentUrl?: string;
+}
+
+/** Lo que devuelve `GET /public/orders/:publicToken` para la página de retorno. Con `paid` trae el mensaje (y el enlace) de después de comprar. */
+export interface OrderView {
+  publicToken: string;
+  status: OrderStatus;
+  message?: string;
+  redirectUrl?: string;
+}
+
+/**
+ * POST /public/funnels/:slug/checkout: crea la orden. La clave de idempotencia (de 8 a 64 caracteres) debe ser
+ * nueva en cada intento de compra y repetirse en los reintentos del mismo: así un doble clic o un timeout no cobra dos veces.
+ */
+export function startCheckout(slug: string, body: CheckoutBody, idempotencyKey: string): Promise<CheckoutResponse> {
+  return apiFetch(`/public/funnels/${encodeURIComponent(slug)}/checkout`, { method: 'POST', body, headers: { 'Idempotency-Key': idempotencyKey } });
+}
+
+/** GET /public/orders/:publicToken: `404 ORDER_NOT_FOUND` si no existe. */
+export function getOrder(publicToken: string, signal?: AbortSignal): Promise<OrderView> {
+  return apiFetch(`/public/orders/${encodeURIComponent(publicToken)}`, { signal });
 }

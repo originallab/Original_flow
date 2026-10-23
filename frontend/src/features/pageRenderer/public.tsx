@@ -21,14 +21,17 @@ export interface PublicContext {
   scrollTo: (blockKey: string) => void;
   /** Manda el lead; lanza el error de la API si falla. */
   submitLead: (body: LeadBody) => Promise<void>;
+  /** El precio del producto (`null` si todavía no tiene) y cómo abrir la compra. */
+  price: number | null;
+  openCheckout: () => void;
 }
 
-const buttonStyle = (theme: PageTheme): CSSProperties => ({
+export const buttonStyle = (theme: PageTheme): CSSProperties => ({
   background: theme.palette.primary,
   color: readableOn(theme.palette.primary, theme.palette),
   borderRadius: theme.look.radius,
 });
-const BUTTON = 'inline-block px-6 py-3 text-sm font-semibold transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60';
+export const BUTTON = 'inline-block px-6 py-3 text-sm font-semibold transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60';
 
 export function PublicButtonLink({ theme, href, children, onClick }: { theme: PageTheme; href: string; children: ReactNode; onClick?: () => void }) {
   return (
@@ -40,7 +43,7 @@ export function PublicButtonLink({ theme, href, children, onClick }: { theme: Pa
 
 /**
  * Un botón de la página con la acción que le puso su dueño: abrir un enlace, bajar a otra parte de la
- * página o (cuando exista Original Pay) cobrar. Los enlaces solo se abren si son http o https.
+ * página o comprar. Los enlaces solo se abren si son http o https.
  */
 export function CtaButton({ block, theme, ctx }: { block: Block; theme: PageTheme; ctx: PublicContext }) {
   const cta = ctx.ctas.find((c) => c.blockKey === block.key);
@@ -63,9 +66,20 @@ export function CtaButton({ block, theme, ctx }: { block: Block; theme: PageThem
   }
 
   if (cta?.actionType === 'checkout') {
-    // El cobro con Original Pay todavía no está conectado: el botón se ve, pero no cobra.
+    // Comprar: abre el formulario de la compra (el monto lo pone el servidor con el precio del funnel).
+    const buyable = ctx.price !== null && ctx.price > 0;
     return (
-      <button type="button" disabled title="El pago todavía no está disponible" className={BUTTON} style={buttonStyle(theme)}>
+      <button
+        type="button"
+        disabled={!buyable}
+        title={buyable ? undefined : 'Este producto todavía no tiene precio'}
+        onClick={() => {
+          ctx.onCtaClick(block);
+          ctx.openCheckout();
+        }}
+        className={BUTTON}
+        style={buttonStyle(theme)}
+      >
         {label}
       </button>
     );

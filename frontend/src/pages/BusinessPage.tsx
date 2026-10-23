@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { BrandPreview } from '@/features/workspaces/components/BrandPreview';
 import { BusinessForm } from '@/features/workspaces/components/BusinessForm';
+import { PaymentsSection } from '@/features/workspaces/components/PaymentsSection';
 import { PaletteEditor } from '@/features/workspaces/components/PaletteEditor';
 import { diffWorkspace, SUGGESTED_PALETTE, valuesOf, type BusinessValues } from '@/features/workspaces/brand';
 import { useWorkspaces } from '@/features/workspaces/WorkspaceProvider';
@@ -84,6 +85,8 @@ function BusinessEditor({ workspace, token, onSaved }: { workspace: Workspace; t
           </BusinessForm>
         </div>
       </section>
+
+      {canEdit && token && <PaymentsSection token={token} workspaceId={workspace.id} />}
 
       {saved && (
         <p role="status" className="mt-4 text-sm text-violet-tint-text">

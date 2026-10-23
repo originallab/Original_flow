@@ -260,6 +260,15 @@ Exige el encabezado **`Idempotency-Key`** (texto de 8 a 64 caracteres; la págin
 { "publicToken": "...", "status": "pending", "paymentUrl": "https://..." }
 ```
 
+**Lo que el frontend ya usa del cobro** (se definió en el modo demostración; el backend de este paso todavía no existe y debe seguirlo o cambiarse aquí en el mismo commit):
+
+- `POST /public/funnels/:slug/checkout`: `name` y `email` obligatorios, `phone` opcional, `paymentMethod` opcional (uno de `stripe`, `paypal`, `mercadopago`, `spei_direct`, `webpay`; si falta se usa el primero de la conexión; si no lo acepta el negocio, `422` con la ruta `paymentMethod`), `consent` exactamente `true` y `utm`. El monto nunca viaja. Responde `{ publicToken, status, paymentUrl? }`; `paymentUrl` solo cuando la orden está pendiente. Una persona con una orden pendiente en ese funnel recibe esa misma orden; con una orden pagada, `409 ORDER_ALREADY_PAID`. Antes de crear la orden se busca o crea el lead en la primera etapa y se registra `lead_created` si es nuevo; al crearla, `checkout_started`.
+- **`GET /public/pages/:slug` agrega `paymentMethods`** (las formas de pago de la conexión del negocio) **solo** si el funnel cobra y el negocio tiene Original Pay conectado, para que la página sepa qué ofrecer.
+- `GET /public/orders/:publicToken` → `{ publicToken, status: 'pending' | 'paid' | 'cancelled' | 'failed', message?, redirectUrl? }`; `message` y `redirectUrl` (el `successMessage` y el `successUrl` del `typeConfig`) solo cuando está pagada. La página de retorno es `/p/:slug/orden/:publicToken` y pregunta sola mientras siga pendiente. `404 ORDER_NOT_FOUND` si no existe.
+- Al pagar: la orden pasa a `paid` con `paidAt`, el lead a la etapa con `isWon` y se registra `payment_completed`.
+- `PUT /workspaces/:id/payments` → `{ apiKey (8 a 500 caracteres), currency, methods (de 1 a 5, sin repetir) }` y `GET` → `{ connected, provider?, currency?, methods? }`, solo super admin y administrador; la llave nunca se devuelve.
+- Los ingresos del dashboard (`/analytics/summary` y `/analytics/funnels`) salen de las órdenes `paid` por `paidAt`, por divisa.
+
 **Errores propios del cobro:** `422` si el funnel no cobra, falta el precio o la conexión, o falta `Idempotency-Key`; `409` si la orden ya está pagada o la clave se reutilizó con otros datos; `503` si Original Pay no responde, en cuyo caso la orden queda `pending` y se puede reintentar. Los reembolsos no entran en el MVP.
 
 ### Decisiones por confirmar con quien mantiene Original Pay

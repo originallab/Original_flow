@@ -1,7 +1,9 @@
 import { ApiError } from './apiError';
-import type { Cta, Funnel } from './funnels';
+import type { Cta, Currency, Funnel } from './funnels';
 import type { LeadStage } from './leads';
 import type { Member } from './members';
+import type { OrderStatus } from './publicPages';
+import type { PaymentsConnection } from '@/shared/payments';
 import type { Workspace } from './workspaces';
 
 /** Piezas comunes del modo demostración (ver demo.ts): la «base de datos» en el navegador y los errores con el formato del backend. */
@@ -49,12 +51,32 @@ export interface DemoHistoryEntry {
   createdAt: string;
 }
 
+/** Una compra en una página publicada: lo que se va a cobrar y en qué va. El monto sale del precio del funnel, nunca del navegador. */
+export interface DemoOrder {
+  id: string;
+  publicToken: string;
+  funnelId: string;
+  leadId: string;
+  orderNumber: string;
+  amount: number;
+  currency: Currency;
+  status: OrderStatus;
+  paymentMethod: string | null;
+  idempotencyKey: string;
+  customerEmail: string;
+  createdAt: string;
+  paidAt: string | null;
+}
+
 export interface DemoDb {
   sessions: Record<string, DemoSession>;
   workspaces: DemoWorkspace[];
   funnels: Funnel[];
   ctas: Cta[];
   history: DemoHistoryEntry[];
+  orders: DemoOrder[];
+  /** Original Pay conectado por negocio (sin la llave: en la demostración se descarta). */
+  payments: Record<string, Pick<PaymentsConnection, 'currency' | 'methods'>>;
   leadStages: LeadStage[];
   /** Las personas invitadas a los negocios (el dueño de cada negocio no se guarda aquí: sale del propio negocio). */
   members: Member[];

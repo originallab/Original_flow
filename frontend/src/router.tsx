@@ -10,7 +10,9 @@ import { FunnelsPage } from '@/pages/FunnelsPage';
 import { HomePage } from '@/pages/HomePage';
 import { LeadsPage } from '@/pages/LeadsPage';
 import { LoginPage } from '@/pages/LoginPage';
+import { DemoPayPage } from '@/pages/DemoPayPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
+import { OrderPage } from '@/pages/OrderPage';
 import { NewFunnelPage } from '@/pages/NewFunnelPage';
 import { OnboardingPage } from '@/pages/OnboardingPage';
 import { PublicPage } from '@/pages/PublicPage';
@@ -21,6 +23,10 @@ export const routes: RouteObject[] = [
   { path: '/login', element: <LoginPage /> },
   // La página publicada de un funnel: la ve cualquier visitante, sin sesión.
   { path: '/p/:slug', element: <PublicPage /> },
+  // A donde vuelve quien pagó: espera la confirmación del pago y muestra el resultado.
+  { path: '/p/:slug/orden/:token', element: <OrderPage /> },
+  // La pasarela de mentira del modo demostración: solo existe en desarrollo (en producción la ruta ni se declara).
+  ...(import.meta.env.DEV ? [{ path: '/demo/pago/:token', element: <DemoPayPage /> }] : []),
   {
     // Todo lo que está aquí dentro exige sesión (se declara una sola vez para el grupo).
     element: <ProtectedRoute />,

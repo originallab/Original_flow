@@ -1,5 +1,5 @@
 import { FUNNEL_TYPES } from '@/shared/funnelTypes';
-import { RANGES, type AnalyticsSummary, type ConversionStage, type DropOffRow, type FunnelPerformance, type SourceRow, type StageKey } from './analytics';
+import { RANGES, type AnalyticsSummary, type ConversionStage, type DropOffRow, type FunnelPerformance, type Money, type SourceRow, type StageKey } from './analytics';
 import { done, invalid, notFound, skip, type Answer, type DemoDb, type DemoEvent, type DemoLead, type FunnelsContext } from './demoCore';
 import { stagesOf } from './demoLeads';
 import type { Funnel } from './funnels';
@@ -7,7 +7,7 @@ import type { Funnel } from './funnels';
 /**
  * La analítica del dashboard en la demostración (ver demo.ts). Calcula todo con lo que hay guardado
  * —leads, eventos y funnels— con las mismas definiciones que debe seguir el backend (docs/API_MVP.md).
- * Todavía no hay pagos: los ingresos salen vacíos y las etapas de cobro, en cero.
+ * Los ingresos salen de las órdenes pagadas (por divisa); sin ventas, vacíos.
  */
 
 const DAY = 86_400_000;
@@ -39,6 +39,28 @@ const eventsOf = (scope: Scope, type: string, window: [number, number]) => {
   return scope.db.events.filter((event) => event.type === type && ids.has(event.funnelId) && within(event.createdAt, window));
 };
 
+/** Ingresos y ticket promedio por divisa, de las órdenes pagadas en el periodo y en el anterior. Nunca se suman monedas distintas. */
+function moneyOf(scope: Scope): { revenue: Money[]; averageTicket: Money[] } {
+  const ids = new Set(scope.funnels.map((f) => f.id));
+  const totals = (window: [number, number]) => {
+    const byCurrency = new Map<Money['currency'], { sum: number; count: number }>();
+    for (const order of scope.db.orders) {
+      if (order.status !== 'paid' || !order.paidAt || !ids.has(order.funnelId) || !within(order.paidAt, window)) continue;
+      const current = byCurrency.get(order.currency) ?? { sum: 0, count: 0 };
+      byCurrency.set(order.currency, { sum: current.sum + order.amount, count: current.count + 1 });
+    }
+    return byCurrency;
+  };
+  const now = totals(scope.current);
+  const before = totals(scope.previous);
+  const currencies = [...new Set([...now.keys(), ...before.keys()])].sort();
+  const average = (entry?: { sum: number; count: number }) => (entry && entry.count > 0 ? round(entry.sum / entry.count, 2) : 0);
+  return {
+    revenue: currencies.map((currency) => ({ currency, value: round(now.get(currency)?.sum ?? 0, 2), previous: round(before.get(currency)?.sum ?? 0, 2) })),
+    averageTicket: currencies.map((currency) => ({ currency, value: average(now.get(currency)), previous: average(before.get(currency)) })),
+  };
+}
+
 /** De dónde llegó un lead: la misma regla con la que la página manda el origen de cada visita. */
 function leadSource(lead: DemoLead): string {
   const source = lead.utm.utm_source?.trim();
@@ -65,8 +87,7 @@ function summary(scope: Scope): AnalyticsSummary {
     visits: { value: now.visits, previous: before.visits },
     leads: { value: now.leads, previous: before.leads },
     conversion: { value: now.conversion, previous: before.conversion },
-    revenue: [],
-    averageTicket: [],
+    ...moneyOf(scope),
   };
 }
 
@@ -139,7 +160,7 @@ function performance(scope: Scope): FunnelPerformance[] {
       const own: Scope = { ...scope, funnels: [funnel] };
       const visits = eventsOf(own, 'page_view', scope.current).length;
       const leads = leadsOf(own, scope.current).length;
-      return { funnelId: funnel.id, name: funnel.name, objective: funnel.objective, status: funnel.status, visits, leads, conversion: percent(leads, visits), revenue: [] };
+      return { funnelId: funnel.id, name: funnel.name, objective: funnel.objective, status: funnel.status, visits, leads, conversion: percent(leads, visits), revenue: moneyOf(own).revenue };
     })
     .sort((a, b) => b.leads - a.leads || a.name.localeCompare(b.name));
 }

@@ -1,6 +1,8 @@
 import { afterSubmitFor } from '@/shared/afterSubmit';
+import { FUNNEL_TYPES } from '@/shared/funnelTypes';
 import { normalizeLead, validateLead, type LeadBody } from '@/shared/leads';
 import { asObject, done, invalid, notFound, skip, uuid, type Answer, type DemoDb } from './demoCore';
+import { demoCheckoutRoute } from './demoCheckout';
 import { stagesOf } from './demoLeads';
 
 /**
@@ -13,6 +15,7 @@ interface Context {
   route: string;
   method: string;
   data: Record<string, unknown>;
+  headers: Record<string, string>;
   db: DemoDb;
   save: () => void;
 }
@@ -31,7 +34,7 @@ function publishedBySlug(db: DemoDb, slug: string) {
   return funnel;
 }
 
-export function demoPublicRoute({ route, method, data, db, save }: Context): Answer {
+export function demoPublicRoute({ route, method, data, headers, db, save }: Context): Answer {
   const page = /^\/public\/pages\/([^/]+)$/.exec(route);
   if (page && method === 'GET') {
     const funnel = publishedBySlug(db, decodeURIComponent(page[1] ?? ''));
@@ -46,6 +49,8 @@ export function demoPublicRoute({ route, method, data, db, save }: Context): Ans
       designSpec: funnel.designSpec,
       seo: funnel.seo,
       ctas: db.ctas.filter((c) => c.funnelId === funnel.id).map(({ blockKey, label, actionType, destination, trackingId }) => ({ blockKey, label, actionType, destination, trackingId })),
+      // Las formas de pago solo se ofrecen si el funnel cobra y el negocio tiene Original Pay conectado.
+      ...(FUNNEL_TYPES[funnel.objective].charges && db.payments[funnel.workspaceId] ? { paymentMethods: db.payments[funnel.workspaceId]!.methods } : {}),
     });
   }
 
@@ -98,5 +103,5 @@ export function demoPublicRoute({ route, method, data, db, save }: Context): Ans
     return done({ accepted: batch.length });
   }
 
-  return skip;
+  return demoCheckoutRoute({ route, method, data, headers, db, save }, publishedBySlug);
 }

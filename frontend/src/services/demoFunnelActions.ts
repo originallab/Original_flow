@@ -136,14 +136,14 @@ export function demoFunnelActionsRoute(ctx: FunnelsContext): Answer {
     if (publish[2] === 'unpublish') {
       funnel.status = 'draft';
     } else if (funnel.status !== 'published') {
-      // Original Pay todavía no existe: un funnel que cobra nunca está listo (igual que en el backend real hoy).
+      // Un funnel que cobra solo se publica si el negocio tiene Original Pay conectado.
       const problems = findPublishProblems({
         objective: funnel.objective,
         price: funnel.price,
         typeConfig: funnel.typeConfig,
         blocks: funnel.content.blocks,
         ctas: db.ctas.filter((c) => c.funnelId === funnel.id),
-        hasPayments: false,
+        hasPayments: Boolean(db.payments[funnel.workspaceId]),
       });
       if (problems.length > 0) throw fail(422, 'FUNNEL_NOT_READY', 'El funnel todavía no se puede publicar', { missing: problems });
       funnel.status = 'published';

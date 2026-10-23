@@ -106,6 +106,7 @@ describe('abrir el editor', () => {
     );
     montar(`/funnels/${funnel.id}/editor`);
     expect(await screen.findByText(/abriendo tu página/i)).toBeInTheDocument();
+    await waitFor(() => expect(getFunnel).toHaveBeenCalled()); // el efecto pide el funnel un instante después de dibujar
     soltar();
     await screen.findByRole('navigation', { name: /bloques de la página/i });
   });

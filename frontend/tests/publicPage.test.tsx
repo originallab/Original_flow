@@ -383,7 +383,7 @@ describe('los botones', () => {
     }
   });
 
-  it('un botón de pago todavía no cobra: se ve deshabilitado con su explicación', async () => {
+  it('un botón de pago de un producto sin precio se ve deshabilitado con su explicación', async () => {
     const { slug } = await publicarFunnel(botones({}));
     editarBaseDeDemostracion((db) => {
       for (const cta of db.ctas) if (cta.blockKey === 'boton') cta.actionType = 'checkout';
@@ -391,7 +391,7 @@ describe('los botones', () => {
     await abrir(slug);
     const boton = screen.getByRole('button', { name: 'Empezar' });
     expect(boton).toBeDisabled();
-    expect(boton).toHaveAttribute('title', 'El pago todavía no está disponible');
+    expect(boton).toHaveAttribute('title', 'Este producto todavía no tiene precio');
   });
 
   it('el calendario y el video muestran su botón solo si el enlace es seguro', async () => {

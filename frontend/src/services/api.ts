@@ -17,12 +17,14 @@ interface RequestOptions {
   signal?: AbortSignal;
   /** La petición termina aunque se cierre la página (para los eventos que se mandan al salir). */
   keepalive?: boolean;
+  /** Encabezados extra (por ejemplo `Idempotency-Key` en una compra). */
+  headers?: Record<string, string>;
 }
 
-export async function apiFetch<T>(path: string, { method = 'GET', body, token, signal, keepalive }: RequestOptions = {}): Promise<T> {
+export async function apiFetch<T>(path: string, { method = 'GET', body, token, signal, keepalive, headers }: RequestOptions = {}): Promise<T> {
   // Modo demostración (solo en desarrollo): responde la propia aplicación, sin servidor.
   // El `import.meta.env.DEV` explícito permite que Vite elimine todo esto de la compilación de producción.
-  if (import.meta.env.DEV && isDemoMode()) return demoRequest<T>(path, { method, body, token });
+  if (import.meta.env.DEV && isDemoMode()) return demoRequest<T>(path, { method, body, token, headers });
 
   let response: Response;
   try {
@@ -32,6 +34,7 @@ export async function apiFetch<T>(path: string, { method = 'GET', body, token, s
         Accept: 'application/json',
         ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
       },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal,

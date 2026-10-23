@@ -56,7 +56,7 @@ export function editarBaseDeDemostracion(cambiar: (db: any) => void) {
   localStorage.setItem('of-demo-db', JSON.stringify(db));
 }
 
-export const leerBaseDeDemostracion = () => JSON.parse(localStorage.getItem('of-demo-db')!) as { leads: Record<string, any>[]; events: Record<string, any>[]; funnels: Record<string, any>[]; ctas: Record<string, any>[]; leadStages: Record<string, any>[]; workspaces: Record<string, any>[]; members: Record<string, any>[] };
+export const leerBaseDeDemostracion = () => JSON.parse(localStorage.getItem('of-demo-db')!) as { leads: Record<string, any>[]; events: Record<string, any>[]; funnels: Record<string, any>[]; ctas: Record<string, any>[]; leadStages: Record<string, any>[]; workspaces: Record<string, any>[]; members: Record<string, any>[]; orders: Record<string, any>[]; payments: Record<string, any>; history: Record<string, any>[] };
 
 /** Un `IntersectionObserver` de mentira: deja decidir qué secciones «entran en pantalla». */
 export function simularIntersectionObserver() {

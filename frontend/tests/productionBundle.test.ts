@@ -35,7 +35,7 @@ describe('compilación de producción', () => {
     const bundle = readAll(outDir);
     expect(bundle.length).toBeGreaterThan(10_000); // se compiló de verdad
 
-    for (const rastro of ['SENTINELA-TOKEN-APP', 'SENTINELA-SECRETO', 'of-demo-db', 'Modo demostración', 'Modo de desarrollo', 'mock_callback']) {
+    for (const rastro of ['SENTINELA-TOKEN-APP', 'SENTINELA-SECRETO', 'of-demo-db', 'Modo demostración', 'Modo de desarrollo', 'mock_callback', 'Pasarela de pago de demostración', '_demo/orders', '/demo/pago']) {
       expect(bundle, `la compilación de producción contiene «${rastro}»`).not.toContain(rastro);
     }
   }, 120_000);

@@ -4,13 +4,17 @@ import { PageRenderer } from '@/features/pageRenderer/PageRenderer';
 import type { PublicContext } from '@/features/pageRenderer/public';
 import { resolveTheme } from '@/features/pageRenderer/theme';
 import { readUtm, trafficSource } from '@/features/publicPage/traffic';
+import { CheckoutDialog } from '@/features/publicPage/CheckoutDialog';
 import { ThankYou } from '@/features/publicPage/ThankYou';
 import { useSeo } from '@/features/publicPage/useSeo';
 import { useTracker } from '@/features/publicPage/useTracker';
 import { ApiError } from '@/services/api';
-import { getPublicPage, sendLead, type PublicPage as Page } from '@/services/publicPages';
+import { getPublicPage, sendLead, startCheckout, type PublicPage as Page } from '@/services/publicPages';
 import type { AfterSubmit } from '@/shared/afterSubmit';
+import type { CheckoutBody } from '@/shared/payments';
 import { Button } from '@/shared/ui/Button';
+import { navigation } from '@/shared/utils/navigation';
+import { safeHttpUrl } from '@/shared/utils/safeUrl';
 
 type State = { status: 'loading' } | { status: 'notfound' } | { status: 'error' } | { status: 'ready'; page: Page };
 
@@ -30,6 +34,7 @@ export function PublicPage() {
   const [state, setState] = useState<State>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [done, setDone] = useState<{ next: AfterSubmit | null } | null>(null);
+  const [buying, setBuying] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const page = state.status === 'ready' ? state.page : null;
 
@@ -37,6 +42,7 @@ export function PublicPage() {
     const controller = new AbortController();
     setState({ status: 'loading' });
     setDone(null);
+    setBuying(false);
     getPublicPage(slug, controller.signal)
       .then((loaded) => !controller.signal.aborted && setState({ status: 'ready', page: loaded }))
       .catch((err: unknown) => {
@@ -84,6 +90,8 @@ export function PublicPage() {
         setDone({ next: response.next });
         window.scrollTo?.({ top: 0 });
       },
+      price: page.price,
+      openCheckout: () => setBuying(true),
     };
     // `tracker` cambia de identidad solo cuando cambia la página; los demás datos salen de `page`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -124,11 +132,21 @@ export function PublicPage() {
   const theme = resolveTheme(page.designSpec);
   if (done) return <ThankYou page={page} next={done.next} theme={theme} />;
 
+  // Crea la orden y lleva a la persona a pagar. Un enlace de pago que no sea http o https no se abre.
+  async function submitCheckout(body: CheckoutBody, idempotencyKey: string) {
+    const utm = readUtm(search, document.referrer);
+    const response = await startCheckout(slug, { ...body, utm }, idempotencyKey);
+    const url = safeHttpUrl(response.paymentUrl);
+    if (!url) throw new ApiError(0, 'INVALID_PAYMENT_URL', 'No se pudo abrir el pago');
+    navigation.to(url);
+  }
+
   return (
     <div ref={root} className="min-h-screen overflow-x-hidden" style={{ background: theme.palette.background, color: theme.palette.text }}>
       <main className="mx-auto max-w-3xl">
         <PageRenderer blocks={page.content.blocks} design={page.designSpec} currency={page.currency} mode="public" publicContext={context} />
       </main>
+      {buying && <CheckoutDialog page={page} theme={theme} onSubmit={submitCheckout} onClose={() => setBuying(false)} />}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { demoFunnelsRoute } from './demoFunnels';
 import { demoHistoryRoute } from './demoHistory';
 import { demoLeadsRoute } from './demoLeads';
 import { demoMembersRoute } from './demoMembers';
+import { demoPaymentsRoute } from './demoPayments';
 import { demoPublicRoute } from './demoPublic';
 import type { Workspace } from './workspaces';
 
@@ -24,9 +25,10 @@ interface DemoRequest {
   method: string;
   body?: unknown;
   token?: string | null;
+  headers?: Record<string, string>;
 }
 
-const emptyDb = (): DemoDb => ({ sessions: {}, workspaces: [], funnels: [], ctas: [], history: [], leadStages: [], members: [], leads: [], events: [] });
+const emptyDb = (): DemoDb => ({ sessions: {}, workspaces: [], funnels: [], ctas: [], history: [], orders: [], payments: {}, leadStages: [], members: [], leads: [], events: [] });
 
 // Copia en memoria por si el navegador no deja usar localStorage (por ejemplo, en una ventana privada).
 let memory: DemoDb | null = null;
@@ -83,7 +85,7 @@ function validateWorkspace(body: Record<string, unknown>, creating: boolean) {
 const publicWorkspace = ({ ownerEmail: _owner, ...workspace }: DemoWorkspace): Workspace => workspace;
 
 /** Responde una petición como lo haría el backend. Lanza `ApiError` con el mismo formato que el real. */
-export async function demoRequest<T>(path: string, { method, body, token }: DemoRequest): Promise<T> {
+export async function demoRequest<T>(path: string, { method, body, token, headers = {} }: DemoRequest): Promise<T> {
   const [route = path, queryText = ''] = path.split('?');
   const query = new URLSearchParams(queryText);
   const db = read();
@@ -98,7 +100,7 @@ export async function demoRequest<T>(path: string, { method, body, token }: Demo
 
   // Endpoints públicos: los usa el visitante de una página publicada, sin sesión.
   if (route.startsWith('/public/')) {
-    const publicAnswer = demoPublicRoute({ route, method, data, db, save: () => write(db) });
+    const publicAnswer = demoPublicRoute({ route, method, data, headers, db, save: () => write(db) });
     if (publicAnswer.handled) return respond(publicAnswer.value);
     throw notFound();
   }
@@ -201,6 +203,10 @@ export async function demoRequest<T>(path: string, { method, body, token }: Demo
   // Analítica del dashboard.
   const analyticsAnswer = demoAnalyticsRoute({ route, query, method, data, db, sessionOf, save: () => write(db) });
   if (analyticsAnswer.handled) return respond(analyticsAnswer.value);
+
+  // Conexión con Original Pay.
+  const paymentsAnswer = demoPaymentsRoute({ route, query, method, data, db, sessionOf, save: () => write(db) });
+  if (paymentsAnswer.handled) return respond(paymentsAnswer.value);
 
   // Equipo e invitaciones.
   const membersAnswer = demoMembersRoute({ route, query, method, data, db, sessionOf, save: () => write(db) });
