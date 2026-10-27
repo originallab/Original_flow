@@ -1,6 +1,8 @@
 import { Router, type RequestHandler } from 'express';
 import type { AnalyticsService } from '../services/analytics.service.js';
 import type { AuthService } from '../services/auth.service.js';
+import type { LeadService } from '../services/lead.service.js';
+import type { LeadStageService } from '../services/leadStage.service.js';
 import type { FunnelService } from '../services/funnel.service.js';
 import type { FunnelContentService } from '../services/funnelContent.service.js';
 import type { FunnelHistoryService } from '../services/funnelHistory.service.js';
@@ -11,6 +13,8 @@ import { createAnalyticsRouter } from './analytics.routes.js';
 import { createAuthRouter } from './auth.routes.js';
 import { createFunnelsRouter } from './funnels.routes.js';
 import { createFunnelTypesRouter } from './funnelTypes.routes.js';
+import { createLeadsRouter } from './leads.routes.js';
+import { createLeadStagesRouter } from './leadStages.routes.js';
 import { createMeRouter } from './me.routes.js';
 import { createWorkspacesRouter } from './workspaces.routes.js';
 
@@ -23,6 +27,8 @@ interface ApiDeps {
   funnelPublish: FunnelPublishService;
   funnelHistory: FunnelHistoryService;
   analytics: AnalyticsService;
+  leads: LeadService;
+  leadStages: LeadStageService;
   requireAuth: RequestHandler;
   authSessionRateLimit: RequestHandler;
 }
@@ -32,7 +38,7 @@ interface ApiDeps {
  * registra aquí su router. Los públicos van sin sesión; cada router privado
  * declara `requireAuth` una sola vez al principio.
  */
-export function createApiRouter({ auth, me, workspaces, funnels, funnelContent, funnelPublish, funnelHistory, analytics, requireAuth, authSessionRateLimit }: ApiDeps): Router {
+export function createApiRouter({ auth, me, workspaces, funnels, funnelContent, funnelPublish, funnelHistory, analytics, leads, leadStages, requireAuth, authSessionRateLimit }: ApiDeps): Router {
   const api = Router();
   api.use('/auth', createAuthRouter(auth, authSessionRateLimit));
   api.use('/me', createMeRouter(me, requireAuth));
@@ -40,5 +46,7 @@ export function createApiRouter({ auth, me, workspaces, funnels, funnelContent, 
   api.use('/funnel-types', createFunnelTypesRouter(requireAuth));
   api.use('/funnels', createFunnelsRouter(funnels, funnelContent, funnelPublish, funnelHistory, requireAuth));
   api.use('/analytics', createAnalyticsRouter(analytics, requireAuth));
+  api.use('/leads', createLeadsRouter(leads, requireAuth));
+  api.use(createLeadStagesRouter(leadStages, requireAuth));
   return api;
 }

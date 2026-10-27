@@ -277,6 +277,8 @@ Exige el encabezado **`Idempotency-Key`** (texto de 8 a 64 caracteres; la págin
 
 ### Leads y etapas
 
+**Construidos (paso 8, parte de leads).**
+
 | Método | Ruta | Qué hace | Roles |
 | --- | --- | --- | --- |
 | GET | `/leads?workspaceId=&stageId=&funnelId=&source=&q=` | Lista de leads con filtros (tablero) | SA, CA, MM, VE, AN |
@@ -287,6 +289,12 @@ Exige el encabezado **`Idempotency-Key`** (texto de 8 a 64 caracteres; la págin
 | POST | `/workspaces/:id/lead-stages` | Agrega una etapa propia | SA, CA |
 | PATCH | `/lead-stages/:id` | Renombra o reordena una etapa | SA, CA |
 | DELETE | `/lead-stages/:id` | Elimina una etapa; `409` si todavía tiene leads | SA, CA |
+
+- **`GET /leads`** exige `workspaceId` y devuelve la lista paginada (`page`, `pageSize` hasta 100), del más nuevo al más viejo, con `{ id, funnelId, funnelName, leadStageId, name, email, phone, source, utm, assignedTo, value, customFields, createdAt }` (`value` como número; `utm` y `customFields` como objeto o `null`). `q` busca (sin distinguir mayúsculas y tomando `%` y `_` literales) en nombre, correo y teléfono, hasta 100 caracteres; uno vacío no filtra. Un `funnelId` de otro negocio devuelve una lista vacía. Los leads que llegan por la página pública entran a la primera etapa.
+- **`POST /leads`** recibe `{ funnelId, name?, email?, phone?, value?, leadStageId?, source?, customFields? }`: al menos un correo o un teléfono; sin etapa entra a la primera del tablero; `source` es `web_form` (por defecto) o `whatsapp`; sin UTM (no vino de una página). `404` si el funnel no es de la persona; `422` si la etapa no es de ese negocio. No guarda el consentimiento (`_consentAt`): eso solo lo pone el formulario público.
+- **`PATCH /leads/:id`** acepta `leadStageId` (de ese mismo negocio), `assignedTo` (el id de alguien con acceso al negocio, o `null` para quitarlo), `name`, `email`, `phone` y `value` (0 a 9 999 999 999.99, con dos decimales; `null` lo borra), al menos uno. El lead siempre conserva un correo o un teléfono (`422` si se quedaría sin ninguno). Lo demás (funnel, fecha, UTM) no se cambia desde aquí.
+- **Quién:** el analista solo mira (`403` al crear y cambiar); el diseñador no ve leads. Un lead o un negocio de otro cliente responde `404`. En `AuditLog` queda `lead.create` y `lead.update` con ids y nombres de campo (y la etapa de origen y de destino), nunca nombres, correos ni teléfonos.
+- **Etapas:** todos los que ven los leads ven las etapas; las cambia solo el administrador (super admin y administrador del cliente). Cada etapa es `{ id, workspaceId, name, order, isFinal, isWon }` y la respuesta es `{ items, total, page: 1, pageSize }`. Los órdenes siempre quedan seguidos (1, 2, 3…): al agregar, mover o quitar se renumera todo en una transacción. **La etapa final (la que pasa a «cliente» al pagar) siempre queda al final del tablero:** una etapa nueva sin `order` entra justo antes de ella; con `order` (1 es la primera) entra ahí pero nunca después de la final; la final no se mueve (`409 STAGE_PROTECTED`) aunque sí se renombra. No se quita la final ni la ganada (`409 STAGE_PROTECTED`) ni una con leads (`409 STAGE_NOT_EMPTY` con `details.leads`). El nombre va de 1 a 60 caracteres.
 
 ### Analítica del dashboard
 

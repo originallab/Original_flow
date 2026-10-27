@@ -6,7 +6,7 @@ Proyecto de estadía en **The Original Lab** (Durango, México). Todo el product
 
 ## Estado
 
-El diseño (pantallas, modelo de datos, contratos de API) está terminado y documentado. Los **pasos 1 a 6 del orden de construcción** (ver `docs/ARCHITECTURE.md`) están hechos: servidor base del backend, base de datos con Prisma 7 (14 tablas y migraciones), sesión con Original Auth en modo simulado (`mock_callback`), workspaces con equipo e invitaciones, funnels sin IA (tipos, bloques y CTA), publicación con página pública y captura de leads y eventos, historial de versiones y analítica del dashboard, con pruebas. Lo siguiente es el paso 7 (pagos con Original Pay) y los leads y etapas del paso 8.
+El diseño (pantallas, modelo de datos, contratos de API) está terminado y documentado. Los **pasos 1 a 6 del orden de construcción** (ver `docs/ARCHITECTURE.md`) están hechos: servidor base del backend, base de datos con Prisma 7 (14 tablas y migraciones), sesión con Original Auth en modo simulado (`mock_callback`), workspaces con equipo e invitaciones, funnels sin IA (tipos, bloques y CTA), publicación con página pública y captura de leads y eventos, historial de versiones, analítica del dashboard, leads del tablero y sus etapas, con pruebas. Lo siguiente es el paso 7: pagos con Original Pay.
 
 ## Estructura
 

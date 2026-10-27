@@ -17,7 +17,10 @@ export type Action =
   | 'history:read'
   | 'history:save'
   | 'history:restore'
-  | 'analytics:read';
+  | 'analytics:read'
+  | 'lead:read'
+  | 'lead:manage'
+  | 'stage:manage';
 
 const PERMISSIONS: Record<Action, readonly MembershipRole[]> = {
   'workspace:read': ['super_admin', 'client_admin', 'marketing_manager', 'vendedor', 'disenador', 'analista'],
@@ -35,6 +38,10 @@ const PERMISSIONS: Record<Action, readonly MembershipRole[]> = {
   'history:restore': ['super_admin', 'client_admin', 'marketing_manager'],
   // El dashboard lo ve todo el que no diseña.
   'analytics:read': ['super_admin', 'client_admin', 'marketing_manager', 'vendedor', 'analista'],
+  // El tablero lo ve todo el que no diseña; el analista solo mira. Las etapas del tablero las define el administrador.
+  'lead:read': ['super_admin', 'client_admin', 'marketing_manager', 'vendedor', 'analista'],
+  'lead:manage': ['super_admin', 'client_admin', 'marketing_manager', 'vendedor'],
+  'stage:manage': ['super_admin', 'client_admin'],
 };
 
 export function can(role: MembershipRole, action: Action): boolean {

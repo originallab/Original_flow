@@ -423,7 +423,7 @@ El orden va de lo que no depende de nada a lo que depende de todo. Cada paso ter
 | 5 | Publicar y ver la página — **hecho** | Paso 4 |
 | 6 | Captura y medición (leads y eventos públicos) — **hecho** | Paso 5 |
 | 7 | Pagos con Original Pay (funnels de venta) y tarea de reconciliación | Pasos 5 y 6, y la llave del sandbox |
-| 8 | Dashboard y leads, ya con ingresos — **hecha la analítica** (`/analytics/*`); faltan `/leads*` y `/lead-stages*`, y los ingresos se llenan cuando el paso 7 cree órdenes | Pasos 6 y 7 |
+| 8 | Dashboard y leads, ya con ingresos — **hecho** (`/analytics/*`, `/leads*` y `/lead-stages*`); los ingresos se llenan cuando el paso 7 cree órdenes | Pasos 6 y 7 |
 | 9 | Archivos y marca con IA (`/assets/*`, `/brand/*`) | Paso 3 y acceso a los servicios |
 | 10 | Generación del funnel con IA, usando la definición de cada tipo | Pasos 4 y 9 |
 | 11 | Historial (`/funnels/:id/history*`) — **hecho** | Paso 4 |
