@@ -56,6 +56,16 @@ Requisitos: Node.js LTS, PNPM, Docker y Git.
    Para iniciar sesión sin las credenciales reales de Original Auth, usa el **acceso simulado**: copia `frontend/.env.example` como `frontend/.env` y, en `backend/.env`, deja `AUTH_MODE=mock_callback` con `ORIGINALAUTH_TOKEN_APP=token-app-de-desarrollo` y `ORIGINALAUTH_SECRET_KEY=cambia-este-secreto-local` (los mismos valores inventados que trae `.env.example`). La pantalla de acceso te deja entrar con cualquier correo. Ese modo solo existe en desarrollo: no entra en la compilación de producción.
    Se abre en `http://localhost:5173`; las llamadas a `/api` pasan por el servidor de Vite hacia el backend, así que no hay que configurar CORS para trabajar en local. Comandos: `pnpm test`, `pnpm typecheck`, `pnpm build`.
 
+## Imagen de producción (backend)
+
+El backend trae `backend/Dockerfile`. Construir y probar la imagen en local:
+
+```bash
+cd backend && docker build -t original-flow-backend .
+```
+
+En el despliegue (EasyPanel) la ruta de compilación es `backend/`. Las migraciones no se aplican al arrancar: hay que correr `pnpm db:deploy` dentro del contenedor en cada despliegue. En producción (`NODE_ENV=production`) el backend exige `AUTH_MODE=real` y las credenciales de Original Auth, y `TRUST_PROXY_HOPS=1` detrás de EasyPanel.
+
 ## Documentación
 
 | Archivo | Para qué |

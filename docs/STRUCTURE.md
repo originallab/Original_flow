@@ -12,6 +12,8 @@ original_flow/
 ├── backend/                 API (Node.js + TypeScript + Express + Zod + Prisma)
 │   ├── .env.example         variables del backend (servicios TOL, base de datos, CORS)
 │   ├── package.json         scripts: dev, build, start, typecheck, test (gestor: PNPM)
+│   ├── Dockerfile           imagen de producción en dos etapas (compila y corre como usuario node) con HEALTHCHECK a /health
+│   ├── .dockerignore        deja fuera node_modules, dist, .env, pruebas y el cliente de Prisma generado
 │   ├── pnpm-lock.yaml       versiones exactas instaladas (se versiona)
 │   ├── tsconfig.json        TypeScript estricto (typecheck de src, tests y config)
 │   ├── tsconfig.build.json  compilación de producción: solo src/ hacia dist/
@@ -68,7 +70,6 @@ original_flow/
 
 | Archivo | Se crea en |
 | --- | --- |
-| `backend/Dockerfile` (con `HEALTHCHECK`) y `.dockerignore` | Antes del primer despliegue en EasyPanel |
 | `docs/DEV_SETUP.md` | En cuanto levantar el entorno deje de ser un comando obvio |
 | `docs/feats/` | Al terminar cada funcionalidad significativa |
 | `docs/design/` (pantallas y prototipo) | Cuando se decida incorporarlos |
