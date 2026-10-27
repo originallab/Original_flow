@@ -62,6 +62,53 @@ export interface DesiredCta {
   allowed: readonly CtaActionType[];
 }
 
+/** Lo que guarda una versión del historial: una copia de estas cinco columnas (no el nombre, el precio ni `typeConfig`). */
+export const SNAPSHOT_KEYS = ['content', 'designSpec', 'brandBrief', 'seo', 'flow'] as const;
+export type SnapshotKey = (typeof SNAPSHOT_KEYS)[number];
+export type Snapshot = Partial<Record<SnapshotKey, Prisma.JsonValue>>;
+
+/** La copia de un funnel tal como está ahora. */
+export function snapshotOf(funnel: Pick<FunnelRecord, SnapshotKey>): Prisma.InputJsonValue {
+  const copy: Record<string, unknown> = {};
+  for (const key of SNAPSHOT_KEYS) copy[key] = funnel[key];
+  return copy as Prisma.InputJsonValue;
+}
+
+/** Lee una copia guardada de forma defensiva: solo las columnas que trae y con su valor; lo demás se ignora. */
+export function readSnapshot(value: Prisma.JsonValue): Snapshot {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return {};
+  const found: Snapshot = {};
+  for (const key of SNAPSHOT_KEYS) {
+    const item = value[key];
+    if (item !== undefined) found[key] = item;
+  }
+  return found;
+}
+
+/**
+ * Deja los CTA de un funnel como los piden sus bloques: crea uno por cada bloque nuevo, borra los de
+ * bloques que ya no existen y actualiza el texto de los que siguen. El destino y el seguimiento que la
+ * persona haya editado se conservan.
+ */
+async function syncCtas(tx: Prisma.TransactionClient, funnelId: string, desired: DesiredCta[]): Promise<void> {
+  const existing = await tx.cTA.findMany({ where: { funnelId } });
+  const wanted = new Set(desired.map((d) => d.blockKey));
+  const orphans = existing.filter((cta) => !wanted.has(cta.blockKey)).map((cta) => cta.id);
+  if (orphans.length > 0) await tx.cTA.deleteMany({ where: { id: { in: orphans } } });
+
+  const byKey = new Map(existing.map((cta) => [cta.blockKey, cta]));
+  for (const d of desired) {
+    const current = byKey.get(d.blockKey);
+    if (!current) {
+      await tx.cTA.create({ data: { funnelId, blockKey: d.blockKey, label: d.label, actionType: d.actionType } });
+    } else if (!d.allowed.includes(current.actionType)) {
+      await tx.cTA.update({ where: { id: current.id }, data: { label: d.label, actionType: d.actionType, destination: null } });
+    } else if (current.label !== d.label) {
+      await tx.cTA.update({ where: { id: current.id }, data: { label: d.label } });
+    }
+  }
+}
+
 export function createFunnelModel(prisma: PrismaClient) {
   return {
     create(data: NewFunnel): Promise<FunnelRecord> {
@@ -115,13 +162,7 @@ export function createFunnelModel(prisma: PrismaClient) {
     publish(id: string, userId: string): Promise<FunnelRecord> {
       return prisma.$transaction(async (tx) => {
         const funnel = await tx.funnel.update({ where: { id }, data: { status: 'published' }, select: FULL_FIELDS });
-        const snapshot = {
-          content: funnel.content,
-          designSpec: funnel.designSpec,
-          brandBrief: funnel.brandBrief,
-          seo: funnel.seo,
-          flow: funnel.flow,
-        } as Prisma.InputJsonValue;
+        const snapshot = snapshotOf(funnel);
         await tx.funnelHistory.create({ data: { funnelId: id, userId, label: 'Publicado', snapshot } });
         return funnel;
       });
@@ -170,30 +211,35 @@ export function createFunnelModel(prisma: PrismaClient) {
     },
 
     /**
-     * Guarda el contenido y sincroniza los CTA en una sola transacción: crea uno por cada
-     * bloque nuevo, borra los de bloques que ya no existen y actualiza el texto de los que
-     * siguen. El destino y el seguimiento que la persona haya editado se conservan.
+     * Devuelve el funnel a como estaba en una copia. Antes guarda cómo está ahora en el historial (con
+     * `backupLabel`), para poder deshacer; luego copia las columnas de la copia y deja los CTA como piden
+     * sus bloques. Todo en una transacción: si algo falla, no cambia nada. Una columna que la copia no
+     * trae se queda como está.
      */
+    restore(funnelId: string, userId: string, backupLabel: string, snapshot: Snapshot, desired: DesiredCta[]): Promise<FunnelRecord> {
+      return prisma.$transaction(async (tx) => {
+        const current = await tx.funnel.findUniqueOrThrow({ where: { id: funnelId }, select: FULL_FIELDS });
+        await tx.funnelHistory.create({ data: { funnelId, userId, label: backupLabel, snapshot: snapshotOf(current) } });
+
+        const data: Prisma.FunnelUpdateInput = {};
+        // `content` no admite nulo en la base: una copia sin contenido deja el actual.
+        if (snapshot.content !== undefined && snapshot.content !== null) data.content = snapshot.content;
+        for (const key of ['designSpec', 'brandBrief', 'seo', 'flow'] as const) {
+          const value = snapshot[key];
+          if (value !== undefined) data[key] = value === null ? Prisma.DbNull : value;
+        }
+        const restored = await tx.funnel.update({ where: { id: funnelId }, data, select: FULL_FIELDS });
+        await syncCtas(tx, funnelId, desired);
+        return restored;
+      });
+    },
+
+    /** Guarda el contenido y sincroniza los CTA en una sola transacción (ver `syncCtas`). */
     saveContent(funnelId: string, content: Prisma.InputJsonValue, desired: DesiredCta[]) {
       return prisma.$transaction(async (tx) => {
         const saved = await tx.funnel.update({ where: { id: funnelId }, data: { content }, select: { content: true, updatedAt: true } });
 
-        const existing = await tx.cTA.findMany({ where: { funnelId } });
-        const wanted = new Set(desired.map((d) => d.blockKey));
-        const orphans = existing.filter((cta) => !wanted.has(cta.blockKey)).map((cta) => cta.id);
-        if (orphans.length > 0) await tx.cTA.deleteMany({ where: { id: { in: orphans } } });
-
-        const byKey = new Map(existing.map((cta) => [cta.blockKey, cta]));
-        for (const d of desired) {
-          const current = byKey.get(d.blockKey);
-          if (!current) {
-            await tx.cTA.create({ data: { funnelId, blockKey: d.blockKey, label: d.label, actionType: d.actionType } });
-          } else if (!d.allowed.includes(current.actionType)) {
-            await tx.cTA.update({ where: { id: current.id }, data: { label: d.label, actionType: d.actionType, destination: null } });
-          } else if (current.label !== d.label) {
-            await tx.cTA.update({ where: { id: current.id }, data: { label: d.label } });
-          }
-        }
+        await syncCtas(tx, funnelId, desired);
         return saved;
       });
     },

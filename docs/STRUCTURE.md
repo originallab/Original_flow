@@ -24,11 +24,11 @@ original_flow/
 │   │   ├── server.ts        arranque: carga la config, crea la app y escucha
 │   │   ├── app.ts           createApp(config, logger): middleware globales y montaje de rutas
 │   │   ├── config/          única lectura de variables de entorno (loadConfig, validada con Zod)
-│   │   ├── lib/             piezas sin dependencias de negocio: AppError, logger, safeEqual (secretos en tiempo constante), paginación, slug y errores de Prisma
-│   │   ├── routes/          reciben el request, validan con Zod y delegan: health, auth y public (públicas), me, workspaces, funnel-types y funnels (privadas); index.ts monta /api/v1
-│   │   ├── services/        reglas de negocio y permisos: auth, me, audit, access (rol en un workspace), workspace, funnel, funnelContent, funnelPublish, publicPage, publicCapture y permissions.ts (qué puede hacer cada rol)
-│   │   ├── schemas/         esquemas Zod de entrada, salida y campos JSON (auth, workspace, funnel y public)
-│   │   ├── models/          acceso a datos: prisma.ts (cliente con adaptador de PostgreSQL) y una consulta por entidad (session, user, membership, workspace, funnel, cta, lead, event, auditLog)
+│   │   ├── lib/             piezas sin dependencias de negocio: AppError, logger, safeEqual (secretos en tiempo constante), paginación, slug, errores de Prisma y analytics (los cálculos del dashboard)
+│   │   ├── routes/          reciben el request, validan con Zod y delegan: health, auth y public (públicas), me, workspaces, funnel-types, funnels y analytics (privadas); index.ts monta /api/v1
+│   │   ├── services/        reglas de negocio y permisos: auth, me, audit, access (rol en un workspace), workspace, funnel, funnelContent, funnelPublish, funnelHistory (versiones), analytics (el dashboard), publicPage, publicCapture y permissions.ts (qué puede hacer cada rol)
+│   │   ├── schemas/         esquemas Zod de entrada, salida y campos JSON (auth, workspace, funnel, public y analytics)
+│   │   ├── models/          acceso a datos: prisma.ts (cliente con adaptador de PostgreSQL) y una consulta por entidad (session, user, membership, workspace, funnel, cta, lead, event, auditLog, analytics y funnelHistory)
 │   │   ├── generated/       cliente de Prisma generado (no se versiona; `pnpm db:generate`)
 │   │   ├── middleware/      requestId, requestLogger, errorHandler (+ notFound), requireAuth y rateLimit
 │   │   ├── jobs/            tareas programadas (reconciliación de pagos cada 5 min)
@@ -38,7 +38,7 @@ original_flow/
 │   │       ├── original-pay/
 │   │       ├── media-aas/
 │   │       └── ai-engine/
-│   └── tests/               pruebas con Vitest (config, app, errores, límite, esquema de datos, auth, /me, workspaces, tipos de funnel, funnels, publicación y captura pública); helpers/testApp.ts, db.ts y auth.ts
+│   └── tests/               pruebas con Vitest (config, app, errores, límite, esquema de datos, auth, /me, workspaces, tipos de funnel, funnels, publicación, captura pública, historial y analítica); helpers/testApp.ts, db.ts y auth.ts
 ├── frontend/                React + TypeScript + Vite + Tailwind (PNPM)
 │   ├── index.html           aplica el tema guardado antes de pintar (sin parpadeo)
 │   ├── vite.config.ts       Vite, Tailwind, alias @ y proxy de /api hacia el backend (puerto 3000)

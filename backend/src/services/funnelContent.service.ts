@@ -34,7 +34,7 @@ function ctaLabel(block: StoredBlock): string {
  * Un botón nace con la acción principal del tipo de funnel (`checkout` si cobra,
  * `scroll_to` si no); un formulario, siempre con `form_submit`.
  */
-function desiredCtas(funnel: FunnelRecord, blocks: StoredBlock[]): DesiredCta[] {
+export function desiredCtas(funnel: FunnelRecord, blocks: StoredBlock[]): DesiredCta[] {
   const charges = getFunnelType(funnel.objective).charges;
   return blocks
     .filter((b) => CTA_BLOCK_TYPES.includes(b.type))

@@ -1,4 +1,5 @@
 import { Router, type Request, type RequestHandler } from 'express';
+import { paginationQuerySchema } from '../lib/pagination.js';
 import { getAuth } from '../middleware/requireAuth.js';
 import { getRequestId } from '../middleware/requestId.js';
 import {
@@ -8,26 +9,30 @@ import {
   createFunnelBodySchema,
   ctaParamsSchema,
   funnelIdParamsSchema,
+  historyParamsSchema,
   listFunnelsQuerySchema,
   patchBlockBodySchema,
   patchCtaBodySchema,
+  saveVersionBodySchema,
   typeConfigBodySchema,
   updateFunnelBodySchema,
 } from '../schemas/funnel.schemas.js';
 import type { RequestContext } from '../services/auth.service.js';
 import type { FunnelService } from '../services/funnel.service.js';
 import type { FunnelContentService } from '../services/funnelContent.service.js';
+import type { FunnelHistoryService } from '../services/funnelHistory.service.js';
 import type { FunnelPublishService } from '../services/funnelPublish.service.js';
 
 function contextOf(req: Request, requestId: string): RequestContext {
   return { ip: req.ip, requestId };
 }
 
-/** Funnels, su contenido, ajustes por tipo y CTA. Privado: `requireAuth` se declara una vez. */
+/** Funnels, su contenido, ajustes por tipo, CTA e historial de versiones. Privado: `requireAuth` se declara una vez. */
 export function createFunnelsRouter(
   funnels: FunnelService,
   content: FunnelContentService,
   publishing: FunnelPublishService,
+  history: FunnelHistoryService,
   requireAuth: RequestHandler,
 ): Router {
   const router = Router();
@@ -103,6 +108,23 @@ export function createFunnelsRouter(
     const { id, blockKey } = ctaParamsSchema.parse(req.params);
     const body = patchCtaBodySchema.parse(req.body);
     res.json(await content.patchCta(getAuth(res).userId, id, blockKey, body, contextOf(req, getRequestId(res))));
+  });
+
+  router.get('/:id/history', async (req, res) => {
+    const { id } = funnelIdParamsSchema.parse(req.params);
+    const query = paginationQuerySchema.parse(req.query);
+    res.json(await history.list(getAuth(res).userId, id, query));
+  });
+
+  router.post('/:id/history', async (req, res) => {
+    const { id } = funnelIdParamsSchema.parse(req.params);
+    const body = saveVersionBodySchema.parse(req.body);
+    res.status(201).json(await history.save(getAuth(res).userId, id, body.label, contextOf(req, getRequestId(res))));
+  });
+
+  router.post('/:id/history/:historyId/restore', async (req, res) => {
+    const { id, historyId } = historyParamsSchema.parse(req.params);
+    res.json(await history.restore(getAuth(res).userId, id, historyId, contextOf(req, getRequestId(res))));
   });
 
   return router;
