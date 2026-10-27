@@ -217,6 +217,17 @@ describe.skipIf(!testDatabaseUrl)('analítica del dashboard', () => {
       ]);
     });
 
+    it('«cliente» es la etapa marcada como ganada, no la última: si el tablero cambia, la cuenta lo sigue', async () => {
+      const n = await negocio();
+      const [, , interesado, , cliente] = n.etapas as [(typeof n.etapas)[number], (typeof n.etapas)[number], (typeof n.etapas)[number], (typeof n.etapas)[number], (typeof n.etapas)[number]];
+      await prisma.leadStage.update({ where: { id: cliente.id }, data: { isWon: false } });
+      await prisma.leadStage.update({ where: { id: interesado.id }, data: { isWon: true } });
+      await lead(n.leads.id, interesado.id, 1, {}, 3);
+      await lead(n.leads.id, cliente.id, 1, {}, 2);
+      const res = await get(n.token, ruta('funnel-conversion', n, `&funnelId=${n.leads.id}`));
+      expect(etapa(res, 'customers').count).toBe(3);
+    });
+
     it('si el funnel cobra agrega checkout y pagos con sus eventos; sin visitas los porcentajes son nulos', async () => {
       const n = await negocio();
       await evento(n.venta.id, 'page_view', 1, {}, 50);
@@ -286,6 +297,13 @@ describe.skipIf(!testDatabaseUrl)('analítica del dashboard', () => {
       expect(res.body.items.at(-1).source).toBe('origen-03');
     });
 
+    it('los orígenes con las mismas visitas se ordenan por nombre', async () => {
+      const n = await negocio();
+      for (const source of ['zeta', 'epsilon', 'delta', 'gamma', 'beta', 'alfa']) await evento(n.leads.id, 'page_view', 1, { source }, 2);
+      const res = await get(n.token, ruta('sources', n));
+      expect(res.body.items.map((item: { source: string }) => item.source)).toEqual(['alfa', 'beta', 'delta', 'epsilon', 'gamma', 'zeta']);
+    });
+
     it('sin visitas responde total 0 y lista vacía', async () => {
       const n = await negocio();
       expect((await get(n.token, ruta('sources', n))).body).toEqual({ total: 0, items: [] });
@@ -313,6 +331,7 @@ describe.skipIf(!testDatabaseUrl)('analítica del dashboard', () => {
       await evento(n.leads.id, 'section_view', 1, { section: 'faq' }, 3);
       await evento(n.leads.id, 'section_view', 40, { section: 'hero' }, 40); // fuera del periodo
       await evento(n.leads.id, 'section_view', 1, { section: 'ya-no-existe' }, 5);
+      await evento(n.leads.id, 'button_click', 1, { section: 'faq' }, 20); // otro tipo de evento con la misma propiedad: no es una sección vista
 
       const res = await get(n.token, ruta('drop-off', n, `&funnelId=${n.leads.id}`));
       expect(res.status).toBe(200);
@@ -337,6 +356,14 @@ describe.skipIf(!testDatabaseUrl)('analítica del dashboard', () => {
       ]);
     });
 
+    it('la primera sección se compara con el 100% de las visitas: si no la ve todo el mundo, ya se perdió gente', async () => {
+      const n = await negocio();
+      await paginaConSecciones(n);
+      await evento(n.leads.id, 'page_view', 1, {}, 10);
+      await evento(n.leads.id, 'section_view', 1, { section: 'hero' }, 6);
+      expect((await get(n.token, ruta('drop-off', n, `&funnelId=${n.leads.id}`))).body.items[0]).toEqual({ section: 'hero', reachedPercent: 60, dropPoints: 40 });
+    });
+
     it('sin visitas todas las secciones están en 0; una página sin bloques da lista vacía', async () => {
       const n = await negocio();
       await paginaConSecciones(n);
@@ -358,30 +385,32 @@ describe.skipIf(!testDatabaseUrl)('analítica del dashboard', () => {
     it('lista cada funnel con sus visitas, leads, conversión e ingresos, del que más leads trae al que menos', async () => {
       const n = await negocio();
       await evento(n.leads.id, 'page_view', 1, {}, 20);
-      await lead(n.leads.id, n.etapas[0]!.id, 1, {}, 5);
+      await lead(n.leads.id, n.etapas[0]!.id, 1, {}, 1);
+      await evento(n.leads.id, 'section_view', 1, { section: 'hero' }, 7); // no es una visita
       await evento(n.venta.id, 'page_view', 1, {}, 8);
-      await lead(n.venta.id, n.etapas[0]!.id, 1, {}, 1);
+      await lead(n.venta.id, n.etapas[0]!.id, 1, {}, 4);
       await orden(n.venta.id, 300, 'MXN', 'paid', 1);
       await orden(n.venta.id, 100, 'MXN', 'paid', 9);
       await orden(n.venta.id, 20, 'USD', 'paid', 2);
       await orden(n.leads.id, 50, 'MXN', 'pending', null);
+      await orden(n.venta.id, 9999, 'MXN', 'failed', 2); // con fecha de pago pero no pagada: no cuenta
       const otro = await negocio();
       await lead(otro.leads.id, otro.etapas[0]!.id, 1, {}, 50);
 
       const res = await get(n.token, ruta('funnels', n, '&range=7d'));
       expect(res.status).toBe(200);
       expect(res.body.items).toEqual([
-        { funnelId: n.leads.id, name: 'Leads', objective: 'leads', status: 'draft', visits: 20, leads: 5, conversion: 25, revenue: [] },
         {
           funnelId: n.venta.id,
           name: 'Venta',
           objective: 'venta',
           status: 'draft',
           visits: 8,
-          leads: 1,
-          conversion: 12.5,
+          leads: 4,
+          conversion: 50,
           revenue: [{ currency: 'MXN', value: 300, previous: 100 }, { currency: 'USD', value: 20, previous: 0 }],
         },
+        { funnelId: n.leads.id, name: 'Leads', objective: 'leads', status: 'draft', visits: 20, leads: 1, conversion: 5, revenue: [] },
       ]);
     });
 
@@ -418,6 +447,9 @@ describe.skipIf(!testDatabaseUrl)('analítica del dashboard', () => {
       expect((await get(n.token, '/analytics/summary')).status).toBe(422);
       expect((await get(n.token, '/analytics/summary?workspaceId=no-es-un-id')).status).toBe(422);
       expect((await get(n.token, ruta('summary', n, '&from=2025-10-01&to=2026-10-01'))).status).toBe(200);
+      // El tope es de 366 días: ese número exacto vale y un día más no.
+      expect((await get(n.token, ruta('summary', n, '&from=2025-10-01&to=2026-10-02'))).status).toBe(200);
+      await caso('&from=2025-10-01&to=2026-10-03', 'to');
     });
 
     it('acepta fechas sin hora (medianoche UTC) y con hora', async () => {
