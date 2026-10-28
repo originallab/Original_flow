@@ -6,8 +6,8 @@ import { routes } from '@/router';
 import { ThemeProvider } from '@/shared/theme/ThemeProvider';
 
 /** Monta toda la aplicación (con sus proveedores y rutas reales) en la ruta indicada. */
-export function montar(ruta: string) {
-  const router = createMemoryRouter(routes, { initialEntries: [ruta] });
+export function montar(ruta: string, estado?: unknown) {
+  const router = createMemoryRouter(routes, { initialEntries: [estado === undefined ? ruta : { pathname: ruta, state: estado }] });
   const view = render(
     <ThemeProvider>
       <AuthProvider>

@@ -4,6 +4,8 @@ import { RequireWorkspace } from '@/features/workspaces/RequireWorkspace';
 import { OnboardingLayout } from '@/layouts/OnboardingLayout';
 import { PlatformLayout } from '@/layouts/PlatformLayout';
 import { WizardLayout } from '@/layouts/WizardLayout';
+import { AuthErrorPage } from '@/pages/AuthErrorPage';
+import { AuthReturnPage } from '@/pages/AuthReturnPage';
 import { BusinessPage } from '@/pages/BusinessPage';
 import { EditorPage } from '@/pages/EditorPage';
 import { FunnelsPage } from '@/pages/FunnelsPage';
@@ -21,6 +23,9 @@ import { TeamPage } from '@/pages/TeamPage';
 /** Rutas de la aplicación. Cada pieza del front registra aquí sus pantallas. */
 export const routes: RouteObject[] = [
   { path: '/login', element: <LoginPage /> },
+  // A donde regresa Original Auth: con el inicio de sesión correcto (`/auth/return`) o fallido (`/auth/error`). Sin sesión todavía.
+  { path: '/auth/return', element: <AuthReturnPage /> },
+  { path: '/auth/error', element: <AuthErrorPage /> },
   // La página publicada de un funnel: la ve cualquier visitante, sin sesión.
   { path: '/p/:slug', element: <PublicPage /> },
   // A donde vuelve quien pagó: espera la confirmación del pago y muestra el resultado.

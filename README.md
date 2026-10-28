@@ -53,6 +53,7 @@ Requisitos: Node.js LTS, PNPM, Docker y Git.
    ```bash
    pnpm dev
    ```
+   El **acceso real** a Original Auth se activa con `VITE_TOKEN_APP` y `VITE_ORIGINALAUTH_LOGIN_URL` (ver `frontend/.env.example`): la pantalla de acceso ofrece «Continuar con Original Auth», que regresa a `/auth/return` (o a `/auth/error`). Original Auth debe llamar además al callback del backend (`POST /api/v1/auth/callback`).
    Con el backend real, para iniciar sesión sin las credenciales reales de Original Auth usa el **acceso simulado**: copia `frontend/.env.example` como `frontend/.env` y, en `backend/.env`, deja `AUTH_MODE=mock_callback` con `ORIGINALAUTH_TOKEN_APP=token-app-de-desarrollo` y `ORIGINALAUTH_SECRET_KEY=cambia-este-secreto-local` (los mismos valores inventados que trae `.env.example`). La pantalla de acceso te deja entrar con cualquier correo. Ese modo solo existe en desarrollo: no entra en la compilación de producción.
    Se abre en `http://localhost:5173`; las llamadas a `/api` pasan por el servidor de Vite hacia el backend, así que no hay que configurar CORS para trabajar en local. Comandos: `pnpm test`, `pnpm typecheck`, `pnpm build`.
 

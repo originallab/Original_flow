@@ -10,6 +10,10 @@ interface ImportMetaEnv {
   /** Credenciales inventadas del acceso simulado; deben coincidir con las del backend local. Solo en desarrollo. */
   readonly VITE_MOCK_TOKEN_APP?: string;
   readonly VITE_MOCK_SECRET_KEY?: string;
+  /** Acceso REAL a Original Auth: el `token_app` de la aplicación (público; el `secret_key` solo vive en el backend). */
+  readonly VITE_TOKEN_APP?: string;
+  /** Acceso REAL: plantilla de la dirección de inicio de sesión de Original Auth, con `{session}` (y `{token_app}` si la pide). */
+  readonly VITE_ORIGINALAUTH_LOGIN_URL?: string;
 }
 
 interface ImportMeta {
