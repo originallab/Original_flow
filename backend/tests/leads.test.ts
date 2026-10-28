@@ -247,7 +247,9 @@ describe.skipIf(!testDatabaseUrl)('leads del tablero', () => {
       const res = await post(n.token, '/leads', datos(n, { phone: '+52 618 111 2233' }));
       const registros = await prisma.auditLog.findMany({ where: { action: 'lead.create', resourceId: res.body.id } });
       expect(registros).toHaveLength(1);
-      expect(JSON.stringify(registros[0])).not.toMatch(/rosa|correo\.com|618/i);
+      // Los ids son UUID al azar y podrían contener «618» por casualidad: se revisa todo lo demás.
+      const { id: _id, resourceId: _resource, userId: _user, workspaceId: _workspace, ...contenido } = registros[0]!;
+      expect(JSON.stringify(contenido)).not.toMatch(/rosa|correo\.com|618/i);
     });
   });
 
@@ -349,7 +351,28 @@ describe.skipIf(!testDatabaseUrl)('leads del tablero', () => {
       await patch(n.token, `/leads/${creado.id}`, { name: 'Nombre Nuevo', email: 'nuevo@correo.com', phone: '+52 618 999 8877' });
       const [registro] = await prisma.auditLog.findMany({ where: { action: 'lead.update', resourceId: creado.id } });
       expect(registro?.metadata).toEqual({ fields: ['name', 'email', 'phone'] });
-      expect(JSON.stringify(registro)).not.toMatch(/secreta|nuevo@|999/i);
+      const { id: _id, resourceId: _resource, userId: _user, workspaceId: _workspace, ...contenido } = registro!;
+      expect(JSON.stringify(contenido)).not.toMatch(/secreta|nuevo@|999/i);
+    });
+  });
+
+  describe('datos guardados fuera de lo normal', () => {
+    it('un utm o unos campos personalizados que no son objetos se leen como nulos, sin fallar', async () => {
+      const n = await negocio();
+      const rara = await sembrar(n, { name: 'Rara', utm: 'texto', customFields: [1, 2] });
+      const res = await get(n.token, `/leads/${rara.id}`);
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({ name: 'Rara', utm: null, customFields: null });
+      expect((await lista(n)).body.items[0]).toMatchObject({ utm: null, customFields: null });
+    });
+
+    it('un negocio sin ninguna etapa no puede recibir un alta sin etapa: responde 422', async () => {
+      const n = await negocio();
+      await prisma.leadStage.deleteMany({ where: { workspaceId: n.workspace.id } });
+      const res = await post(n.token, '/leads', { funnelId: n.curso.id, email: 'x@correo.com' });
+      expect(res.status).toBe(422);
+      expect(res.body.error.code).toBe('PIPELINE_NOT_CONFIGURED');
+      expect(await prisma.lead.count({ where: { funnelId: n.curso.id } })).toBe(0);
     });
   });
 

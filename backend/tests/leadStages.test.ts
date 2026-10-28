@@ -250,6 +250,15 @@ describe.skipIf(!testDatabaseUrl)('etapas del tablero de leads', () => {
       expect((await tablero(n)).nombres).toHaveLength(5);
     });
 
+    it('la etapa final no se quita aunque no sea la ganada', async () => {
+      const n = await negocio();
+      await prisma.leadStage.update({ where: { id: n.etapas[4]!.id }, data: { isWon: false } });
+      const res = await del(n.token, `/lead-stages/${n.etapas[4]!.id}`);
+      expect(res.status).toBe(409);
+      expect(res.body.error.code).toBe('STAGE_PROTECTED');
+      expect((await tablero(n)).nombres).toHaveLength(5);
+    });
+
     it('una etapa sin leads se quita aunque otras tengan; los leads de las demás no se tocan', async () => {
       const n = await negocio();
       const lead = await prisma.lead.create({ data: { funnelId: n.funnel.id, leadStageId: n.etapas[0]!.id, email: 'a@correo.com' } });

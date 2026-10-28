@@ -34,8 +34,6 @@ export function toLeadDto({ funnel, utm, customFields, value, ...lead }: LeadRec
   return { ...lead, funnelName: funnel.name, utm: asObject(utm), customFields: asObject(customFields), value: value ? value.toNumber() : null };
 }
 
-const cents = (value: number) => Math.round(value * 100) / 100;
-
 interface Deps {
   leads: LeadModel;
   stages: LeadStageModel;
@@ -103,7 +101,7 @@ export function createLeadService({ leads, stages, access, audit }: Deps) {
         name: body.name,
         email: body.email,
         phone: body.phone,
-        value: body.value === undefined ? undefined : cents(body.value),
+        value: body.value,
         source: body.source,
         customFields: body.customFields,
       });
@@ -129,7 +127,8 @@ export function createLeadService({ leads, stages, access, audit }: Deps) {
         throw AppError.unprocessable('VALIDATION_ERROR', 'Los datos enviados no son válidos', [{ path: 'email', message: 'el lead debe conservar un email o un phone' }]);
       }
 
-      const changes: LeadChanges = { ...body, ...(typeof body.value === 'number' ? { value: cents(body.value) } : {}) };
+      // El valor llega con cualquier número de decimales: la columna (`Decimal(12, 2)`) lo redondea a dos.
+      const changes: LeadChanges = body;
       const updated = await leads.update(lead.id, changes);
       await audit.record({
         action: 'lead.update',
