@@ -43,6 +43,10 @@ original_flow/
 │   ├── index.html           aplica el tema guardado antes de pintar (sin parpadeo)
 │   ├── vite.config.ts       Vite, Tailwind, alias @ y proxy de /api hacia el backend (puerto 3000)
 │   ├── .env.example         VITE_API_URL (solo variables VITE_*; nunca secretos)
+│   ├── Dockerfile           imagen de producción en dos etapas (compila con Node y sirve con nginx sin privilegios) con HEALTHCHECK a /health; la dirección de la API y los datos públicos de Original Auth se fijan al compilar (`--build-arg`)
+│   ├── nginx.conf           servidor estático: /health, index.html para las rutas de la aplicación y caché larga solo para /assets
+│   ├── nginx-headers.conf   encabezados de seguridad de toda respuesta
+│   ├── .dockerignore        deja fuera node_modules, dist, pruebas y los .env
 │   ├── public/              favicon (isotipo en morado)
 │   ├── src/
 │   │   ├── main.tsx, router.tsx   arranque y rutas (las privadas cuelgan de ProtectedRoute; cada pieza registra aquí sus pantallas)
