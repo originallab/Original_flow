@@ -34,6 +34,21 @@ describe('configuración del acceso real', () => {
     expect(isRealAuthConfigured()).toBe(false);
   });
 
+  it('si la plantilla pide el cliente id y no está configurado, el acceso real no se ofrece', () => {
+    configurar('app-1', 'https://auth.ejemplo.com/login?client={client_id}&session={session}');
+    expect(isRealAuthConfigured()).toBe(false);
+    vi.stubEnv('VITE_ORIGINALAUTH_CLIENT_ID', '   ');
+    expect(isRealAuthConfigured()).toBe(false);
+    vi.stubEnv('VITE_ORIGINALAUTH_CLIENT_ID', 'cli-1');
+    expect(isRealAuthConfigured()).toBe(true);
+  });
+
+  it('el cliente id no es obligatorio si la plantilla no lo usa', () => {
+    configurar('app-1', PLANTILLA);
+    expect(isRealAuthConfigured()).toBe(true);
+    expect(realAuthConfig()?.clientId).toBeUndefined();
+  });
+
   it('la plantilla debe llevar {session}', () => {
     configurar('app-1', 'https://auth.ejemplo.com/login?app={token_app}');
     expect(isRealAuthConfigured()).toBe(false);
@@ -61,6 +76,12 @@ describe('dirección de inicio de sesión', () => {
     configurar('app 1&x', 'https://auth.ejemplo.com/login?app={token_app}&session={session}&otra={session}');
     expect(buildLoginUrl('abc-123')).toBe('https://auth.ejemplo.com/login?app=app%201%26x&session=abc-123&otra=abc-123');
     expect(buildLoginUrl('a/b?c=d&e')).toContain('session=a%2Fb%3Fc%3Dd%26e');
+  });
+
+  it('pone el cliente id donde la plantilla lo pide, codificado y en todas las apariciones', () => {
+    vi.stubEnv('VITE_ORIGINALAUTH_CLIENT_ID', 'cli ab&1');
+    configurar('app-1', 'https://auth.ejemplo.com/login?client={client_id}&app={token_app}&session={session}&otra={client_id}');
+    expect(buildLoginUrl('abc')).toBe('https://auth.ejemplo.com/login?client=cli%20ab%261&app=app-1&session=abc&otra=cli%20ab%261');
   });
 
   it('si {token_app} aparece varias veces, se reemplaza en todas', () => {

@@ -7,7 +7,7 @@ import { validateSession, type ValidateResponse } from './auth';
  *
  * La dirección de la pantalla de inicio de sesión (y cómo se llaman sus parámetros) la define Original Auth,
  * no este proyecto: por eso es una plantilla que se pone en `VITE_ORIGINALAUTH_LOGIN_URL`, con `{session}` y,
- * si hace falta, `{token_app}` donde Original Auth los espera. Nada de esto lleva secretos: el `secret_key`
+ * si hace falta, `{token_app}` y `{client_id}` (el `cliente id` que entrega Original Auth) donde los espera. Nada de esto lleva secretos: el `secret_key`
  * vive solo en el backend.
  */
 
@@ -16,6 +16,8 @@ export const authTiming = { intervalMs: 1500, maxPolls: 20 };
 
 export interface RealAuthConfig {
   tokenApp: string;
+  /** El `cliente id` de Original Auth; solo hace falta si la plantilla lleva `{client_id}`. */
+  clientId?: string;
   loginUrlTemplate: string;
 }
 
@@ -27,15 +29,18 @@ function isSafeLoginUrl(url: URL): boolean {
 /** La configuración del acceso real, o `null` si falta algo o la plantilla no sirve. */
 export function realAuthConfig(): RealAuthConfig | null {
   const tokenApp = import.meta.env.VITE_TOKEN_APP?.trim();
+  const clientId = import.meta.env.VITE_ORIGINALAUTH_CLIENT_ID?.trim() || undefined;
   const template = import.meta.env.VITE_ORIGINALAUTH_LOGIN_URL?.trim();
   if (!tokenApp || !template || !template.includes('{session}')) return null;
+  // Si la plantilla pide el cliente id y no está configurado, el acceso real no se ofrece (mandaría una dirección rota).
+  if (template.includes('{client_id}') && !clientId) return null;
   try {
-    const sample = new URL(template.replaceAll('{session}', 'x').replaceAll('{token_app}', 'x'));
+    const sample = new URL(template.replaceAll('{session}', 'x').replaceAll('{token_app}', 'x').replaceAll('{client_id}', 'x'));
     if (!isSafeLoginUrl(sample)) return null;
   } catch {
     return null;
   }
-  return { tokenApp, loginUrlTemplate: template };
+  return { tokenApp, clientId, loginUrlTemplate: template };
 }
 
 export const isRealAuthConfigured = (): boolean => realAuthConfig() !== null;
@@ -44,7 +49,10 @@ export const isRealAuthConfigured = (): boolean => realAuthConfig() !== null;
 export function buildLoginUrl(session: string): string {
   const config = realAuthConfig();
   if (!config) throw new Error('El acceso con Original Auth no está configurado');
-  return config.loginUrlTemplate.replaceAll('{session}', encodeURIComponent(session)).replaceAll('{token_app}', encodeURIComponent(config.tokenApp));
+  return config.loginUrlTemplate
+    .replaceAll('{session}', encodeURIComponent(session))
+    .replaceAll('{token_app}', encodeURIComponent(config.tokenApp))
+    .replaceAll('{client_id}', encodeURIComponent(config.clientId ?? ''));
 }
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
