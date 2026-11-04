@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/services/api';
@@ -6,6 +6,7 @@ import * as leadsService from '@/services/leads';
 import * as membersService from '@/services/members';
 import { startDemo } from './helpers/demoApp';
 import { negocioConLeads, type SeedLead } from './helpers/leadsApp';
+import { editarBaseDeDemostracion } from './helpers/publicApp';
 import { montar } from './helpers/renderApp';
 
 vi.mock('@/features/leads/constants', () => ({ SEARCH_DELAY_MS: 20 }));
@@ -54,7 +55,7 @@ describe('dar de alta un lead a mano', () => {
     await negocioConLeads([MARIA]);
     await abrirTablero();
     const dialogo = await abrirFormulario();
-    await escribir(dialogo, 'Nombre', 'Rosa Díaz');
+    await escribir(dialogo, 'Nombre', '  Rosa Díaz ');
     await escribir(dialogo, 'Correo', 'ROSA@correo.com');
     await userEvent.click(within(dialogo).getByRole('button', { name: 'Crear lead' }));
 
@@ -62,7 +63,11 @@ describe('dar de alta un lead a mano', () => {
     await waitFor(() => expect(tarjetas('Nuevo')).toHaveLength(2));
     expect(within(columna('Nuevo')).getByRole('button', { name: /Rosa Díaz/ })).toBeInTheDocument();
     expect(leadsService.createLead).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(leadsService.createLead).mock.calls[0]?.[1]).toMatchObject({ name: 'Rosa Díaz', email: 'ROSA@correo.com', source: 'web_form' });
+    const body = vi.mocked(leadsService.createLead).mock.calls[0]?.[1];
+    expect(body).toMatchObject({ name: 'Rosa Díaz', email: 'ROSA@correo.com', source: 'web_form' });
+    // Lo que se deja vacío no se manda (un valor vacío no es un cero).
+    expect(body).not.toHaveProperty('phone');
+    expect(body).not.toHaveProperty('value');
   });
 
   it('el primer lead se puede dar de alta desde el aviso de que todavía no hay ninguno', async () => {
@@ -75,6 +80,17 @@ describe('dar de alta un lead a mano', () => {
     await userEvent.click(within(dialogo).getByRole('button', { name: 'Crear lead' }));
     expect(await screen.findByRole('region', { name: 'Nuevo' })).toBeInTheDocument();
     await waitFor(() => expect(tarjetas('Nuevo')).toHaveLength(1));
+  });
+
+  it('si el tablero está filtrado por un funnel, propone ese funnel', async () => {
+    await negocioConLeads([MARIA]);
+    montar('/leads');
+    await screen.findByRole('region', { name: 'Nuevo' });
+    // «Curso de datos» no es el primero de la lista de funnels: si no se propusiera el filtrado, saldría el primero.
+    await userEvent.selectOptions(screen.getByLabelText('Funnel'), 'Curso de datos');
+    await waitFor(() => expect(screen.getByRole('button', { name: /María Pérez/ })).toBeInTheDocument());
+    const dialogo = await abrirFormulario();
+    expect(within(dialogo).getByLabelText('Funnel')).toHaveDisplayValue('Curso de datos');
   });
 
   it('propone el primer funnel y la primera etapa, y deja elegir la etapa y cómo llegó', async () => {
@@ -170,6 +186,8 @@ describe('dar de alta un lead a mano', () => {
     await userEvent.click(within(dialogo).getByRole('button', { name: 'Crear lead' }));
     const guardando = await within(dialogo).findByRole('button', { name: 'Guardando…' });
     expect(guardando).toBeDisabled();
+    // Aunque el formulario se envíe por otro camino (Enter, un lector de pantalla), no se manda dos veces.
+    fireEvent.submit(dialogo.querySelector('form')!);
     terminar();
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(leadsService.createLead).toHaveBeenCalledTimes(1);
@@ -301,7 +319,12 @@ describe('corregir los datos de un lead y asignarlo', () => {
   });
 
   it('quien administra el negocio puede asignar el lead a alguien del equipo con cuenta, y quitarlo', async () => {
-    await negocioConLeads([MARIA]);
+    const { workspace } = await negocioConLeads([MARIA]);
+    // Alguien que solo está invitado (aunque ya tenga un id) no aparece: todavía no tiene acceso.
+    editarBaseDeDemostracion((db) => {
+      db.members.push({ id: 'm1', role: 'vendedor', status: 'invited', userId: 'demo-invitada@correo.com', email: 'invitada@correo.com', name: 'Invitada', clientId: null, workspaceId: workspace.id, createdAt: new Date().toISOString() });
+      db.members.push({ id: 'm2', role: 'vendedor', status: 'active', userId: null, email: 'sinid@correo.com', name: 'Sin id', clientId: null, workspaceId: workspace.id, createdAt: new Date().toISOString() });
+    });
     await abrirTablero();
     const { formulario } = await abrirDetalle();
     const asignado = await within(formulario).findByLabelText('Asignado a');

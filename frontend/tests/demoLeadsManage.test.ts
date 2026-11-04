@@ -87,6 +87,15 @@ describe('POST /leads en la demostración (alta a mano)', () => {
     expect(err.code).toBe('FUNNEL_NOT_FOUND');
   });
 
+  it('un funnel de otra persona también responde 404 (existe, pero no es suyo)', async () => {
+    const { token } = await negocio();
+    const ajena = await negocioConLeads([], { email: 'otra@correo.com' });
+    const err = await falla(createLead(token, { funnelId: ajena.funnels[0].id, email: 'a@correo.com' }));
+    expect(err.status).toBe(404);
+    expect(err.code).toBe('FUNNEL_NOT_FOUND');
+    expect((await listLeads(ajena.token, ajena.workspace.id)).total).toBe(0);
+  });
+
   it('una etapa de otro negocio no vale', async () => {
     const { token, funnels } = await negocio();
     const otro = await startDemo({ email: 'otra@correo.com', workspace: 'Otro negocio' });
@@ -141,9 +150,10 @@ describe('PATCH /leads/:id en la demostración (corregir y asignar)', () => {
     expect(campos(ajena)).toEqual(['assignedTo']);
 
     editarBaseDeDemostracion((db) => {
-      db.members.push({ id: 'm1', role: 'vendedor', status: 'invited', userId: null, email: 'invitado@correo.com', name: null, clientId: null, workspaceId: workspace.id, createdAt: new Date().toISOString() });
+      db.members.push({ id: 'm1', role: 'vendedor', status: 'invited', userId: 'demo-invitado@correo.com', email: 'invitado@correo.com', name: null, clientId: null, workspaceId: workspace.id, createdAt: new Date().toISOString() });
     });
-    expect((await falla(updateLead(token, existente.id, { assignedTo: 'invitado@correo.com' }))).status).toBe(422);
+    // Aunque ya tenga un id, mientras solo esté invitado no tiene acceso: no se le puede asignar.
+    expect((await falla(updateLead(token, existente.id, { assignedTo: 'demo-invitado@correo.com' }))).status).toBe(422);
   });
 
   it('un cuerpo vacío responde 422 y no cambia nada', async () => {
