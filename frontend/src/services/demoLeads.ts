@@ -1,4 +1,6 @@
+import { MAX_LEAD_VALUE, validateContactChanges, validateManualLead, type ManualLeadBody } from '@/shared/leads';
 import { done, invalid, notFound, skip, uuid, type Answer, type DemoDb, type DemoLead, type FunnelsContext } from './demoCore';
+import { teamOf } from './demoMembers';
 import type { Lead, LeadStage } from './leads';
 
 /**
@@ -8,7 +10,7 @@ import type { Lead, LeadStage } from './leads';
  */
 
 const DEFAULT_STAGES = ['Nuevo', 'Contactado', 'Interesado', 'Oportunidad', 'Cliente'];
-const MAX_VALUE = 9_999_999_999.99;
+const MAX_VALUE = MAX_LEAD_VALUE;
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
 
@@ -45,7 +47,7 @@ function view(db: DemoDb, lead: DemoLead): Lead {
     phone: lead.phone ?? null,
     source: lead.source,
     utm: hasUtm ? lead.utm : null,
-    assignedTo: null,
+    assignedTo: lead.assignedTo ?? null,
     value: lead.value ?? null,
     customFields: Object.keys(lead.customFields).length > 0 ? lead.customFields : null,
     createdAt: lead.createdAt,
@@ -91,6 +93,44 @@ export function demoLeadsRoute({ route, query, method, data, db, sessionOf, save
     return done({ items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length, page, pageSize });
   }
 
+  if (route === '/leads' && method === 'POST') {
+    const funnel = db.funnels.find((f) => f.id === data.funnelId);
+    const workspace = funnel && db.workspaces.find((w) => w.id === funnel.workspaceId && w.ownerEmail === sessionOf().email);
+    if (!funnel || !workspace) throw notFound('FUNNEL_NOT_FOUND', 'Funnel no encontrado');
+
+    const text = (key: string) => (typeof data[key] === 'string' ? (data[key] as string) : undefined);
+    const body: ManualLeadBody = {
+      funnelId: funnel.id,
+      name: text('name'),
+      email: text('email'),
+      phone: text('phone'),
+      value: typeof data.value === 'number' ? data.value : undefined,
+      source: data.source === 'whatsapp' ? 'whatsapp' : 'web_form',
+    };
+    const errors = validateManualLead(body).map((issue) => ({ path: String(issue.path[0]), message: issue.message }));
+    if (data.source !== undefined && data.source !== 'web_form' && data.source !== 'whatsapp') errors.push({ path: 'source', message: 'Debe ser web_form o whatsapp' });
+    const stages = stagesOf(db, workspace.id);
+    if (data.leadStageId !== undefined && !stages.some((stage) => stage.id === data.leadStageId)) errors.push({ path: 'leadStageId', message: 'La etapa no existe en este negocio' });
+    if (errors.length > 0) throw invalid(errors);
+
+    const lead: DemoLead = {
+      id: uuid(),
+      funnelId: funnel.id,
+      ...(body.name === undefined ? {} : { name: body.name.trim() }),
+      ...(body.email === undefined ? {} : { email: body.email.trim().toLowerCase() }),
+      ...(body.phone === undefined ? {} : { phone: body.phone.trim() }),
+      utm: {},
+      source: body.source ?? 'web_form',
+      customFields: {},
+      leadStageId: typeof data.leadStageId === 'string' ? data.leadStageId : stages[0]?.id,
+      value: body.value === undefined ? null : Math.round(body.value * 100) / 100,
+      createdAt: new Date().toISOString(),
+    };
+    db.leads.push(lead);
+    save();
+    return done(view(db, lead));
+  }
+
   const one = /^\/leads\/([^/]+)$/.exec(route);
   if (one && method === 'PATCH') {
     const id = decodeURIComponent(one[1] ?? '');
@@ -100,8 +140,9 @@ export function demoLeadsRoute({ route, query, method, data, db, sessionOf, save
     const workspace = funnel && db.workspaces.find((w) => w.id === funnel.workspaceId && w.ownerEmail === session.email);
     if (!found || !funnel || !workspace) throw notFound('LEAD_NOT_FOUND', 'Lead no encontrado');
 
+    const editable = ['leadStageId', 'value', 'assignedTo', 'name', 'email', 'phone'] as const;
     const errors: { path: string; message: string }[] = [];
-    if (data.leadStageId === undefined && data.value === undefined) errors.push({ path: '', message: 'debe enviar al menos un campo' });
+    if (!editable.some((key) => data[key] !== undefined)) errors.push({ path: '', message: 'debe enviar al menos un campo' });
     if (data.leadStageId !== undefined && (typeof data.leadStageId !== 'string' || !stagesOf(db, workspace.id).some((stage) => stage.id === data.leadStageId))) {
       errors.push({ path: 'leadStageId', message: 'La etapa no existe en este negocio' });
     }
@@ -109,10 +150,23 @@ export function demoLeadsRoute({ route, query, method, data, db, sessionOf, save
     if (value !== undefined && value !== null && (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > MAX_VALUE)) {
       errors.push({ path: 'value', message: `Debe ser un número entre 0 y ${MAX_VALUE}` });
     }
+    const assignee = data.assignedTo;
+    if (assignee !== undefined && assignee !== null && (typeof assignee !== 'string' || !teamOf(db, workspace.id).some((member) => member.status === 'active' && member.userId === assignee))) {
+      errors.push({ path: 'assignedTo', message: 'La persona no tiene acceso a este negocio' });
+    }
+    const contact = { name: data.name as string | null | undefined, email: data.email as string | null | undefined, phone: data.phone as string | null | undefined };
+    errors.push(...validateContactChanges({ email: found.email ?? null, phone: found.phone ?? null }, contact).map((issue) => ({ path: String(issue.path[0]), message: issue.message })));
     if (errors.length > 0) throw invalid(errors);
 
     if (typeof data.leadStageId === 'string') found.leadStageId = data.leadStageId;
     if (value !== undefined) found.value = value === null ? null : Math.round((value as number) * 100) / 100;
+    if (assignee !== undefined) found.assignedTo = assignee as string | null;
+    for (const key of ['name', 'email', 'phone'] as const) {
+      const next = contact[key];
+      if (next === undefined) continue;
+      if (next === null) delete found[key];
+      else found[key] = key === 'email' ? next.trim().toLowerCase() : next.trim();
+    }
     save();
     return done(view(db, found));
   }

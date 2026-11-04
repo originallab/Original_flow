@@ -3,7 +3,11 @@ import type { Lead, LeadStage } from '@/services/leads';
 import { Button } from '@/shared/ui/Button';
 import { Modal } from '@/shared/ui/Modal';
 import { TextField } from '@/shared/ui/TextField';
+import type { ContactChanges } from '@/shared/leads';
 import { fullDate, leadTitle, mailtoOf, originOf, telOf, visibleCustomFields } from '../leadDisplay';
+import type { Assignee } from '../useAssignees';
+import type { SaveResult } from '../useLeadsBoard';
+import { LeadContactForm } from './LeadContactForm';
 
 interface Props {
   lead: Lead;
@@ -14,6 +18,10 @@ interface Props {
   onMove: (leadId: string, stageId: string) => void;
   /** Devuelve el mensaje de error o `null` si se guardó. */
   onSaveValue: (leadId: string, value: number | null) => Promise<string | null>;
+  /** Corrige los datos de contacto y asigna. */
+  onSaveDetails: (leadId: string, changes: ContactChanges & { assignedTo?: string | null }) => Promise<SaveResult>;
+  /** A quién se puede asignar (vacío si quien mira no administra el negocio). */
+  assignees: Assignee[];
 }
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
@@ -28,7 +36,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 const LINK = 'text-violet-tint-text underline-offset-2 hover:underline';
 
 /** Todo lo que se sabe de un lead. Con permiso, se le cambia la etapa y se le pone un valor estimado. */
-export function LeadDetail({ lead, stages, canEdit, onClose, onMove, onSaveValue }: Props) {
+export function LeadDetail({ lead, stages, canEdit, onClose, onMove, onSaveValue, onSaveDetails, assignees }: Props) {
   const [text, setText] = useState(lead.value === null ? '' : String(lead.value));
   const [error, setError] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
@@ -129,6 +137,8 @@ export function LeadDetail({ lead, stages, canEdit, onClose, onMove, onSaveValue
             <p className="mt-1">{lead.value === null ? '—' : String(lead.value)}</p>
           </div>
         )}
+
+        {canEdit && <LeadContactForm lead={lead} assignees={assignees} onSave={onSaveDetails} />}
       </div>
     </Modal>
   );

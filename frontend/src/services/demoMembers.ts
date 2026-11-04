@@ -17,7 +17,7 @@ const MAX_PAGE_SIZE = 100;
 const ownerId = (workspaceId: string) => `owner-${workspaceId}`;
 
 /** El equipo de un negocio: su dueño (administrador) y las demás personas, de la más antigua a la más nueva. */
-function teamOf(db: DemoDb, workspaceId: string): Member[] {
+export function teamOf(db: DemoDb, workspaceId: string): Member[] {
   const workspace = db.workspaces.find((w) => w.id === workspaceId);
   if (!workspace) return [];
   const owner = Object.values(db.sessions).find((session) => session.validated && session.email === workspace.ownerEmail);

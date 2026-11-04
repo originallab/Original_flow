@@ -37,10 +37,26 @@ export interface LeadFilters {
   q?: string;
 }
 
-/** Lo que se puede cambiar de un lead (`PATCH /leads/:id`); con `null` se borra el valor. */
+/** Lo que se puede cambiar de un lead (`PATCH /leads/:id`); con `null` se borra el valor, el vendedor, el nombre, el correo o el teléfono. */
 export interface LeadChanges {
   leadStageId?: string;
   value?: number | null;
+  /** El id de la persona (de `userId` en el equipo) a la que se asigna, o `null` para quitarla. */
+  assignedTo?: string | null;
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+}
+
+/** Un lead dado de alta a mano (`POST /leads`): sin etapa entra a la primera del tablero. */
+export interface NewLead {
+  funnelId: string;
+  leadStageId?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  value?: number;
+  source?: Lead['source'];
 }
 
 export interface LeadsPage {
@@ -71,7 +87,12 @@ export function listLeads(token: string, workspaceId: string, filters: LeadFilte
   return apiFetch(`/leads?${query.toString()}`, { token, signal });
 }
 
-/** PATCH /leads/:id: pasa el lead a otra etapa o le pone su valor estimado. */
+/** POST /leads: da de alta un lead a mano en un funnel del negocio. */
+export function createLead(token: string, body: NewLead): Promise<Lead> {
+  return apiFetch('/leads', { method: 'POST', body, token });
+}
+
+/** PATCH /leads/:id: pasa el lead a otra etapa, le pone su valor estimado, lo asigna o corrige sus datos. */
 export function updateLead(token: string, id: string, changes: LeadChanges): Promise<Lead> {
   return apiFetch(`/leads/${encodeURIComponent(id)}`, { method: 'PATCH', body: changes, token });
 }

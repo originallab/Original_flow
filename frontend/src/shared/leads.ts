@@ -24,7 +24,7 @@ export interface LeadBody {
 }
 
 export const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const PHONE = /^[0-9+()\-.\s]{6,30}$/;
+export const PHONE = /^[0-9+()\-.\s]{6,30}$/;
 const FIELD_NAME = /^[a-zA-Z][a-zA-Z0-9_]{0,39}$/;
 const UTM_LIMITS: Record<keyof Utm, number> = { utm_source: 100, utm_medium: 100, utm_campaign: 100, referrer: 300 };
 export const MAX_CUSTOM_FIELDS = 30;
@@ -146,4 +146,55 @@ export function fieldForIssuePath(path: string, fields: FormField[]): string | n
   if (head === 'phone') return byType('tel');
   if (head === 'name') return fields.find((f) => NAME_FIELD.test(f.name))?.name ?? null;
   return null;
+}
+
+/** Lo más largo que puede ser el nombre de un lead y el tope de su valor estimado (los mismos que el backend). */
+export const MAX_LEAD_NAME = 200;
+export const MAX_LEAD_VALUE = 9_999_999_999.99;
+
+/** ¿Es un correo que el backend aceptaría? (recortado, hasta 254 caracteres). */
+const validEmail = (value: string) => EMAIL.test(value.trim()) && value.trim().length <= 254;
+
+/** El lead que se da de alta a mano (`POST /leads`). Lleva al menos un correo o un teléfono; no pide consentimiento. */
+export interface ManualLeadBody {
+  funnelId: string;
+  leadStageId?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  value?: number;
+  source?: 'web_form' | 'whatsapp';
+}
+
+/** Problemas de un lead dado de alta a mano (vacío si es válido), con las rutas del backend: `funnelId`, `email`, `phone`, `name`, `value`. */
+export function validateManualLead(body: ManualLeadBody): Issue[] {
+  const issues: Issue[] = [];
+  const add = (path: string, message: string) => issues.push({ path: [path], message });
+  if (!body.funnelId) add('funnelId', 'Elige el funnel del que viene.');
+  if (body.name !== undefined && (body.name.trim().length < 1 || body.name.trim().length > MAX_LEAD_NAME)) add('name', `El nombre puede tener hasta ${MAX_LEAD_NAME} caracteres.`);
+  if (body.email !== undefined && !validEmail(body.email)) add('email', 'Escribe un correo válido.');
+  if (body.phone !== undefined && !PHONE.test(body.phone.trim())) add('phone', 'Escribe un teléfono válido.');
+  if (body.email === undefined && body.phone === undefined) add('email', 'Deja un correo o un teléfono para poder contactar a la persona.');
+  if (body.value !== undefined && (!Number.isFinite(body.value) || body.value < 0 || body.value > MAX_LEAD_VALUE)) add('value', 'Escribe un número mayor o igual a 0.');
+  return issues;
+}
+
+/** Los datos de contacto que se corrigen de un lead; con `null` se borra el dato. */
+export interface ContactChanges {
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+}
+
+/** Problemas de corregir los datos de un lead (vacío si es válido). El lead siempre conserva un correo o un teléfono. */
+export function validateContactChanges(current: { email: string | null; phone: string | null }, changes: ContactChanges): Issue[] {
+  const issues: Issue[] = [];
+  const add = (path: string, message: string) => issues.push({ path: [path], message });
+  if (typeof changes.name === 'string' && (changes.name.trim().length < 1 || changes.name.trim().length > MAX_LEAD_NAME)) add('name', `El nombre puede tener hasta ${MAX_LEAD_NAME} caracteres.`);
+  if (typeof changes.email === 'string' && !validEmail(changes.email)) add('email', 'Escribe un correo válido.');
+  if (typeof changes.phone === 'string' && !PHONE.test(changes.phone.trim())) add('phone', 'Escribe un teléfono válido.');
+  const email = changes.email === undefined ? current.email : changes.email;
+  const phone = changes.phone === undefined ? current.phone : changes.phone;
+  if (!email && !phone && issues.length === 0) add('email', 'El lead debe conservar un correo o un teléfono.');
+  return issues;
 }

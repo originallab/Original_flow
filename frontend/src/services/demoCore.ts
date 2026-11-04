@@ -24,8 +24,10 @@ export interface DemoLead {
   email?: string;
   phone?: string;
   utm: { utm_source?: string; utm_medium?: string; utm_campaign?: string; referrer?: string };
-  source: 'web_form';
+  source: 'web_form' | 'whatsapp';
   customFields: Record<string, string | number | boolean | null>;
+  /** A quién está asignado (el `userId` de alguien del equipo). */
+  assignedTo?: string | null;
   /** Etapa del tablero; los leads de antes de existir el tablero no la traen y cuentan como de la primera. */
   leadStageId?: string;
   value?: number | null;

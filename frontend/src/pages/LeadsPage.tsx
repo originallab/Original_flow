@@ -1,16 +1,18 @@
-import { Users, X } from 'lucide-react';
+import { Plus, Users, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { SEARCH_DELAY_MS } from '@/features/leads/constants';
 import { LeadBoard } from '@/features/leads/components/LeadBoard';
 import { LeadDetail } from '@/features/leads/components/LeadDetail';
+import { LeadForm } from '@/features/leads/components/LeadForm';
 import { LeadFilters } from '@/features/leads/components/LeadFilters';
+import { useAssignees } from '@/features/leads/useAssignees';
 import { useLeadsBoard } from '@/features/leads/useLeadsBoard';
 import { useWorkspaces } from '@/features/workspaces/WorkspaceProvider';
 import { BOARD_PAGE_SIZE } from '@/services/leads';
 import { Button, buttonStyles } from '@/shared/ui/Button';
-import { canManageLeads, canViewLeads } from '@/shared/utils/permissions';
+import { canManageLeads, canManageWorkspace, canViewLeads } from '@/shared/utils/permissions';
 
 /** Los leads del negocio activo en un tablero por etapas: se arrastran de una a otra y cada uno abre su detalle. */
 export function LeadsPage() {
@@ -22,7 +24,10 @@ export function LeadsPage() {
   const { setFilters } = board;
   const [query, setQuery] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const canEdit = canManageLeads(role);
+  // Solo quien administra el negocio puede ver el equipo, así que solo ella puede asignar leads.
+  const assignees = useAssignees(token, active?.id, allowed && canManageWorkspace(role));
 
   // El buscador espera un momento después de la última tecla para no pedir los leads en cada letra.
   useEffect(() => {
@@ -36,8 +41,18 @@ export function LeadsPage() {
 
   return (
     <div className="mx-auto w-full max-w-[96rem] px-6 py-10">
-      <h1 className="font-heading text-3xl font-semibold">Leads</h1>
-      <p className="mt-2 text-text-2">Las personas que llenaron el formulario de tus páginas, por etapa.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-heading text-3xl font-semibold">Leads</h1>
+          <p className="mt-2 text-text-2">Las personas que llenaron el formulario de tus páginas, por etapa.</p>
+        </div>
+        {allowed && canEdit && board.status === 'ready' && (
+          <Button onClick={() => setCreating(true)} disabled={board.funnels.length === 0 || board.stages.length === 0} title={board.funnels.length === 0 ? 'Crea un funnel primero' : undefined}>
+            <Plus size={16} aria-hidden className="mr-1.5" />
+            Nuevo lead
+          </Button>
+        )}
+      </div>
 
       {!allowed ? (
         <p role="alert" className="mt-8 rounded-2xl border border-border bg-surface p-8 text-center text-text-2">
@@ -102,7 +117,8 @@ export function LeadsPage() {
         </div>
       )}
 
-      {open && <LeadDetail lead={open} stages={board.stages} canEdit={canEdit} onClose={() => setOpenId(null)} onMove={(id, stageId) => void board.move(id, stageId)} onSaveValue={board.saveValue} />}
+      {open && <LeadDetail lead={open} stages={board.stages} canEdit={canEdit} onClose={() => setOpenId(null)} onMove={(id, stageId) => void board.move(id, stageId)} onSaveValue={board.saveValue} onSaveDetails={board.saveDetails} assignees={assignees} />}
+      {creating && <LeadForm funnels={board.funnels} stages={board.stages} defaultFunnelId={funnelId} onClose={() => setCreating(false)} onCreate={board.create} />}
     </div>
   );
 }

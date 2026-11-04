@@ -1,11 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError } from '@/services/api';
 import { listFunnels, type FunnelSummary } from '@/services/funnels';
-import { listLeads, listLeadStages, updateLead, type Lead, type LeadFilters, type LeadStage } from '@/services/leads';
+import { createLead, listLeads, listLeadStages, updateLead, type Lead, type LeadChanges, type LeadFilters, type LeadStage, type NewLead } from '@/services/leads';
 
 type Load = 'loading' | 'ready' | 'error';
 
 export const MOVE_FAILED = 'No se pudo mover el lead. Inténtalo de nuevo.';
+
+/** Cómo salió un guardado: bien, o con el error de cada campo y/o un mensaje general. */
+export type SaveResult = { ok: true } | { ok: false; fields: Record<string, string>; message?: string };
+
+function failure(err: unknown): SaveResult {
+  if (err instanceof ApiError && err.status === 422) return { ok: false, fields: err.fieldErrors() };
+  if (err instanceof ApiError && err.status === 404) return { ok: false, fields: {}, message: 'Ya no se encontró lo que intentabas guardar. Recarga la pantalla.' };
+  return { ok: false, fields: {}, message: 'No se pudo guardar. Inténtalo de nuevo.' };
+}
 
 /**
  * Lo que necesita el tablero de leads de un negocio: sus etapas, sus funnels (para filtrar), los leads con
@@ -22,6 +31,7 @@ export function useLeadsBoard(token: string | null, workspaceId: string | undefi
   const [refreshing, setRefreshing] = useState(false);
   const [filters, setFilters] = useState<LeadFilters>({});
   const [attempt, setAttempt] = useState(0);
+  const [leadsAttempt, setLeadsAttempt] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
   const current = useRef<Lead[]>([]);
   const tickets = useRef(new Map<string, number>());
@@ -69,7 +79,7 @@ export function useLeadsBoard(token: string | null, workspaceId: string | undefi
         setRefreshing(false);
       });
     return () => controller.abort();
-  }, [enabled, token, workspaceId, filters, attempt]);
+  }, [enabled, token, workspaceId, filters, attempt, leadsAttempt]);
 
   const move = useCallback(
     async (leadId: string, stageId: string): Promise<boolean> => {
@@ -111,6 +121,35 @@ export function useLeadsBoard(token: string | null, workspaceId: string | undefi
     [token, patchLead],
   );
 
+  /** Da de alta un lead a mano y vuelve a pedir la lista (el nuevo puede no coincidir con los filtros puestos). */
+  const create = useCallback(
+    async (body: NewLead): Promise<SaveResult> => {
+      if (!token) return { ok: false, fields: {}, message: 'Tu sesión terminó. Vuelve a entrar.' };
+      try {
+        await createLead(token, body);
+        setLeadsAttempt((n) => n + 1);
+        return { ok: true };
+      } catch (err) {
+        return failure(err);
+      }
+    },
+    [token],
+  );
+
+  /** Corrige los datos de un lead (nombre, correo, teléfono) y/o lo asigna. */
+  const saveDetails = useCallback(
+    async (leadId: string, changes: Pick<LeadChanges, 'name' | 'email' | 'phone' | 'assignedTo'>): Promise<SaveResult> => {
+      if (!token) return { ok: false, fields: {}, message: 'Tu sesión terminó. Vuelve a entrar.' };
+      try {
+        patchLead(leadId, await updateLead(token, leadId, changes));
+        return { ok: true };
+      } catch (err) {
+        return failure(err);
+      }
+    },
+    [token, patchLead],
+  );
+
   const status: Load = base === 'error' || leadsLoad === 'error' ? 'error' : base === 'loading' || leadsLoad === 'loading' ? 'loading' : 'ready';
 
   return {
@@ -127,5 +166,7 @@ export function useLeadsBoard(token: string | null, workspaceId: string | undefi
     retry: useCallback(() => setAttempt((n) => n + 1), []),
     move,
     saveValue,
+    create,
+    saveDetails,
   };
 }

@@ -446,7 +446,8 @@ describe('el detalle de un lead', () => {
     await negocioConLeads([{ name: 'Solo Nombre', phone: '55 1234 5678' }]);
     await abrirTablero();
     const detalle = await abrirDetalle(/Solo Nombre/);
-    const fila = within(detalle).getByText('Correo').parentElement!;
+    // «Correo» también es la etiqueta del formulario de datos: aquí interesa la fila de arriba (el término de la lista).
+    const fila = within(detalle).getAllByText('Correo').find((el) => el.tagName === 'DT')!.parentElement!;
     expect(fila).toHaveTextContent('—');
   });
 
