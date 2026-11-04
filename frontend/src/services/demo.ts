@@ -4,6 +4,7 @@ import { demoFunnelsRoute } from './demoFunnels';
 import { demoHistoryRoute } from './demoHistory';
 import { demoLeadsRoute } from './demoLeads';
 import { demoMembersRoute } from './demoMembers';
+import { demoStagesRoute } from './demoStages';
 import { demoPaymentsRoute } from './demoPayments';
 import { demoPublicRoute } from './demoPublic';
 import type { Workspace } from './workspaces';
@@ -199,6 +200,10 @@ export async function demoRequest<T>(path: string, { method, body, token, header
   // Leads y las etapas de su tablero.
   const leadsAnswer = demoLeadsRoute({ route, query, method, data, db, sessionOf, save: () => write(db) });
   if (leadsAnswer.handled) return respond(leadsAnswer.value);
+
+  // Agregar, renombrar, mover y quitar etapas del tablero.
+  const stagesAnswer = demoStagesRoute({ route, query, method, data, db, sessionOf, save: () => write(db) });
+  if (stagesAnswer.handled) return respond(stagesAnswer.value);
 
   // Analítica del dashboard.
   const analyticsAnswer = demoAnalyticsRoute({ route, query, method, data, db, sessionOf, save: () => write(db) });

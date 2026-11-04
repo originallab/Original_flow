@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError } from '@/services/api';
 import { listFunnels, type FunnelSummary } from '@/services/funnels';
-import { createLead, listLeads, listLeadStages, updateLead, type Lead, type LeadChanges, type LeadFilters, type LeadStage, type NewLead } from '@/services/leads';
+import { createLead, createStage, deleteStage, listLeads, listLeadStages, updateLead, updateStage, type Lead, type LeadChanges, type LeadFilters, type LeadStage, type NewLead } from '@/services/leads';
 
 type Load = 'loading' | 'ready' | 'error';
 
@@ -9,6 +9,18 @@ export const MOVE_FAILED = 'No se pudo mover el lead. Inténtalo de nuevo.';
 
 /** Cómo salió un guardado: bien, o con el error de cada campo y/o un mensaje general. */
 export type SaveResult = { ok: true } | { ok: false; fields: Record<string, string>; message?: string };
+
+/** Por qué no se pudo cambiar una etapa, dicho para quien administra el tablero. */
+function stageFailure(err: unknown): SaveResult {
+  if (err instanceof ApiError) {
+    if (err.status === 409 && err.code === 'STAGE_NOT_EMPTY') return { ok: false, fields: {}, message: 'Mueve primero los leads de esta etapa y vuelve a intentarlo.' };
+    if (err.status === 409 && err.code === 'STAGE_PROTECTED') return { ok: false, fields: {}, message: 'Esa etapa no se puede mover ni quitar: es la última del tablero y la que se usa cuando alguien paga.' };
+    if (err.status === 422) return { ok: false, fields: err.fieldErrors(), message: Object.keys(err.fieldErrors()).length === 0 ? 'Revisa los datos de la etapa.' : undefined };
+    if (err.status === 404) return { ok: false, fields: {}, message: 'Ya no se encontró la etapa. Recarga la pantalla.' };
+    if (err.status === 403) return { ok: false, fields: {}, message: 'Solo quien administra el negocio puede cambiar las etapas.' };
+  }
+  return { ok: false, fields: {}, message: 'No se pudo guardar. Inténtalo de nuevo.' };
+}
 
 function failure(err: unknown): SaveResult {
   if (err instanceof ApiError && err.status === 422) return { ok: false, fields: err.fieldErrors() };
@@ -150,6 +162,29 @@ export function useLeadsBoard(token: string | null, workspaceId: string | undefi
     [token, patchLead],
   );
 
+  /** Hace un cambio en las etapas y, si salió bien, vuelve a pedir el tablero tal como quedó (los órdenes se renumeran en el servidor). */
+  const changeStages = useCallback(
+    async (run: (token: string, workspaceId: string) => Promise<unknown>): Promise<SaveResult> => {
+      if (!token || !workspaceId) return { ok: false, fields: {}, message: 'Tu sesión terminó. Vuelve a entrar.' };
+      try {
+        await run(token, workspaceId);
+      } catch (err) {
+        return stageFailure(err);
+      }
+      try {
+        setStages(await listLeadStages(token, workspaceId));
+      } catch {
+        return { ok: false, fields: {}, message: 'El cambio se guardó, pero no se pudo actualizar la lista. Recarga la pantalla.' };
+      }
+      return { ok: true };
+    },
+    [token, workspaceId],
+  );
+  const addStage = useCallback((name: string) => changeStages((t, w) => createStage(t, w, { name })), [changeStages]);
+  const renameStage = useCallback((id: string, name: string) => changeStages((t) => updateStage(t, id, { name })), [changeStages]);
+  const moveStage = useCallback((id: string, order: number) => changeStages((t) => updateStage(t, id, { order })), [changeStages]);
+  const removeStage = useCallback((id: string) => changeStages((t) => deleteStage(t, id)), [changeStages]);
+
   const status: Load = base === 'error' || leadsLoad === 'error' ? 'error' : base === 'loading' || leadsLoad === 'loading' ? 'loading' : 'ready';
 
   return {
@@ -168,5 +203,9 @@ export function useLeadsBoard(token: string | null, workspaceId: string | undefi
     saveValue,
     create,
     saveDetails,
+    addStage,
+    renameStage,
+    moveStage,
+    removeStage,
   };
 }

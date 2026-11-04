@@ -1,4 +1,4 @@
-import { Plus, Users, X } from 'lucide-react';
+import { ListOrdered, Plus, Users, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/features/auth/AuthProvider';
@@ -6,6 +6,7 @@ import { SEARCH_DELAY_MS } from '@/features/leads/constants';
 import { LeadBoard } from '@/features/leads/components/LeadBoard';
 import { LeadDetail } from '@/features/leads/components/LeadDetail';
 import { LeadForm } from '@/features/leads/components/LeadForm';
+import { StagesDialog } from '@/features/leads/components/StagesDialog';
 import { LeadFilters } from '@/features/leads/components/LeadFilters';
 import { useAssignees } from '@/features/leads/useAssignees';
 import { useLeadsBoard } from '@/features/leads/useLeadsBoard';
@@ -25,6 +26,7 @@ export function LeadsPage() {
   const [query, setQuery] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [editingStages, setEditingStages] = useState(false);
   const canEdit = canManageLeads(role);
   // Solo quien administra el negocio puede ver el equipo, así que solo ella puede asignar leads.
   const assignees = useAssignees(token, active?.id, allowed && canManageWorkspace(role));
@@ -46,11 +48,21 @@ export function LeadsPage() {
           <h1 className="font-heading text-3xl font-semibold">Leads</h1>
           <p className="mt-2 text-text-2">Las personas que llenaron el formulario de tus páginas, por etapa.</p>
         </div>
-        {allowed && canEdit && board.status === 'ready' && (
-          <Button onClick={() => setCreating(true)} disabled={board.funnels.length === 0 || board.stages.length === 0} title={board.funnels.length === 0 ? 'Crea un funnel primero' : undefined}>
-            <Plus size={16} aria-hidden className="mr-1.5" />
-            Nuevo lead
-          </Button>
+        {allowed && board.status === 'ready' && (
+          <div className="flex flex-wrap gap-2">
+            {canManageWorkspace(role) && (
+              <Button variant="secondary" onClick={() => setEditingStages(true)}>
+                <ListOrdered size={16} aria-hidden className="mr-1.5" />
+                Etapas
+              </Button>
+            )}
+            {canEdit && (
+              <Button onClick={() => setCreating(true)} disabled={board.funnels.length === 0 || board.stages.length === 0} title={board.funnels.length === 0 ? 'Crea un funnel primero' : undefined}>
+                <Plus size={16} aria-hidden className="mr-1.5" />
+                Nuevo lead
+              </Button>
+            )}
+          </div>
         )}
       </div>
 
@@ -118,6 +130,7 @@ export function LeadsPage() {
       )}
 
       {open && <LeadDetail lead={open} stages={board.stages} canEdit={canEdit} onClose={() => setOpenId(null)} onMove={(id, stageId) => void board.move(id, stageId)} onSaveValue={board.saveValue} onSaveDetails={board.saveDetails} assignees={assignees} />}
+      {editingStages && <StagesDialog stages={board.stages} onClose={() => setEditingStages(false)} onAdd={board.addStage} onRename={board.renameStage} onMove={board.moveStage} onRemove={board.removeStage} />}
       {creating && <LeadForm funnels={board.funnels} stages={board.stages} defaultFunnelId={funnelId} onClose={() => setCreating(false)} onCreate={board.create} />}
     </div>
   );

@@ -79,6 +79,21 @@ export async function listLeadStages(token: string, workspaceId: string, signal?
   return [...page.items].sort((a, b) => a.order - b.order);
 }
 
+/** POST /workspaces/:id/lead-stages: agrega una etapa (sin posición, justo antes de la final). Solo quien administra el negocio. */
+export function createStage(token: string, workspaceId: string, body: { name: string; order?: number }): Promise<LeadStage> {
+  return apiFetch(`/workspaces/${encodeURIComponent(workspaceId)}/lead-stages`, { method: 'POST', body, token });
+}
+
+/** PATCH /lead-stages/:id: renombra o mueve una etapa (`order`: 1 es la primera). La final no se mueve. */
+export function updateStage(token: string, id: string, changes: { name?: string; order?: number }): Promise<LeadStage> {
+  return apiFetch(`/lead-stages/${encodeURIComponent(id)}`, { method: 'PATCH', body: changes, token });
+}
+
+/** DELETE /lead-stages/:id: quita la etapa. Responde 409 si es la final o la ganada, o si todavía tiene leads. */
+export function deleteStage(token: string, id: string): Promise<void> {
+  return apiFetch(`/lead-stages/${encodeURIComponent(id)}`, { method: 'DELETE', token });
+}
+
 /** GET /leads: los leads del negocio, del más nuevo al más viejo. */
 export function listLeads(token: string, workspaceId: string, filters: LeadFilters = {}, signal?: AbortSignal): Promise<LeadsPage> {
   const query = new URLSearchParams({ workspaceId, pageSize: String(BOARD_PAGE_SIZE) });
