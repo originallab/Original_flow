@@ -18,6 +18,7 @@ beforeEach(() => {
   vi.stubEnv('VITE_AUTH_MODE', '');
   vi.stubEnv('VITE_DEMO_MODE', 'false');
   vi.stubEnv('VITE_TOKEN_APP', 'app-123');
+  vi.stubEnv('VITE_ORIGINALAUTH_CLIENT_ID', '');
   vi.stubEnv('VITE_ORIGINALAUTH_LOGIN_URL', PLANTILLA);
   authTiming.intervalMs = 2;
   authTiming.maxPolls = 3;

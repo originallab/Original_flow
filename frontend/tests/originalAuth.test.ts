@@ -6,6 +6,8 @@ import { authTiming, buildLoginUrl, isRealAuthConfigured, realAuthConfig, waitFo
 const PLANTILLA = 'https://auth.ejemplo.com/login?app={token_app}&session={session}';
 
 function configurar(tokenApp: string | undefined, plantilla: string | undefined) {
+  // Sin cliente id por defecto (aunque el .env de quien corre las pruebas lo tenga); cada prueba lo pone si lo necesita, después de configurar.
+  vi.stubEnv('VITE_ORIGINALAUTH_CLIENT_ID', '');
   vi.stubEnv('VITE_TOKEN_APP', tokenApp as string);
   vi.stubEnv('VITE_ORIGINALAUTH_LOGIN_URL', plantilla as string);
 }
@@ -79,8 +81,8 @@ describe('dirección de inicio de sesión', () => {
   });
 
   it('pone el cliente id donde la plantilla lo pide, codificado y en todas las apariciones', () => {
-    vi.stubEnv('VITE_ORIGINALAUTH_CLIENT_ID', 'cli ab&1');
     configurar('app-1', 'https://auth.ejemplo.com/login?client={client_id}&app={token_app}&session={session}&otra={client_id}');
+    vi.stubEnv('VITE_ORIGINALAUTH_CLIENT_ID', 'cli ab&1');
     expect(buildLoginUrl('abc')).toBe('https://auth.ejemplo.com/login?client=cli%20ab%261&app=app-1&session=abc&otra=cli%20ab%261');
   });
 
