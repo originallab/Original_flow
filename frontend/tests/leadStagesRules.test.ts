@@ -6,6 +6,8 @@ describe('el nombre de una etapa', () => {
     expect(stageNameProblem('Propuesta enviada')).toBeNull();
     expect(stageNameProblem('  Propuesta  ')).toBeNull();
     expect(stageNameProblem('a'.repeat(MAX_STAGE_NAME))).toBeNull();
+    // El largo cuenta sin los espacios de los extremos: 60 letras con espacios alrededor sigue siendo válido.
+    expect(stageNameProblem(`  ${'a'.repeat(MAX_STAGE_NAME)}  `)).toBeNull();
     expect(stageNameProblem('a'.repeat(MAX_STAGE_NAME + 1))).toMatch(/hasta 60/);
     expect(stageNameProblem('')).toMatch(/nombre/i);
     expect(stageNameProblem('   ')).toMatch(/nombre/i);

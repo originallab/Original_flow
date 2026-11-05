@@ -3,6 +3,7 @@ import { ApiError } from '@/services/api';
 import { createStage, deleteStage, listLeads, listLeadStages, updateLead, updateStage } from '@/services/leads';
 import { startDemo } from './helpers/demoApp';
 import { negocioConLeads } from './helpers/leadsApp';
+import { editarBaseDeDemostracion } from './helpers/publicApp';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -122,10 +123,55 @@ describe('etapas del tablero en la demostración', () => {
     expect((await tablero(token, workspace.id)).nombres).not.toContain('Nuevo');
   });
 
+  it('la etapa final no se quita aunque no sea la ganada, ni la ganada aunque no sea la final', async () => {
+    const { token, workspace } = await startDemo();
+    const { etapas } = await tablero(token, workspace.id);
+    editarBaseDeDemostracion((db) => {
+      const final = db.leadStages.find((e: { id: string }) => e.id === etapas[4]!.id);
+      const otra = db.leadStages.find((e: { id: string }) => e.id === etapas[3]!.id);
+      final.isWon = false;
+      otra.isWon = true;
+    });
+    expect((await falla(deleteStage(token, etapas[4]!.id))).code).toBe('STAGE_PROTECTED');
+    expect((await falla(deleteStage(token, etapas[3]!.id))).code).toBe('STAGE_PROTECTED');
+    expect((await tablero(token, workspace.id)).nombres).toHaveLength(5);
+  });
+
+  it('un lead de antes de existir el tablero (sin etapa) cuenta como de la primera: esa etapa no se quita', async () => {
+    const { token, workspace } = await negocioConLeads([{ email: 'viejo@correo.com' }]);
+    const { etapas } = await tablero(token, workspace.id);
+    editarBaseDeDemostracion((db) => {
+      delete db.leads[0].leadStageId;
+    });
+    const err = await falla(deleteStage(token, etapas[0]!.id));
+    expect(err.code).toBe('STAGE_NOT_EMPTY');
+    expect(err.details).toEqual({ leads: 1 });
+    // En cambio, otra etapa vacía sí se quita.
+    await deleteStage(token, etapas[1]!.id);
+  });
+
+  it('los leads de otro negocio no cuentan: un lead viejo ajeno no impide quitar mi primera etapa', async () => {
+    const { token, workspace } = await startDemo();
+    const { etapas } = await tablero(token, workspace.id);
+    await negocioConLeads([{ email: 'ajeno@correo.com' }], { email: 'otra@correo.com' });
+    editarBaseDeDemostracion((db) => {
+      delete db.leads[0].leadStageId;
+    });
+    await deleteStage(token, etapas[0]!.id);
+    expect((await tablero(token, workspace.id)).nombres).not.toContain('Nuevo');
+  });
+
   it('lo de otra persona responde 404', async () => {
-    const { workspace } = await startDemo();
+    const { token, workspace } = await startDemo();
     const otra = await startDemo({ email: 'otra@correo.com', workspace: 'Otro negocio' });
     const propias = await listLeadStages(otra.token, otra.workspace.id);
+    const ajenas = await listLeadStages(token, workspace.id);
+    // Etapas que sí existen pero son de otra persona: ni se renombran, ni se mueven, ni se quitan.
+    const intruso = await falla(updateStage(otra.token, ajenas[1]!.id, { name: 'Intruso' }));
+    expect(intruso.status).toBe(404);
+    expect(intruso.code).toBe('STAGE_NOT_FOUND');
+    expect((await falla(deleteStage(otra.token, ajenas[1]!.id))).status).toBe(404);
+    expect((await listLeadStages(token, workspace.id)).map((e) => e.name)).toEqual(ajenas.map((e) => e.name));
     expect((await falla(createStage(otra.token, workspace.id, { name: 'X' }))).status).toBe(404);
     expect((await falla(updateStage(otra.token, 'no-existe', { name: 'X' }))).status).toBe(404);
     expect((await falla(deleteStage(otra.token, 'no-existe'))).status).toBe(404);

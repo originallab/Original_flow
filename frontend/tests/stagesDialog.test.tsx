@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/services/api';
@@ -125,6 +125,20 @@ describe('agregar una etapa', () => {
     await userEvent.click(within(dialogo).getByRole('button', { name: 'Agregar etapa' }));
     await waitFor(() => expect(nombres(dialogo)).toContain('Nueva'));
     expect(within(dialogo).queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('mientras se está agregando una etapa no se manda otra aunque el formulario se envíe por otro camino', async () => {
+    await abrirTablero();
+    const dialogo = await abrirEtapas();
+    await userEvent.type(within(dialogo).getByLabelText('Nueva etapa'), 'Nueva');
+    let terminar: () => void = () => undefined;
+    vi.mocked(leadsService.createStage).mockImplementationOnce(() => new Promise((resolver) => (terminar = () => resolver({} as leadsService.LeadStage))));
+    await userEvent.click(within(dialogo).getByRole('button', { name: 'Agregar etapa' }));
+    await waitFor(() => expect(within(dialogo).getByRole('button', { name: 'Agregar etapa' })).toBeDisabled());
+    fireEvent.submit(within(dialogo).getByRole('form', { name: 'Agregar una etapa' }));
+    terminar();
+    await waitFor(() => expect(within(dialogo).getByRole('button', { name: 'Agregar etapa' })).toBeEnabled());
+    expect(leadsService.createStage).toHaveBeenCalledTimes(1);
   });
 
   it('un permiso que falta (403) lo dice con claridad', async () => {
