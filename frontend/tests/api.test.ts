@@ -39,9 +39,24 @@ describe('apiFetch', () => {
   });
 
   it('un error sin el formato esperado da un mensaje genérico', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('<html>502</html>', { status: 502 }));
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('<html>500</html>', { status: 500 }));
     const error = (await apiFetch('/x').catch((e) => e)) as ApiError;
-    expect(error).toMatchObject({ status: 502, code: 'UNKNOWN_ERROR' });
+    expect(error).toMatchObject({ status: 500, code: 'UNKNOWN_ERROR', message: 'Ocurrió un error inesperado' });
+  });
+
+  it.each([502, 503, 504])('un %i sin el formato del backend (servidor caído o proxy sin backend) dice que no se pudo conectar', async (status) => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status }));
+    const error = (await apiFetch('/auth/session').catch((e) => e)) as ApiError;
+    expect(error).toMatchObject({ status, code: 'SERVER_UNAVAILABLE' });
+    expect(error.message).toMatch(/no se pudo conectar con el servidor/i);
+  });
+
+  it('un 503 que SÍ trae el formato del backend conserva su propio mensaje', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      respuesta(503, { success: false, error: { code: 'SERVICE_UNAVAILABLE', message: 'Original Auth no responde', details: {} }, requestId: 'req_9' }),
+    );
+    const error = (await apiFetch('/x').catch((e) => e)) as ApiError;
+    expect(error).toMatchObject({ status: 503, code: 'SERVICE_UNAVAILABLE', message: 'Original Auth no responde' });
   });
 
   it('si no hay conexión lanza NETWORK_ERROR con un mensaje en español', async () => {

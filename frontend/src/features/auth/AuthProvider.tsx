@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ApiError } from '@/services/api';
 import { createSession, getMe, logoutSession, mockCallback, validateSession, type MeResponse, type MockIdentity } from '@/services/auth';
+import { buildLoginUrl, waitForValidation } from '@/services/originalAuth';
+import { navigation } from '@/shared/utils/navigation';
 import { sessionStore } from './sessionStore';
 
 /**
@@ -17,14 +19,28 @@ interface AuthContextValue {
   /** Token de la sesión actual, para las llamadas a la API. */
   token: string | null;
   login: (identity: MockIdentity) => Promise<void>;
+  /** Acceso real: crea la sesión y manda a la persona a Original Auth (el navegador sale de la aplicación). `from` es a dónde volver al terminar. */
+  beginRealLogin: (from: string) => Promise<void>;
+  /** Acceso real, al regresar de Original Auth (`/auth/return`): espera la validación y deja la sesión iniciada. Devuelve a dónde ir. */
+  completeRealLogin: () => Promise<string>;
   logout: () => Promise<void>;
   retry: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-/** El login no se completó (por ejemplo, Original Auth no validó la sesión). */
-export class LoginError extends Error {}
+/**
+ * El login no se completó. `code` dice por qué en el acceso real: `no_pending` (no hay un inicio de sesión en curso
+ * en este navegador) o `not_validated` (Original Auth no validó la sesión a tiempo).
+ */
+export class LoginError extends Error {
+  constructor(
+    message: string,
+    readonly code: 'failed' | 'no_pending' | 'not_validated' = 'failed',
+  ) {
+    super(message);
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
@@ -79,6 +95,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('authenticated');
   }, []);
 
+  const beginRealLogin = useCallback(async (from: string) => {
+    const { session } = await createSession();
+    sessionStore.setPending({ session, from });
+    navigation.to(buildLoginUrl(session));
+  }, []);
+
+  const completeRealLogin = useCallback(async () => {
+    const pending = sessionStore.getPending();
+    if (!pending) throw new LoginError('No encontramos un inicio de sesión en curso en este navegador.', 'no_pending');
+    const validation = await waitForValidation(pending.session);
+    if (!validation) {
+      sessionStore.clearPending();
+      throw new LoginError('Original Auth no confirmó tu acceso a tiempo.', 'not_validated');
+    }
+    const profile = await getMe(pending.session);
+    sessionStore.set(pending.session);
+    sessionStore.clearPending();
+    setToken(pending.session);
+    setMe(profile);
+    setStatus('authenticated');
+    return pending.from;
+  }, []);
+
   const logout = useCallback(async () => {
     const current = token ?? sessionStore.get();
     // Se cierra la sesión en la pantalla de inmediato; avisar al servidor es un extra que puede fallar.
@@ -91,7 +130,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
-  const value = useMemo(() => ({ status, me, token, login, logout, retry }), [status, me, token, login, logout, retry]);
+  const value = useMemo(
+    () => ({ status, me, token, login, beginRealLogin, completeRealLogin, logout, retry }),
+    [status, me, token, login, beginRealLogin, completeRealLogin, logout, retry],
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

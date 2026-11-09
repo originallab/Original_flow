@@ -61,7 +61,7 @@ Los permisos se comprueban en la capa de servicios, no en las rutas ni en el fro
 - `GET /workspaces` lista los que la persona puede ver, paginados: todos (super admin), los de su cliente (administrador del cliente) o el suyo (resto de roles).
 - `POST /workspaces` responde `201`. Si la persona ya administra un cliente, el workspace nuevo cuelga de él; si no, se crea su cliente (con el nombre del workspace) y ella queda como `client_admin`. Se crean las 5 etapas de lead por defecto (Nuevo, Contactado, Interesado, Oportunidad y Cliente; esta última es la final y la de `isWon`). Todo ocurre en una sola transacción.
 - `PATCH /workspaces/:id` acepta `name`, `country`, `website`, `industry`, `logoFileId` y `brandPalette` (con `null` se borra). Debe llevar al menos un campo; cualquier otro (como `clientId`) se ignora. `brandPalette` exige los cinco colores en hexadecimal (`#RRGGBB`).
-- `GET /workspaces/:id/members` (paginado) lista las membresías del workspace y los administradores de su cliente; los invitados salen con su correo y `status: "invited"`.
+- `GET /workspaces/:id/members` (paginado) lista las membresías del workspace y los administradores de su cliente; los invitados salen con su correo y `status: "invited"`. Cada una: `{ id, role, status, userId, email, name, clientId, workspaceId, createdAt }` (un administrador es del cliente: lleva `clientId` y no `workspaceId`; los demás roles, al revés). Solo super admin y administrador del cliente pueden listarlas, invitar y quitar.
 - `POST /workspaces/:id/members` responde `201`. Si el correo ya tiene cuenta, la membresía queda `active` de inmediato; si no, queda `invited` y se activa sola la primera vez que esa persona inicie sesión. No hay correo de invitación (no existe el servicio). Roles invitables: `client_admin`, `marketing_manager`, `vendedor`, `disenador` y `analista`; `super_admin` nunca se asigna desde la API. Un administrador del cliente tiene acceso a todos los workspaces de su cliente. Responde `409 MEMBER_ALREADY_EXISTS` si ya es parte del equipo o ya fue invitada.
 - `DELETE /workspaces/:id/members/:memberId` responde `204`. Responde `409 LAST_CLIENT_ADMIN` si es el único administrador activo del cliente, y `404` si la membresía no pertenece a ese workspace. Quitar a un `client_admin` le quita el acceso a todos los workspaces del cliente.
 - **Permisos:** ver el workspace, cualquier rol que acceda a él; editarlo y gestionar el equipo, solo super admin y administrador del cliente. A quien no tiene acceso a un workspace se le responde `404`; a quien lo ve pero no puede hacer la acción, `403`.
@@ -163,6 +163,13 @@ El campo `objective` define el tipo. Cada tipo es una **definición en código**
 | POST | `/funnels/:id/history` | Guarda una versión manual con un nombre; el `userId` sale de la sesión | SA, CA, MM, DI |
 | POST | `/funnels/:id/history/:historyId/restore` | Copia el `snapshot` a las columnas del funnel y crea una entrada nueva, para poder deshacer | SA, CA, MM |
 
+**Forma de las respuestas del historial** (las definió el frontend en el modo demostración; el backend de este paso todavía no existe y debe seguirlas o cambiarse aquí en el mismo commit):
+
+- `GET /funnels/:id/history` → `{ items, total, page, pageSize }`, de la versión más nueva a la más vieja (con la misma hora, la última que se guardó primero). Cada una: `{ id, funnelId, label, createdAt, user: { id, name, email } }`. **No** trae el `snapshot`: pesa y solo hace falta al restaurar.
+- `POST /funnels/:id/history` con `{ label }` (obligatorio, de 1 a 120 caracteres sin contar espacios de los lados; `422` con la ruta `label`) → `201` con la versión guardada, con una copia de `content`, `designSpec`, `brandBrief`, `seo` y `flow` tal como están en ese momento.
+- `POST /funnels/:id/history/:historyId/restore` → `200` con el **funnel completo** ya restaurado. Antes de aplicar la versión guarda **cómo estaba la página** como una versión nueva con la etiqueta `Antes de restaurar «<nombre>»` (o `Antes de restaurar una versión sin nombre`, máximo 120 caracteres) para poder deshacer; luego copia el `snapshot` al funnel (solo esos cinco campos: no cambia nombre, precio, `slug`, estado ni `typeConfig`) y ajusta los CTA a los bloques restaurados, como al guardar el contenido. Una versión que no existe o es de otro funnel responde `404 HISTORY_NOT_FOUND`.
+- Publicar (`POST /funnels/:id/publish`) ya guarda una versión «Publicado». Un funnel ajeno responde `404`.
+
 **Por qué los CTA no tienen `POST`:** nacen y mueren con los bloques cuando se guarda `content`. Lo único que se edita por separado es su destino y su seguimiento.
 
 **Cómo funcionan publicar y la página pública (paso 5, construidos)**
@@ -253,6 +260,15 @@ Exige el encabezado **`Idempotency-Key`** (texto de 8 a 64 caracteres; la págin
 { "publicToken": "...", "status": "pending", "paymentUrl": "https://..." }
 ```
 
+**Lo que el frontend ya usa del cobro** (se definió en el modo demostración; el backend de este paso todavía no existe y debe seguirlo o cambiarse aquí en el mismo commit):
+
+- `POST /public/funnels/:slug/checkout`: `name` y `email` obligatorios, `phone` opcional, `paymentMethod` opcional (uno de `stripe`, `paypal`, `mercadopago`, `spei_direct`, `webpay`; si falta se usa el primero de la conexión; si no lo acepta el negocio, `422` con la ruta `paymentMethod`), `consent` exactamente `true` y `utm`. El monto nunca viaja. Responde `{ publicToken, status, paymentUrl? }`; `paymentUrl` solo cuando la orden está pendiente. Una persona con una orden pendiente en ese funnel recibe esa misma orden; con una orden pagada, `409 ORDER_ALREADY_PAID`. Antes de crear la orden se busca o crea el lead en la primera etapa y se registra `lead_created` si es nuevo; al crearla, `checkout_started`.
+- **`GET /public/pages/:slug` agrega `paymentMethods`** (las formas de pago de la conexión del negocio) **solo** si el funnel cobra y el negocio tiene Original Pay conectado, para que la página sepa qué ofrecer.
+- `GET /public/orders/:publicToken` → `{ publicToken, status: 'pending' | 'paid' | 'cancelled' | 'failed', message?, redirectUrl? }`; `message` y `redirectUrl` (el `successMessage` y el `successUrl` del `typeConfig`) solo cuando está pagada. La página de retorno es `/p/:slug/orden/:publicToken` y pregunta sola mientras siga pendiente. `404 ORDER_NOT_FOUND` si no existe.
+- Al pagar: la orden pasa a `paid` con `paidAt`, el lead a la etapa con `isWon` y se registra `payment_completed`.
+- `PUT /workspaces/:id/payments` → `{ apiKey (8 a 500 caracteres), currency, methods (de 1 a 5, sin repetir) }` y `GET` → `{ connected, provider?, currency?, methods? }`, solo super admin y administrador; la llave nunca se devuelve.
+- Los ingresos del dashboard (`/analytics/summary` y `/analytics/funnels`) salen de las órdenes `paid` por `paidAt`, por divisa.
+
 **Errores propios del cobro:** `422` si el funnel no cobra, falta el precio o la conexión, o falta `Idempotency-Key`; `409` si la orden ya está pagada o la clave se reutilizó con otros datos; `503` si Original Pay no responde, en cuyo caso la orden queda `pending` y se puede reintentar. Los reembolsos no entran en el MVP.
 
 ### Decisiones por confirmar con quien mantiene Original Pay
@@ -279,6 +295,13 @@ Exige el encabezado **`Idempotency-Key`** (texto de 8 a 64 caracteres; la págin
 | PATCH | `/lead-stages/:id` | Renombra o reordena una etapa | SA, CA |
 | DELETE | `/lead-stages/:id` | Elimina una etapa; `409` si todavía tiene leads | SA, CA |
 
+**Forma de las respuestas** (la definió el frontend en el modo demostración; el backend de este paso todavía no existe y debe seguirla o cambiarse aquí en el mismo commit):
+
+- `GET /workspaces/:id/lead-stages` → `{ items: [{ id, workspaceId, name, order, isFinal, isWon }], total, page, pageSize }`, en orden.
+- `GET /leads` → `{ items, total, page, pageSize }`, del más nuevo al más viejo; `pageSize` hasta 100 (el tablero pide 100). `workspaceId` es obligatorio (`422` si falta, `404` si es de otro cliente); `funnelId` y `stageId` filtran por igualdad; `q` busca, sin importar mayúsculas, dentro del nombre, el correo y el teléfono. Cada lead: `{ id, funnelId, funnelName, leadStageId, name, email, phone, source, utm, assignedTo, value, customFields, createdAt }`, con `value` numérico o `null` y `utm` y `customFields` posiblemente `null`. `customFields` trae también los campos internos con guion bajo (`_consentAt`); la pantalla los oculta. El filtro `source` todavía no se usa.
+- `PATCH /leads/:id` → `{ leadStageId?, value? }` (al menos uno). `leadStageId` debe ser una etapa del mismo negocio y `value` un número de 0 a 9999999999.99 (dos decimales) o `null`; si no, `422` con la ruta del campo. Responde el lead completo.
+- Sin pantalla todavía: `GET /leads/:id`, `POST /leads` (alta manual: `Lead.source` solo admite `web_form` y `whatsapp`), la asignación de vendedor y el manejo de etapas (`POST/PATCH/DELETE`).
+
 ### Analítica del dashboard
 
 Todas aceptan `workspaceId`, `funnelId` (opcional) y un rango (`range=7d|30d|90d` o `from` y `to`). Se calculan en el servidor sobre `Lead` y `Event`; el dashboard solo dibuja la respuesta.
@@ -304,6 +327,14 @@ Todas aceptan `workspaceId`, `funnelId` (opcional) y un rango (`range=7d|30d|90d
 ```
 
 La conversión por origen sale de cruzar los eventos `page_view` de cada `properties.source` con los leads que venían de ese origen en su `utm`.
+
+**Forma y definiciones** (las definió el frontend en el modo demostración; el backend de este paso todavía no existe y debe seguirlas o cambiarse aquí en el mismo commit). Todas piden `workspaceId` (`422` si falta, `404` si es de otro cliente), `range` (`7d`, `30d` o `90d`; por defecto `30d`; otro valor, `422`) y, opcionalmente, `funnelId` (`404` si no es del negocio). El periodo son los últimos N días y el «periodo anterior», los N días previos.
+
+- `GET /analytics/summary` → `{ visits, leads, conversion, revenue, averageTicket }`. Los tres primeros son `{ value, previous }`: visitas = eventos `page_view`, leads = leads creados en el periodo y conversión = leads ÷ visitas en porcentaje con un decimal (0 si no hay visitas). `revenue` y `averageTicket` son listas **por divisa** (`[{ currency, value, previous }]`), vacías mientras no haya órdenes pagadas: cada funnel cobra en su divisa y nunca se suman monedas distintas.
+- `GET /analytics/funnel-conversion` → `{ items: [{ key, label, count, percentOfVisits, percentOfPrevious }] }` con las etapas `visits`, `leads`, `opportunities`, `checkout`, `payments` y `customers` en ese orden. Oportunidades = leads en la penúltima etapa del tablero o en las siguientes; clientes = leads en una etapa `isWon`; `checkout` y `payments` (eventos `checkout_started` y `payment_completed`) solo aparecen si algún funnel del alcance cobra. Los porcentajes llevan un decimal y son `null` cuando no hay con qué dividir.
+- `GET /analytics/sources` → `{ total, items }`: `total` son las visitas y `items`, hasta 10 orígenes del que más trae al que menos (con empate, por nombre) con `{ source, clicks, percent, conversion }`. El origen es `properties.source` (o «Directo» si no viene); un lead cuenta para su `utm_source` o, si no tiene, el sitio de su `referrer`, o «Directo».
+- `GET /analytics/drop-off` → `{ items }`, **`funnelId` obligatorio** (`422` si falta). Una fila por bloque de la página, en su orden, con `{ section, reachedPercent, dropPoints }`: lo que llega es el porcentaje de visitas con un `section_view` de esa sección (entero, tope 100) y `dropPoints` lo que se pierde respecto a la sección anterior (la primera, respecto a 100; nunca negativo).
+- `GET /analytics/funnels` → `{ items: [{ funnelId, name, objective, status, visits, leads, conversion, revenue }] }`, del que más leads trae al que menos (con empate, por nombre); incluye borradores.
 
 ## Archivos y marca con IA
 

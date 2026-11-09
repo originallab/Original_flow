@@ -11,6 +11,8 @@
  */
 :root {
   --brand: #7725be;
+  /* Solo la palabra ORIGINAL del logotipo cambia con el tema: negra en claro, blanca en oscuro. */
+  --logo-word: #000000;
 
   --bg: #f7f6fb;
   --surface: #ffffff;
@@ -30,6 +32,14 @@
   --canvas: #ece8f3;
   --chip: #f1f0f4;
   --shadow-popover: 0 10px 30px rgba(30, 15, 55, 0.1);
+  /* Gráficas del dashboard: un color de serie y una rampa de 6 pasos para etapas en orden, ambos validados con el validador de paletas de dataviz. */
+  --chart-1: #7725be;
+  --chart-ramp-1: #b595e2;
+  --chart-ramp-2: #9b6fd3;
+  --chart-ramp-3: #8450c4;
+  --chart-ramp-4: #6d34ae;
+  --chart-ramp-5: #58208f;
+  --chart-ramp-6: #43146f;
   color-scheme: light;
 }
 
@@ -38,6 +48,7 @@
  * el carácter oscuro. Las superficies suben en la misma proporción para conservar la jerarquía.
  */
 [data-theme='dark'] {
+  --logo-word: #ffffff;
   --bg: #17161c;
   --surface: #211f28;
   --surface-2: #28262f;
@@ -54,6 +65,13 @@
   --canvas: #1c1a22;
   --chip: #2c2a34;
   --shadow-popover: 0 10px 30px rgba(0, 0, 0, 0.45);
+  --chart-1: #9159dd;
+  --chart-ramp-1: #6a3fa0;
+  --chart-ramp-2: #8458c2;
+  --chart-ramp-3: #9d74d8;
+  --chart-ramp-4: #b793e8;
+  --chart-ramp-5: #cfb3f3;
+  --chart-ramp-6: #e6d3fa;
   color-scheme: dark;
 }
 
@@ -77,6 +95,7 @@
   --color-canvas: var(--canvas);
   --color-chip: var(--chip);
   --shadow-popover: var(--shadow-popover);
+  --color-chart-1: var(--chart-1);
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-heading: 'Montserrat Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
 }
