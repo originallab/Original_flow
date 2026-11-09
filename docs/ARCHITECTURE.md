@@ -433,5 +433,5 @@ La IA va después del paso 7: con los pasos 1 a 7 ya hay un producto que funcion
 ## Pendientes de arquitectura
 
 - **Escribir en los registros.** Las tablas `OperationLog` y `AuditLog` ya existen; falta el servicio que escribe en ellas (cada llamada a un servicio de The Original Lab y cada acción sensible), que se construye junto con los pasos 2 y 3.
-- **Entorno local y despliegue.** El `compose.yml` actual solo levanta PostgreSQL. Antes del primer despliegue en EasyPanel hacen falta `Dockerfile` con `HEALTHCHECK`, endpoint `/health` y `.dockerignore`.
+- **Entorno local y despliegue.** El `compose.yml` actual solo levanta PostgreSQL. El backend ya tiene `Dockerfile` (con `HEALTHCHECK` a `/health`) y `.dockerignore`, probados construyendo la imagen, aplicando las migraciones y arrancándola; el despliegue en EasyPanel usa `backend/` como ruta de compilación. El contenedor no aplica las migraciones solo: se corre `pnpm db:deploy` en cada despliegue. Con `NODE_ENV=production` exige `AUTH_MODE=real` y, por tanto, las credenciales de Original Auth.
 - Los demás pendientes (Original Pay, dominios, credenciales) están en `docs/PROJECT_CONTEXT.md`.

@@ -67,6 +67,16 @@ cd frontend && docker build --build-arg VITE_API_URL=https://api.ejemplo.com/api
 
 En EasyPanel la ruta de compilación es `frontend/`. Lo que el navegador necesita saber (`VITE_API_URL`, `VITE_TOKEN_APP` y `VITE_ORIGINALAUTH_LOGIN_URL`) se fija al **compilar** con `--build-arg` (son datos públicos, nunca secretos); para cambiarlos hay que volver a construir. Si la API está en otro dominio, ese dominio del frontend debe estar en `CORS_ORIGINS` del backend. El modo demostración nunca entra en la imagen.
 
+## Imagen de producción (backend)
+
+El backend trae `backend/Dockerfile`. Construir y probar la imagen en local:
+
+```bash
+cd backend && docker build -t original-flow-backend .
+```
+
+En el despliegue (EasyPanel) la ruta de compilación es `backend/`. Las migraciones no se aplican al arrancar: hay que correr `pnpm db:deploy` dentro del contenedor en cada despliegue. En producción (`NODE_ENV=production`) el backend exige `AUTH_MODE=real` y las credenciales de Original Auth, y `TRUST_PROXY_HOPS=1` detrás de EasyPanel.
+
 ## Documentación
 
 | Archivo | Para qué |
