@@ -133,3 +133,9 @@ export const patchCtaBodySchema = z
   .partial()
   .refine((body) => Object.keys(body).length > 0, 'debe enviar al menos un campo');
 export type PatchCtaBody = z.infer<typeof patchCtaBodySchema>;
+
+export const historyParamsSchema = z.object({ id: z.uuid(), historyId: z.uuid() });
+
+/** POST /funnels/:id/history: el nombre de la versión. */
+export const saveVersionBodySchema = z.object({ label: text(120) });
+export type SaveVersionBody = z.infer<typeof saveVersionBodySchema>;

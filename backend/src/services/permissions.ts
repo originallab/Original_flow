@@ -13,7 +13,14 @@ export type Action =
   | 'funnel:list'
   | 'funnel:edit'
   | 'funnel:delete'
-  | 'funnel:publish';
+  | 'funnel:publish'
+  | 'history:read'
+  | 'history:save'
+  | 'history:restore'
+  | 'analytics:read'
+  | 'lead:read'
+  | 'lead:manage'
+  | 'stage:manage';
 
 const PERMISSIONS: Record<Action, readonly MembershipRole[]> = {
   'workspace:read': ['super_admin', 'client_admin', 'marketing_manager', 'vendedor', 'disenador', 'analista'],
@@ -25,6 +32,16 @@ const PERMISSIONS: Record<Action, readonly MembershipRole[]> = {
   'funnel:delete': ['super_admin', 'client_admin'],
   // El diseñador edita pero no publica ni despublica.
   'funnel:publish': ['super_admin', 'client_admin', 'marketing_manager'],
+  // Ver y guardar versiones lo hace quien edita; restaurar cambia la página publicada, así que solo quien publica.
+  'history:read': ['super_admin', 'client_admin', 'marketing_manager', 'disenador'],
+  'history:save': ['super_admin', 'client_admin', 'marketing_manager', 'disenador'],
+  'history:restore': ['super_admin', 'client_admin', 'marketing_manager'],
+  // El dashboard lo ve todo el que no diseña.
+  'analytics:read': ['super_admin', 'client_admin', 'marketing_manager', 'vendedor', 'analista'],
+  // El tablero lo ve todo el que no diseña; el analista solo mira. Las etapas del tablero las define el administrador.
+  'lead:read': ['super_admin', 'client_admin', 'marketing_manager', 'vendedor', 'analista'],
+  'lead:manage': ['super_admin', 'client_admin', 'marketing_manager', 'vendedor'],
+  'stage:manage': ['super_admin', 'client_admin'],
 };
 
 export function can(role: MembershipRole, action: Action): boolean {

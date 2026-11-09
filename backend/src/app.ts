@@ -3,11 +3,14 @@ import express, { type Express } from 'express';
 import helmet from 'helmet';
 import type { AppConfig } from './config/index.js';
 import type { Logger } from './lib/logger.js';
+import { createAnalyticsModel } from './models/analytics.model.js';
 import { createAuditLogModel } from './models/auditLog.model.js';
 import { createCtaModel } from './models/cta.model.js';
 import { createEventModel } from './models/event.model.js';
 import { createFunnelModel } from './models/funnel.model.js';
+import { createFunnelHistoryModel } from './models/funnelHistory.model.js';
 import { createLeadModel } from './models/lead.model.js';
+import { createLeadStageModel } from './models/leadStage.model.js';
 import { createMembershipModel } from './models/membership.model.js';
 import type { PrismaClient } from './models/prisma.js';
 import { createSessionModel } from './models/session.model.js';
@@ -21,14 +24,18 @@ import { createRequireAuth } from './middleware/requireAuth.js';
 import { healthRouter } from './routes/health.routes.js';
 import { createApiRouter } from './routes/index.js';
 import { createPublicRouter } from './routes/public.routes.js';
+import { createAnalyticsService } from './services/analytics.service.js';
 import { createAccessService } from './services/access.service.js';
 import { createAuditService } from './services/audit.service.js';
 import { createAuthService } from './services/auth.service.js';
 import { createFunnelService } from './services/funnel.service.js';
 import { createFunnelContentService } from './services/funnelContent.service.js';
+import { createFunnelHistoryService } from './services/funnelHistory.service.js';
 import { createFunnelPublishService } from './services/funnelPublish.service.js';
 import { createPublicCaptureService } from './services/publicCapture.service.js';
 import { createPublicPageService } from './services/publicPage.service.js';
+import { createLeadService } from './services/lead.service.js';
+import { createLeadStageService } from './services/leadStage.service.js';
 import { createMeService } from './services/me.service.js';
 import { createWorkspaceService } from './services/workspace.service.js';
 
@@ -55,8 +62,14 @@ export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClien
   const ctaModel = createCtaModel(prisma);
   const funnelContent = createFunnelContentService({ funnels: funnelModel, ctas: ctaModel, funnelService: funnels, audit });
   const funnelPublish = createFunnelPublishService({ funnels: funnelModel, ctas: ctaModel, workspaces: workspaceModel, funnelService: funnels, audit });
+  const funnelHistory = createFunnelHistoryService({ funnels: funnelModel, history: createFunnelHistoryModel(prisma), funnelService: funnels, audit });
+  const analytics = createAnalyticsService({ analytics: createAnalyticsModel(prisma), funnels: funnelModel, access });
+  const leadModel = createLeadModel(prisma);
+  const leadStageModel = createLeadStageModel(prisma);
+  const leads = createLeadService({ leads: leadModel, stages: leadStageModel, access, audit });
+  const leadStages = createLeadStageService({ stages: leadStageModel, access, audit });
   const publicPages = createPublicPageService(funnelModel);
-  const publicCapture = createPublicCaptureService({ funnels: funnelModel, leads: createLeadModel(prisma), events: createEventModel(prisma) });
+  const publicCapture = createPublicCaptureService({ funnels: funnelModel, leads: leadModel, events: createEventModel(prisma) });
   const requireAuth = createRequireAuth(auth);
   const authSessionRateLimit = createRateLimit({ max: config.rateLimit.authSessionPerMinute });
 
@@ -82,7 +95,7 @@ export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClien
   app.use(cors({ origin: config.corsOrigins, credentials: true }));
 
   app.use(healthRouter);
-  app.use('/api/v1', createApiRouter({ auth, me, workspaces, funnels, funnelContent, funnelPublish, requireAuth, authSessionRateLimit }));
+  app.use('/api/v1', createApiRouter({ auth, me, workspaces, funnels, funnelContent, funnelPublish, funnelHistory, analytics, leads, leadStages, requireAuth, authSessionRateLimit }));
 
   app.use(notFoundHandler);
   app.use(errorHandler(logger));

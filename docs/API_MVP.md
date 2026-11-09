@@ -172,6 +172,15 @@ El campo `objective` define el tipo. Cada tipo es una **definición en código**
 
 **Por qué los CTA no tienen `POST`:** nacen y mueren con los bloques cuando se guarda `content`. Lo único que se edita por separado es su destino y su seguimiento.
 
+**Cómo funciona el historial (paso 11, construido)**
+
+- **Qué guarda una versión:** una copia de `content`, `designSpec`, `brandBrief`, `seo` y `flow` (no el nombre, el precio, la divisa, el `slug` ni `typeConfig`), con quién la guardó, su fecha y un nombre. Publicar guarda una llamada «Publicado»; `POST /funnels/:id/history` guarda una a mano.
+- **`GET /funnels/:id/history`** devuelve la lista paginada (`?page=&pageSize=`), de la más nueva a la más vieja, con `{ id, funnelId, label, createdAt, user: { id, name, email } }` por versión. **No incluye la copia**, que pesa mucho y solo hace falta al restaurar.
+- **`POST /funnels/:id/history`** recibe `{ label }` (1 a 120 caracteres, sin contar los espacios de los extremos; `422` si no) y responde `201` con la versión.
+- **`POST /funnels/:id/history/:historyId/restore`** primero guarda cómo está la página en una versión nueva («Antes de restaurar «nombre»», o «Antes de restaurar una versión sin nombre»), después copia las cinco columnas de la versión al funnel y deja los CTA como piden los bloques restaurados (un CTA que sigue existiendo conserva su destino y su seguimiento), todo en una transacción. Responde el funnel ya restaurado. No cambia el estado: una página publicada muestra la versión restaurada al instante. Una columna que la copia no trae se queda como está (la copia se lee de forma defensiva). `404 HISTORY_NOT_FOUND` si la versión no existe o es de otro funnel.
+- **Roles:** ver y guardar, super admin, administrador, marketing manager y diseñador; restaurar, los mismos menos el diseñador (cambia la página publicada). Vendedor y analista no ven el historial (`403`). Un funnel de otro cliente responde `404`.
+- Guardar y restaurar quedan en `AuditLog` (`funnel.history_save`, `funnel.history_restore`, con el id de la versión).
+
 **Cómo funcionan publicar y la página pública (paso 5, construidos)**
 
 - **`POST /funnels/:id/publish`** (super admin, administrador del cliente y marketing manager; el diseñador no) valida el funnel y, si todo está bien, lo pasa a `published` y guarda una versión en `FunnelHistory` (etiqueta «Publicado», con el usuario y una copia de `content`, `designSpec`, `brandBrief`, `seo` y `flow`), todo en una transacción. Si algo falta responde `422 FUNNEL_NOT_READY` con `details.missing`, la lista de requisitos pendientes (`{ code, message, field? }`), que es lo que alimenta el checklist del modal de publicar. Si ya estaba publicado no hace nada y no crea otra versión.
@@ -284,6 +293,8 @@ Exige el encabezado **`Idempotency-Key`** (texto de 8 a 64 caracteres; la págin
 
 ### Leads y etapas
 
+**Construidos (paso 8, parte de leads).**
+
 | Método | Ruta | Qué hace | Roles |
 | --- | --- | --- | --- |
 | GET | `/leads?workspaceId=&stageId=&funnelId=&source=&q=` | Lista de leads con filtros (tablero) | SA, CA, MM, VE, AN |
@@ -295,16 +306,22 @@ Exige el encabezado **`Idempotency-Key`** (texto de 8 a 64 caracteres; la págin
 | PATCH | `/lead-stages/:id` | Renombra o reordena una etapa | SA, CA |
 | DELETE | `/lead-stages/:id` | Elimina una etapa; `409` si todavía tiene leads | SA, CA |
 
-**Forma de las respuestas** (la definió el frontend en el modo demostración; el backend de este paso todavía no existe y debe seguirla o cambiarse aquí en el mismo commit):
-
-- `GET /workspaces/:id/lead-stages` → `{ items: [{ id, workspaceId, name, order, isFinal, isWon }], total, page, pageSize }`, en orden.
-- `GET /leads` → `{ items, total, page, pageSize }`, del más nuevo al más viejo; `pageSize` hasta 100 (el tablero pide 100). `workspaceId` es obligatorio (`422` si falta, `404` si es de otro cliente); `funnelId` y `stageId` filtran por igualdad; `q` busca, sin importar mayúsculas, dentro del nombre, el correo y el teléfono. Cada lead: `{ id, funnelId, funnelName, leadStageId, name, email, phone, source, utm, assignedTo, value, customFields, createdAt }`, con `value` numérico o `null` y `utm` y `customFields` posiblemente `null`. `customFields` trae también los campos internos con guion bajo (`_consentAt`); la pantalla los oculta. El filtro `source` todavía no se usa.
-- `PATCH /leads/:id` → `{ leadStageId?, value? }` (al menos uno). `leadStageId` debe ser una etapa del mismo negocio y `value` un número de 0 a 9999999999.99 (dos decimales) o `null`; si no, `422` con la ruta del campo. Responde el lead completo.
-- Sin pantalla todavía: `GET /leads/:id`, `POST /leads` (alta manual: `Lead.source` solo admite `web_form` y `whatsapp`), la asignación de vendedor y el manejo de etapas (`POST/PATCH/DELETE`).
+- **`GET /leads`** exige `workspaceId` y devuelve la lista paginada (`page`, `pageSize` hasta 100), del más nuevo al más viejo, con `{ id, funnelId, funnelName, leadStageId, name, email, phone, source, utm, assignedTo, value, customFields, createdAt }` (`value` como número; `utm` y `customFields` como objeto o `null`). `q` busca (sin distinguir mayúsculas y tomando `%` y `_` literales) en nombre, correo y teléfono, hasta 100 caracteres; uno vacío no filtra. Un `funnelId` de otro negocio devuelve una lista vacía. Los leads que llegan por la página pública entran a la primera etapa.
+- **`POST /leads`** recibe `{ funnelId, name?, email?, phone?, value?, leadStageId?, source?, customFields? }`: al menos un correo o un teléfono; sin etapa entra a la primera del tablero; `source` es `web_form` (por defecto) o `whatsapp`; sin UTM (no vino de una página). `404` si el funnel no es de la persona; `422` si la etapa no es de ese negocio. No guarda el consentimiento (`_consentAt`): eso solo lo pone el formulario público.
+- **`PATCH /leads/:id`** acepta `leadStageId` (de ese mismo negocio), `assignedTo` (el id de alguien con acceso al negocio, o `null` para quitarlo), `name`, `email`, `phone` y `value` (0 a 9 999 999 999.99, con dos decimales; `null` lo borra), al menos uno. El lead siempre conserva un correo o un teléfono (`422` si se quedaría sin ninguno). Lo demás (funnel, fecha, UTM) no se cambia desde aquí.
+- **Quién:** el analista solo mira (`403` al crear y cambiar); el diseñador no ve leads. Un lead o un negocio de otro cliente responde `404`. En `AuditLog` queda `lead.create` y `lead.update` con ids y nombres de campo (y la etapa de origen y de destino), nunca nombres, correos ni teléfonos.
+- **Etapas:** todos los que ven los leads ven las etapas; las cambia solo el administrador (super admin y administrador del cliente). Cada etapa es `{ id, workspaceId, name, order, isFinal, isWon }` y la respuesta es `{ items, total, page: 1, pageSize }`. Los órdenes siempre quedan seguidos (1, 2, 3…): al agregar, mover o quitar se renumera todo en una transacción. **La etapa final (la que pasa a «cliente» al pagar) siempre queda al final del tablero:** una etapa nueva sin `order` entra justo antes de ella; con `order` (1 es la primera) entra ahí pero nunca después de la final; la final no se mueve (`409 STAGE_PROTECTED`) aunque sí se renombra. No se quita la final ni la ganada (`409 STAGE_PROTECTED`) ni una con leads (`409 STAGE_NOT_EMPTY` con `details.leads`). El nombre va de 1 a 60 caracteres.
 
 ### Analítica del dashboard
 
-Todas aceptan `workspaceId`, `funnelId` (opcional) y un rango (`range=7d|30d|90d` o `from` y `to`). Se calculan en el servidor sobre `Lead` y `Event`; el dashboard solo dibuja la respuesta.
+Todas aceptan `workspaceId`, `funnelId` (opcional) y un rango (`range=7d|30d|90d` o `from` y `to`). Se calculan en el servidor sobre `Lead`, `Event` y `Order`; el dashboard solo dibuja la respuesta. **Construidas (paso 8, parte de analítica).**
+
+- **Periodo.** `range` mide los últimos 7, 30 o 90 días hasta ahora (sin `range` ni fechas, 30). Con `from` y `to` (fecha como `2026-10-01` = medianoche UTC, o con hora) se mide ese rango exacto: `from` incluido y `to` sin incluir, hasta 366 días. No se mezclan, `from` y `to` van juntos y `from` es anterior a `to` (`422` si no). **El periodo anterior** es del mismo tamaño y queda pegado al actual.
+- **Quién la ve:** super admin, administrador, marketing manager, vendedor y analista; el diseñador no (`403`). Un negocio o un funnel que no son de la persona responden `404`.
+- **Ingresos:** salen de las órdenes `paid` y cuentan por su fecha de pago (`paidAt`), **por divisa, sin sumar divisas distintas**; sin ventas, `revenue` y `averageTicket` son listas vacías. (Las órdenes las crea el paso 7: hasta entonces esto responde vacío.)
+- **Etapas del embudo:** `checkout` y `payments` solo aparecen si algún funnel medido cobra. «Oportunidades» es la penúltima etapa del tablero y las que siguen; «Clientes», la etapa ganada (`isWon`). Cada lead cuenta en la etapa donde está hoy, si llegó en el periodo. `percentOfVisits` es `null` sin visitas y `percentOfPrevious` es `null` en la primera etapa o si la anterior está en cero.
+- **Orígenes:** los 10 con más visitas (empate por nombre); `total` y `percent` cuentan todas las visitas. Una visita sin `source` es «Directo».
+- **Rendimiento por funnel:** del que más leads trae al que menos (empate por nombre).
 
 | Método | Ruta | Qué devuelve |
 | --- | --- | --- |
@@ -326,7 +343,9 @@ Todas aceptan `workspaceId`, `funnelId` (opcional) y un rango (`range=7d|30d|90d
 { "items": [ { "section": "beneficios", "reachedPercent": 78, "dropPoints": 22 } ] }
 ```
 
-La conversión por origen sale de cruzar los eventos `page_view` de cada `properties.source` con los leads que venían de ese origen en su `utm`.
+La conversión por origen sale de cruzar los eventos `page_view` de cada `properties.source` con los leads que venían de ese origen en su `utm` (`utm_source`, o el sitio del `referrer`, o «Directo»).
+
+**`GET /analytics/drop-off`** exige `funnelId` (`422` si falta). Las secciones salen de los bloques de la página, en su orden: `reachedPercent` es el porcentaje de las visitas con un `section_view` de esa sección (entero, hasta 100) y `dropPoints` lo que se pierde respecto a la anterior (nunca negativo; la primera parte de 100).
 
 **Forma y definiciones** (las definió el frontend en el modo demostración; el backend de este paso todavía no existe y debe seguirlas o cambiarse aquí en el mismo commit). Todas piden `workspaceId` (`422` si falta, `404` si es de otro cliente), `range` (`7d`, `30d` o `90d`; por defecto `30d`; otro valor, `422`) y, opcionalmente, `funnelId` (`404` si no es del negocio). El periodo son los últimos N días y el «periodo anterior», los N días previos.
 

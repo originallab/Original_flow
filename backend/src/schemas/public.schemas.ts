@@ -15,13 +15,17 @@ const utmSchema = z
   .default({});
 
 /** Respuestas de campos del formulario: nombres seguros (sin guion bajo inicial: es de uso interno) y valores simples. */
-const customFieldsSchema = z
+export const customFieldsSchema = z
   .record(
     z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]{0,39}$/, 'el nombre del campo debe empezar con letra y usar letras, números y guion bajo'),
     z.union([z.string().max(1000), z.number(), z.boolean(), z.null()]),
   )
   .refine((fields) => Object.keys(fields).length <= MAX_CUSTOM_FIELDS, `máximo ${MAX_CUSTOM_FIELDS} campos`)
   .default({});
+
+/** Correo y teléfono de un lead: las mismas reglas para el formulario público y para el tablero. */
+export const emailSchema = z.string().trim().toLowerCase().pipe(z.email().max(254));
+export const phoneSchema = z.string().trim().regex(/^[0-9+()\-.\s]{6,30}$/, 'teléfono no válido');
 
 /**
  * POST /public/funnels/:slug/leads. Exige consentimiento. Lo que no está aquí (funnelId,
@@ -30,8 +34,8 @@ const customFieldsSchema = z
 export const leadBodySchema = z
   .object({
     name: text(200).optional(),
-    email: z.string().trim().toLowerCase().pipe(z.email().max(254)).optional(),
-    phone: z.string().trim().regex(/^[0-9+()\-.\s]{6,30}$/, 'teléfono no válido').optional(),
+    email: emailSchema.optional(),
+    phone: phoneSchema.optional(),
     consent: z.literal(true, { error: 'debe aceptar el tratamiento de sus datos' }),
     utm: utmSchema,
     customFields: customFieldsSchema,
