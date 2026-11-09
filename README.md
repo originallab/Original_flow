@@ -65,7 +65,7 @@ El frontend trae `frontend/Dockerfile`: compila con Node y sirve los archivos co
 cd frontend && docker build --build-arg VITE_API_URL=https://api.ejemplo.com/api/v1 -t original-flow-frontend .
 ```
 
-En EasyPanel la ruta de compilación es `frontend/`. Lo que el navegador necesita saber (`VITE_API_URL`, `VITE_TOKEN_APP` y `VITE_ORIGINALAUTH_LOGIN_URL`) se fija al **compilar** con `--build-arg` (son datos públicos, nunca secretos); para cambiarlos hay que volver a construir. Si la API está en otro dominio, ese dominio del frontend debe estar en `CORS_ORIGINS` del backend. El modo demostración nunca entra en la imagen.
+En EasyPanel la ruta de compilación es `frontend/`. Lo que el navegador necesita saber (`VITE_API_URL`, `VITE_TOKEN_APP`, `VITE_ORIGINALAUTH_LOGIN_URL` y, si la dirección lo pide, `VITE_ORIGINALAUTH_CLIENT_ID`) se fija al **compilar** con `--build-arg` (son datos públicos, nunca secretos); para cambiarlos hay que volver a construir. Si la API está en otro dominio, ese dominio del frontend debe estar en `CORS_ORIGINS` del backend. El modo demostración nunca entra en la imagen.
 
 ## Imagen de producción (backend)
 

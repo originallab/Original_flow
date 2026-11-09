@@ -17,12 +17,15 @@ COPY . .
 #   docker build --build-arg VITE_API_URL=https://api.ejemplo.com/api/v1 -t original-flow-frontend .
 # - VITE_API_URL: dónde está la API. Si es otro dominio, el backend debe listar este frontend en CORS_ORIGINS.
 # - VITE_TOKEN_APP y VITE_ORIGINALAUTH_LOGIN_URL: el acceso real con Original Auth (ver .env.example).
+# - VITE_ORIGINALAUTH_CLIENT_ID: solo si la dirección de acceso de Original Auth lleva {client_id}.
 ARG VITE_API_URL=/api/v1
 ARG VITE_TOKEN_APP=
 ARG VITE_ORIGINALAUTH_LOGIN_URL=
+ARG VITE_ORIGINALAUTH_CLIENT_ID=
 ENV VITE_API_URL=$VITE_API_URL \
     VITE_TOKEN_APP=$VITE_TOKEN_APP \
-    VITE_ORIGINALAUTH_LOGIN_URL=$VITE_ORIGINALAUTH_LOGIN_URL
+    VITE_ORIGINALAUTH_LOGIN_URL=$VITE_ORIGINALAUTH_LOGIN_URL \
+    VITE_ORIGINALAUTH_CLIENT_ID=$VITE_ORIGINALAUTH_CLIENT_ID
 RUN pnpm build
 
 
