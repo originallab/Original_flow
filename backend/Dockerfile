@@ -41,4 +41,7 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-CMD ["node", "dist/server.js"]
+# Al arrancar aplica las migraciones pendientes (prisma migrate deploy: solo aplica las que faltan, no borra nada)
+# y luego inicia el servidor. Si una migración falla, el contenedor no arranca. Con SKIP_MIGRATIONS=true se omite.
+# `exec` deja a Node como proceso principal para que reciba SIGTERM al detener el contenedor.
+CMD ["sh", "-c", "if [ \"$SKIP_MIGRATIONS\" != \"true\" ]; then pnpm db:deploy || exit 1; fi; exec node dist/server.js"]

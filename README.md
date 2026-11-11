@@ -75,7 +75,7 @@ El backend trae `backend/Dockerfile`. Construir y probar la imagen en local:
 cd backend && docker build -t original-flow-backend .
 ```
 
-En el despliegue (EasyPanel) la ruta de compilación es `backend/`. Las migraciones no se aplican al arrancar: hay que correr `pnpm db:deploy` dentro del contenedor en cada despliegue. En producción (`NODE_ENV=production`) el backend exige `AUTH_MODE=real` y las credenciales de Original Auth, y `TRUST_PROXY_HOPS=1` detrás de EasyPanel.
+En el despliegue (EasyPanel) la ruta de compilación es `backend/`. Las migraciones pendientes se aplican solas al arrancar el contenedor (`pnpm db:deploy`); si una falla, el contenedor no arranca. Con `SKIP_MIGRATIONS=true` se omite ese paso. En producción (`NODE_ENV=production`) el backend exige `AUTH_MODE=real` y las credenciales de Original Auth, y `TRUST_PROXY_HOPS=1` detrás de EasyPanel.
 
 ## Documentación
 
