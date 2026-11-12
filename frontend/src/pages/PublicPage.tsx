@@ -4,6 +4,7 @@ import { PageRenderer } from '@/features/pageRenderer/PageRenderer';
 import type { PublicContext } from '@/features/pageRenderer/public';
 import { resolveTheme } from '@/features/pageRenderer/theme';
 import { readUtm, trafficSource } from '@/features/publicPage/traffic';
+import { rememberOrder } from '@/features/publicPage/lastOrder';
 import { CheckoutDialog } from '@/features/publicPage/CheckoutDialog';
 import { ThankYou } from '@/features/publicPage/ThankYou';
 import { useSeo } from '@/features/publicPage/useSeo';
@@ -138,6 +139,8 @@ export function PublicPage() {
     const response = await startCheckout(slug, { ...body, utm }, idempotencyKey);
     const url = safeHttpUrl(response.paymentUrl);
     if (!url) throw new ApiError(0, 'INVALID_PAYMENT_URL', 'No se pudo abrir el pago');
+    // Original Pay devuelve a una dirección fija: se recuerda la orden para encontrarla al volver.
+    rememberOrder(response.publicToken);
     navigation.to(url);
   }
 

@@ -78,6 +78,8 @@ export interface CheckoutResponse {
 /** Lo que devuelve `GET /public/orders/:publicToken` para la página de retorno. Con `paid` trae el mensaje (y el enlace) de después de comprar. */
 export interface OrderView {
   publicToken: string;
+  /** La página donde se compró; con ella la ruta fija de retorno lleva a la orden. */
+  slug?: string;
   status: OrderStatus;
   message?: string;
   redirectUrl?: string;

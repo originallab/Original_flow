@@ -197,7 +197,7 @@ describe.skipIf(!testDatabaseUrl)('compra en la página pública con Original Pa
       const c = await comprar(f.funnel.slug, bodyCompra());
       const res = await orden(c.body.publicToken);
       expect(res.status).toBe(200);
-      expect(res.body).toEqual({ publicToken: c.body.publicToken, status: 'pending' });
+      expect(res.body).toEqual({ publicToken: c.body.publicToken, slug: f.funnel.slug, status: 'pending' });
     });
 
     it('al pagarse: marca pagada, mueve el lead a «ganado», registra payment_completed una sola vez y muestra el mensaje y la dirección de éxito', async () => {
@@ -205,7 +205,7 @@ describe.skipIf(!testDatabaseUrl)('compra en la página pública con Original Pa
       const c = await comprar(f.funnel.slug, bodyCompra());
       fake.setStatus(token(), 'pagado');
       const res = await orden(c.body.publicToken);
-      expect(res.body).toEqual({ publicToken: c.body.publicToken, status: 'paid', message: TYPE_CONFIG.successMessage, redirectUrl: TYPE_CONFIG.successUrl });
+      expect(res.body).toEqual({ publicToken: c.body.publicToken, slug: f.funnel.slug, status: 'paid', message: TYPE_CONFIG.successMessage, redirectUrl: TYPE_CONFIG.successUrl });
       await orden(c.body.publicToken);
       await orden(c.body.publicToken);
 

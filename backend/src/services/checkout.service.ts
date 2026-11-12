@@ -29,6 +29,8 @@ export interface CheckoutResult {
 
 export interface OrderView {
   publicToken: string;
+  /** La página donde se compró: la ruta fija de retorno la usa para llevar a la persona a su orden. */
+  slug: string;
   status: OrderRecord['status'];
   /** Solo cuando ya está pagada. */
   message?: string;
@@ -60,7 +62,7 @@ export function createCheckoutService({ funnels, leads, orders, payments, pay }:
   }
 
   function viewOf(order: OrderRecord): OrderView {
-    const view: OrderView = { publicToken: order.publicToken, status: order.status };
+    const view: OrderView = { publicToken: order.publicToken, slug: order.funnel.slug, status: order.status };
     if (order.status === 'paid') {
       const parsed = getFunnelType(order.funnel.objective).typeConfigSchema.safeParse(order.funnel.typeConfig);
       if (parsed.success) {

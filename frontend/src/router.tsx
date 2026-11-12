@@ -17,6 +17,7 @@ import { NotFoundPage } from '@/pages/NotFoundPage';
 import { OrderPage } from '@/pages/OrderPage';
 import { NewFunnelPage } from '@/pages/NewFunnelPage';
 import { OnboardingPage } from '@/pages/OnboardingPage';
+import { PaymentReturnPage } from '@/pages/PaymentReturnPage';
 import { PublicPage } from '@/pages/PublicPage';
 import { TeamPage } from '@/pages/TeamPage';
 
@@ -30,6 +31,10 @@ export const routes: RouteObject[] = [
   { path: '/p/:slug', element: <PublicPage /> },
   // A donde vuelve quien pagó: espera la confirmación del pago y muestra el resultado.
   { path: '/p/:slug/orden/:token', element: <OrderPage /> },
+  // Direcciones FIJAS a las que Original Pay devuelve a quien pagó; llevan a la orden (`/p/:slug/orden/:token`).
+  { path: '/pago/retorno', element: <PaymentReturnPage /> },
+  { path: '/pago/exito', element: <PaymentReturnPage /> },
+  { path: '/pago/error', element: <PaymentReturnPage /> },
   // La pasarela de mentira del modo demostración: solo existe en desarrollo (en producción la ruta ni se declara).
   ...(import.meta.env.DEV ? [{ path: '/demo/pago/:token', element: <DemoPayPage /> }] : []),
   {
