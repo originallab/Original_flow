@@ -91,7 +91,7 @@ Hasta ahora, ninguna desviación del `01-stack-estandar.md`.
 
 | Servicio | Uso en Original Flow | Integrado |
 | --- | --- | --- |
-| Original Auth | Inicio de sesión de quien usa la plataforma | Diseñado; faltan credenciales |
+| Original Auth | Inicio de sesión de quien usa la plataforma | Funcionando en QA con credenciales reales (probado de punta a punta el 12 de nov de 2026) |
 | Media-as-a-Service | Logo de la marca e imágenes de los bloques | Diseñado; faltan credenciales |
 | Original AI Engine | Generar página, bloques, paleta, logo e imagen de marca | Solo diseño en pantallas; faltan credenciales |
 | Original Pay | Cobro dentro de los funnels de venta. Dos pasos (`/payment/init` y `/payment/process`) con la cabecera `apikey`; estado con `/payment/data/{order_token}`; estados pendiente, pagado, cancelado y parcialmente pagado; timeout de 15 s; hay sandbox | Diseñado; dudas por confirmar (ver Pendientes) |
@@ -157,7 +157,7 @@ Decisiones o datos que faltan y que bloquean partes concretas.
 | Original Pay: aviso de pago | Confirmar si existe un webhook hacia el comercio; si existe, se agrega `POST /webhooks/original-pay` con verificación de firma y la reconciliación queda de respaldo | Paso 7 |
 | Original Pay: pruebas y mínimos | Todo el desarrollo apunta al sandbox; algunas pasarelas tienen monto mínimo (por ejemplo Stripe en MXN) y el servidor lo valida antes de publicar | Paso 7 |
 | Servicio de dominios | Contrato de integración: cómo recibe el `slug` de cada funnel publicado y desde qué dominio(s) se leen las páginas (hay que poner esos orígenes en `PUBLIC_CORS_ORIGINS`; vacío = ninguno) | Producción |
-| Credenciales | Original Auth, Media-as-a-Service y Original AI Engine | Pasos 2, 9 y 10 |
+| Credenciales | Media-as-a-Service y Original AI Engine (las de Original Auth ya están y funcionan) | Pasos 9 y 10 |
 | Token de sesión en el frontend | Confirmar con Original Auth qué mecanismo usa (cookie `HttpOnly` o token) y dónde se guarda; el playbook prohíbe `localStorage` para tokens | Paso 2 |
 | Repositorio y despliegue | Confirmar monorepo con la empresa y la organización de GitHub (`originallab`) | Primer push |
 | Cobro de la propia plataforma | Si Original Flow cobra una suscripción con Original Pay desde el día 1 o el v1 es interno o gratuito; si cobra, diseñar planes y límites | Planes |
