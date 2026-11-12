@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from '../generated/prisma/client.js';
+import type { OrderStatus, Prisma, PrismaClient } from '../generated/prisma/client.js';
 
 export interface NewOrder {
   funnelId: string;
@@ -29,6 +29,31 @@ const FIELDS = {
 } satisfies Prisma.OrderSelect;
 
 export type OrderRecord = Prisma.OrderGetPayload<{ select: typeof FIELDS }>;
+
+/** Lo que ve quien administra el negocio en la lista de ventas: sin el token público ni la dirección de pago. */
+const LIST_FIELDS = {
+  id: true,
+  funnelId: true,
+  leadId: true,
+  orderNumber: true,
+  amount: true,
+  currency: true,
+  status: true,
+  paymentMethod: true,
+  customerEmail: true,
+  paidAt: true,
+  createdAt: true,
+  funnel: { select: { name: true, workspaceId: true } },
+  lead: { select: { name: true } },
+} satisfies Prisma.OrderSelect;
+
+export type OrderListRecord = Prisma.OrderGetPayload<{ select: typeof LIST_FIELDS }>;
+
+export interface OrderFilter {
+  workspaceId: string;
+  funnelId?: string;
+  status?: OrderStatus;
+}
 
 /** Acceso a datos de `Order`. */
 export function createOrderModel(prisma: PrismaClient) {
@@ -97,6 +122,24 @@ export function createOrderModel(prisma: PrismaClient) {
         });
         return true;
       });
+    },
+
+    /** Las órdenes de un negocio, de la más nueva a la más vieja, con filtros y paginación. */
+    async list(filter: OrderFilter, paging: { skip: number; take: number }): Promise<{ items: OrderListRecord[]; total: number }> {
+      const where: Prisma.OrderWhereInput = {
+        funnel: { workspaceId: filter.workspaceId },
+        ...(filter.funnelId ? { funnelId: filter.funnelId } : {}),
+        ...(filter.status ? { status: filter.status } : {}),
+      };
+      const [items, total] = await Promise.all([
+        prisma.order.findMany({ where, select: LIST_FIELDS, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], ...paging }),
+        prisma.order.count({ where }),
+      ]);
+      return { items, total };
+    },
+
+    findById(id: string): Promise<OrderListRecord | null> {
+      return prisma.order.findUnique({ where: { id }, select: LIST_FIELDS });
     },
 
     /** Registra un evento del servidor (por ejemplo `checkout_started`). */

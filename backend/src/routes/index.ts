@@ -8,6 +8,7 @@ import type { FunnelContentService } from '../services/funnelContent.service.js'
 import type { FunnelHistoryService } from '../services/funnelHistory.service.js';
 import type { FunnelPublishService } from '../services/funnelPublish.service.js';
 import type { MeService } from '../services/me.service.js';
+import type { OrderService } from '../services/order.service.js';
 import type { PaymentsService } from '../services/payments.service.js';
 import type { WorkspaceService } from '../services/workspace.service.js';
 import { createAnalyticsRouter } from './analytics.routes.js';
@@ -17,6 +18,7 @@ import { createFunnelTypesRouter } from './funnelTypes.routes.js';
 import { createLeadsRouter } from './leads.routes.js';
 import { createLeadStagesRouter } from './leadStages.routes.js';
 import { createMeRouter } from './me.routes.js';
+import { createOrdersRouter } from './orders.routes.js';
 import { createWorkspacesRouter } from './workspaces.routes.js';
 
 interface ApiDeps {
@@ -31,6 +33,7 @@ interface ApiDeps {
   analytics: AnalyticsService;
   leads: LeadService;
   leadStages: LeadStageService;
+  orders: OrderService;
   requireAuth: RequestHandler;
   authSessionRateLimit: RequestHandler;
 }
@@ -40,7 +43,7 @@ interface ApiDeps {
  * registra aquí su router. Los públicos van sin sesión; cada router privado
  * declara `requireAuth` una sola vez al principio.
  */
-export function createApiRouter({ auth, me, workspaces, payments, funnels, funnelContent, funnelPublish, funnelHistory, analytics, leads, leadStages, requireAuth, authSessionRateLimit }: ApiDeps): Router {
+export function createApiRouter({ auth, me, workspaces, payments, funnels, funnelContent, funnelPublish, funnelHistory, analytics, leads, leadStages, orders, requireAuth, authSessionRateLimit }: ApiDeps): Router {
   const api = Router();
   api.use('/auth', createAuthRouter(auth, authSessionRateLimit));
   api.use('/me', createMeRouter(me, requireAuth));
@@ -49,6 +52,7 @@ export function createApiRouter({ auth, me, workspaces, payments, funnels, funne
   api.use('/funnels', createFunnelsRouter(funnels, funnelContent, funnelPublish, funnelHistory, requireAuth));
   api.use('/analytics', createAnalyticsRouter(analytics, requireAuth));
   api.use('/leads', createLeadsRouter(leads, requireAuth));
+  api.use('/orders', createOrdersRouter(orders, requireAuth));
   api.use(createLeadStagesRouter(leadStages, requireAuth));
   return api;
 }

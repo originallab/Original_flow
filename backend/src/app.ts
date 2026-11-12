@@ -42,6 +42,7 @@ import { createOriginalPayClient } from './integrations/original-pay/client.js';
 import { createOperationLogModel } from './models/operationLog.model.js';
 import { createOrderModel } from './models/order.model.js';
 import { createCheckoutService } from './services/checkout.service.js';
+import { createOrderService } from './services/order.service.js';
 import { createPaymentWebhookService } from './services/paymentWebhook.service.js';
 import { createWebhooksRouter } from './routes/webhooks.routes.js';
 import { createOperationLogService } from './services/operationLog.service.js';
@@ -89,6 +90,7 @@ export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClien
   });
   const checkout = createCheckoutService({ funnels: funnelModel, leads: leadModel, orders: orderModel, payments, pay });
   const paymentWebhook = createPaymentWebhookService({ config, logger, orders: orderModel });
+  const orders = createOrderService({ orders: orderModel, access });
   const requireAuth = createRequireAuth(auth);
   const authSessionRateLimit = createRateLimit({ max: config.rateLimit.authSessionPerMinute });
 
@@ -118,7 +120,7 @@ export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClien
   app.use(cors({ origin: config.corsOrigins, credentials: true }));
 
   app.use(healthRouter);
-  app.use('/api/v1', createApiRouter({ auth, me, workspaces, payments, funnels, funnelContent, funnelPublish, funnelHistory, analytics, leads, leadStages, requireAuth, authSessionRateLimit }));
+  app.use('/api/v1', createApiRouter({ auth, me, workspaces, payments, funnels, funnelContent, funnelPublish, funnelHistory, analytics, leads, leadStages, orders, requireAuth, authSessionRateLimit }));
 
   app.use(notFoundHandler);
   app.use(errorHandler(logger));

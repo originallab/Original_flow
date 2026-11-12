@@ -254,8 +254,10 @@ Los funnels de tipo `venta` cobran dentro de la misma página. Original Flow es 
 | POST | `/public/funnels/:slug/checkout` | Crea la orden y devuelve cómo pagar | Público |
 | GET | `/public/orders/:publicToken` | Estado de la orden para la página de retorno (incluye el `slug` de la página) | Público |
 | POST | `/webhooks/original-pay` | Aviso de pago de Original Pay (se autentica con `token_app` y `secret_key`, sin sesión ni CORS) | Original Pay |
-| GET | `/orders?workspaceId=&funnelId=&status=` | Lista de órdenes | SA, CA, MM, VE, AN |
+| GET | `/orders?workspaceId=&funnelId=&status=&page=&pageSize=` | Ventas del negocio, de la más nueva a la más vieja (`status`: `pending`, `paid`, `cancelled`, `failed`) | SA, CA, MM, VE, AN |
 | GET | `/orders/:id` | Detalle de una orden | SA, CA, MM, VE, AN |
+
+**`GET /orders` y `GET /orders/:id`** (solo lectura). Cada orden: `{ id, funnelId, funnelName, leadId, leadName, orderNumber, amount (número), currency, status, paymentMethod, customerEmail, paidAt, createdAt }`. La lista es `{ items, total, page, pageSize }`. Nunca incluye el token público ni la dirección de pago. Una orden o un negocio de otro cliente responde `404`; el diseñador no tiene acceso (`403`).
 
 **`POST /public/funnels/:slug/checkout`**
 
