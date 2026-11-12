@@ -58,7 +58,11 @@ const envSchema = z
     IAENGINE_API_KEY: z.string().min(1).optional(),
     IAENGINE_SECRET_KEY: z.string().min(1).optional(),
     ORIGINALPAY_BASE_URL: z.url().default('https://api-test.origpay.com/'),
-    PAYMENT_CONFIG_ENCRYPTION_KEY: z.string().min(1).optional(),
+    // 32 bytes en hexadecimal (64 caracteres). Cifra la apikey de Original Pay de cada workspace.
+    PAYMENT_CONFIG_ENCRYPTION_KEY: z
+      .string()
+      .regex(/^[0-9a-fA-F]{64}$/, 'debe ser una clave de 32 bytes en hexadecimal (64 caracteres)')
+      .optional(),
   })
   .superRefine((env, ctx) => {
     // El atajo de login simulado nunca puede llegar a producción.
@@ -67,6 +71,14 @@ const envSchema = z
         code: 'custom',
         path: ['AUTH_MODE'],
         message: 'debe ser "real" cuando NODE_ENV es production',
+      });
+    }
+    // Sin esta clave no se pueden guardar ni leer las llaves de pago; en producción es obligatoria.
+    if (env.NODE_ENV === 'production' && !env.PAYMENT_CONFIG_ENCRYPTION_KEY) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['PAYMENT_CONFIG_ENCRYPTION_KEY'],
+        message: 'es obligatoria cuando NODE_ENV es production',
       });
     }
   });

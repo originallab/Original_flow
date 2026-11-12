@@ -37,6 +37,7 @@ import { createPublicPageService } from './services/publicPage.service.js';
 import { createLeadService } from './services/lead.service.js';
 import { createLeadStageService } from './services/leadStage.service.js';
 import { createMeService } from './services/me.service.js';
+import { createPaymentsService } from './services/payments.service.js';
 import { createWorkspaceService } from './services/workspace.service.js';
 
 /** Tamaño máximo del cuerpo JSON. Las subidas de archivos usarán su propia ruta. */
@@ -57,6 +58,7 @@ export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClien
   const me = createMeService(users, memberships);
   const access = createAccessService(workspaceModel, memberships);
   const workspaces = createWorkspaceService({ workspaces: workspaceModel, memberships, users, access, audit });
+  const payments = createPaymentsService({ config, logger, workspaces: workspaceModel, access, audit });
   const funnelModel = createFunnelModel(prisma);
   const funnels = createFunnelService({ funnels: funnelModel, access, audit });
   const ctaModel = createCtaModel(prisma);
@@ -95,7 +97,7 @@ export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClien
   app.use(cors({ origin: config.corsOrigins, credentials: true }));
 
   app.use(healthRouter);
-  app.use('/api/v1', createApiRouter({ auth, me, workspaces, funnels, funnelContent, funnelPublish, funnelHistory, analytics, leads, leadStages, requireAuth, authSessionRateLimit }));
+  app.use('/api/v1', createApiRouter({ auth, me, workspaces, payments, funnels, funnelContent, funnelPublish, funnelHistory, analytics, leads, leadStages, requireAuth, authSessionRateLimit }));
 
   app.use(notFoundHandler);
   app.use(errorHandler(logger));

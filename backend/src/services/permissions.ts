@@ -20,7 +20,9 @@ export type Action =
   | 'analytics:read'
   | 'lead:read'
   | 'lead:manage'
-  | 'stage:manage';
+  | 'stage:manage'
+  | 'payments:manage'
+  | 'order:read';
 
 const PERMISSIONS: Record<Action, readonly MembershipRole[]> = {
   'workspace:read': ['super_admin', 'client_admin', 'marketing_manager', 'vendedor', 'disenador', 'analista'],
@@ -42,6 +44,9 @@ const PERMISSIONS: Record<Action, readonly MembershipRole[]> = {
   'lead:read': ['super_admin', 'client_admin', 'marketing_manager', 'vendedor', 'analista'],
   'lead:manage': ['super_admin', 'client_admin', 'marketing_manager', 'vendedor'],
   'stage:manage': ['super_admin', 'client_admin'],
+  // Conectar Original Pay (la llave del negocio): solo quien administra.
+  'payments:manage': ['super_admin', 'client_admin'],
+  'order:read': ['super_admin', 'client_admin', 'marketing_manager', 'vendedor', 'analista'],
 };
 
 export function can(role: MembershipRole, action: Action): boolean {
