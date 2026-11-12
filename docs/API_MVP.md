@@ -236,29 +236,30 @@ Se exige `consent: true` (exactamente el booleano `true`). El servicio guarda lo
 
 ## Pagos con Original Pay
 
-Los funnels de tipo `venta` cobran dentro de la misma página. Original Pay se usa en dos pasos (`/payment/init` y `/payment/process`), autenticado con la cabecera `apikey`, y el sistema nunca toca datos de tarjeta.
+Los funnels de tipo `venta` cobran dentro de la misma página. Original Flow es **una sola app de Original Pay** («Original Flow»): sus credenciales (`ORIGINALPAY_TOKEN_APP` y `ORIGINALPAY_SECRET_KEY`) son del servidor, no de cada negocio. El servidor crea la orden con `POST /payment/init` (el `token_app` va en el cuerpo) y Original Pay devuelve la dirección de pago; el pago se confirma con el **aviso (webhook)** que Original Pay envía. El sistema nunca toca datos de tarjeta. Contrato: guía de integración técnica de OrigPay (docs.theoriginallab.com).
 
 ### Flujo de una compra
 
-1. **Configuración.** El administrador conecta Original Pay en su workspace; la llave se guarda cifrada.
-2. **Compra.** El visitante pulsa el botón de pago y la página llama a `POST /public/funnels/:slug/checkout`. El servidor busca o crea el lead, toma el monto de `Funnel.price` (nunca del navegador), reutiliza la orden pendiente de ese lead o crea una nueva, y llama a Original Pay: `/payment/init` con monto, divisa, `order_number`, `product_code` (el `slug`), descripción y correo, y luego `/payment/process` con el método elegido. Guarda el `order_token`, registra `checkout_started` y responde con la URL de pago o el `client_secret`.
+1. **Configuración.** El administrador habilita Original Pay en su workspace (divisa y métodos). No hay llave por negocio: si el cliente todavía manda `apiKey`, se acepta y se descarta.
+2. **Compra.** El visitante pulsa el botón de pago y la página llama a `POST /public/funnels/:slug/checkout`. El servidor busca o crea el lead, toma el monto de `Funnel.price` (nunca del navegador), reutiliza la orden pendiente de ese lead o crea una nueva (`order_number` único generado aquí) y llama a `POST /payment/init` de Original Pay con `token_app`, monto, divisa, `order_number`, `product_code` (el `slug`), descripción y correo. Original Pay responde con `payment_url`; el servidor la guarda, registra `checkout_started` y la devuelve. El comprador elige el método de pago en la pantalla de Original Pay.
 3. **Datos ya capturados.** Nombre y correo viajan en esa misma petición, así que el comprador no los vuelve a escribir en el pago.
-4. **Retorno.** La página de retorno llama a `GET /public/orders/:publicToken`. Si la orden sigue pendiente, el servidor consulta `GET /payment/data/{order_token}` en Original Pay; cuando el estado es pagado, marca la orden como `paid`, mueve el lead a la etapa con `isWon`, registra `payment_completed` y devuelve el mensaje o la URL de éxito.
-5. **Reconciliación.** Una tarea cada 5 minutos revisa las órdenes pendientes de entre 5 minutos y 48 horas y las actualiza consultando el estado. Es necesaria porque el estándar de Original Pay no documenta un aviso hacia el comercio cuando se confirma un pago.
-6. **Reintentos.** Antes de repetir un `/payment/process` fallido se consulta el estado de la orden, como exige el estándar; el timeout hacia Original Pay es de 15 segundos.
+4. **Aviso de pago.** Original Pay envía `POST /webhooks/original-pay` con `token_app`, `secret_key`, `order_number`, `payment_status` (`approved`, `pending`, `rejected` o `cancelled`), `payment_method`, `amount` y `currency`. El servidor autentica con `token_app` y `secret_key` (comparación sin filtrar tiempos; `401` si no coinciden), busca la orden por `order_number` (`404` si no existe) y: con `approved` (y el mismo monto y divisa, si no `409`) marca la orden `paid`, mueve el lead a la etapa con `isWon`, le pone el valor y registra `payment_completed` **una sola vez**, aunque el aviso llegue repetido; con `rejected` o `cancelled` la orden **sigue pendiente** (se puede reintentar) y se registra `payment_failed`; con `pending` no hace nada.
+5. **Retorno.** Original Pay devuelve a la persona a direcciones **fijas** de la página: `/pago/retorno`, `/pago/exito` o `/pago/error`. Las tres hacen lo mismo: buscan el token de la orden (en la dirección o el que se recordó al salir a pagar) y llevan a `/p/:slug/orden/:publicToken`, que pregunta sola a `GET /public/orders/:publicToken` hasta que el aviso confirme el pago.
+6. **Sin consulta de estado.** La guía de Original Pay no documenta una consulta del estado de una orden, así que el aviso es la única forma de confirmar un pago y no hay tarea de reconciliación. `init` no se reintenta solo (`order_number` es único); el timeout es de 15 segundos y, si falla, la orden queda pendiente y al volver a pulsar pagar se reutiliza.
 
 | Método | Ruta | Qué hace | Roles |
 | --- | --- | --- | --- |
-| PUT | `/workspaces/:id/payments` | Conecta Original Pay: `apiKey`, divisa y métodos de pago | SA, CA |
-| GET | `/workspaces/:id/payments` | Estado de la conexión (`connected`, métodos); nunca devuelve la llave | SA, CA |
+| PUT | `/workspaces/:id/payments` | Habilita Original Pay: divisa y métodos de pago (`apiKey` opcional y descartada) | SA, CA |
+| GET | `/workspaces/:id/payments` | Estado de la conexión (`connected`, métodos) | SA, CA |
 | POST | `/public/funnels/:slug/checkout` | Crea la orden y devuelve cómo pagar | Público |
-| GET | `/public/orders/:publicToken` | Estado de la orden para la página de retorno | Público |
+| GET | `/public/orders/:publicToken` | Estado de la orden para la página de retorno (incluye el `slug` de la página) | Público |
+| POST | `/webhooks/original-pay` | Aviso de pago de Original Pay (se autentica con `token_app` y `secret_key`, sin sesión ni CORS) | Original Pay |
 | GET | `/orders?workspaceId=&funnelId=&status=` | Lista de órdenes | SA, CA, MM, VE, AN |
 | GET | `/orders/:id` | Detalle de una orden | SA, CA, MM, VE, AN |
 
 **`POST /public/funnels/:slug/checkout`**
 
-Exige el encabezado **`Idempotency-Key`** (texto de 8 a 64 caracteres; la página genera uno nuevo por intento de compra, por ejemplo un UUID). Se guarda en `Order.idempotencyKey`, único por funnel. Si llega una petición con una clave que ya existe en ese funnel, el servidor **no crea otra orden ni vuelve a llamar a Original Pay**: devuelve la respuesta de la orden original. Así un doble clic, un timeout o un reintento nunca cobran dos veces. Sin el encabezado responde `422` (`IDEMPOTENCY_KEY_REQUIRED`); con la misma clave pero otro correo o método de pago responde `409` (`IDEMPOTENCY_KEY_REUSED`).
+Acepta el encabezado **`Idempotency-Key`** (opcional; texto de hasta 100 caracteres; la página genera uno nuevo por intento de compra, por ejemplo un UUID). Se guarda en `Order.idempotencyKey`, único por funnel. Si llega una petición con una clave que ya existe en ese funnel, el servidor **no crea otra orden ni vuelve a llamar a Original Pay**: devuelve la respuesta de la orden original. Así un doble clic, un timeout o un reintento nunca cobran dos veces. Sin el encabezado responde `422` (`IDEMPOTENCY_KEY_REQUIRED`); con la misma clave pero otro correo o método de pago responde `409` (`IDEMPOTENCY_KEY_REUSED`).
 
 ```json
 { "name": "María", "email": "maria@correo.com", "phone": "+52...", "paymentMethod": "mercadopago", "consent": true,
@@ -273,19 +274,19 @@ Exige el encabezado **`Idempotency-Key`** (texto de 8 a 64 caracteres; la págin
 
 - `POST /public/funnels/:slug/checkout`: `name` y `email` obligatorios, `phone` opcional, `paymentMethod` opcional (uno de `stripe`, `paypal`, `mercadopago`, `spei_direct`, `webpay`; si falta se usa el primero de la conexión; si no lo acepta el negocio, `422` con la ruta `paymentMethod`), `consent` exactamente `true` y `utm`. El monto nunca viaja. Responde `{ publicToken, status, paymentUrl? }`; `paymentUrl` solo cuando la orden está pendiente. Una persona con una orden pendiente en ese funnel recibe esa misma orden; con una orden pagada, `409 ORDER_ALREADY_PAID`. Antes de crear la orden se busca o crea el lead en la primera etapa y se registra `lead_created` si es nuevo; al crearla, `checkout_started`.
 - **`GET /public/pages/:slug` agrega `paymentMethods`** (las formas de pago de la conexión del negocio) **solo** si el funnel cobra y el negocio tiene Original Pay conectado, para que la página sepa qué ofrecer.
-- `GET /public/orders/:publicToken` → `{ publicToken, status: 'pending' | 'paid' | 'cancelled' | 'failed', message?, redirectUrl? }`; `message` y `redirectUrl` (el `successMessage` y el `successUrl` del `typeConfig`) solo cuando está pagada. La página de retorno es `/p/:slug/orden/:publicToken` y pregunta sola mientras siga pendiente. `404 ORDER_NOT_FOUND` si no existe.
+- `GET /public/orders/:publicToken` → `{ publicToken, slug, status: 'pending' | 'paid' | 'cancelled' | 'failed', message?, redirectUrl? }`; `message` y `redirectUrl` (el `successMessage` y el `successUrl` del `typeConfig`) solo cuando está pagada. La página de retorno es `/p/:slug/orden/:publicToken` y pregunta sola mientras siga pendiente. `404 ORDER_NOT_FOUND` si no existe.
 - Al pagar: la orden pasa a `paid` con `paidAt`, el lead a la etapa con `isWon` y se registra `payment_completed`.
-- `PUT /workspaces/:id/payments` → `{ apiKey (8 a 500 caracteres), currency, methods (de 1 a 5, sin repetir) }` y `GET` → `{ connected, provider?, currency?, methods? }`, solo super admin y administrador; la llave nunca se devuelve.
+- `PUT /workspaces/:id/payments` → `{ currency, methods (de 1 a 5, sin repetir), apiKey? (se descarta) }` y `GET` → `{ connected, provider?, currency?, methods? }`, solo super admin y administrador.
 - Los ingresos del dashboard (`/analytics/summary` y `/analytics/funnels`) salen de las órdenes `paid` por `paidAt`, por divisa.
 
 **Errores propios del cobro:** `422` si el funnel no cobra, falta el precio o la conexión, o falta `Idempotency-Key`; `409` si la orden ya está pagada o la clave se reutilizó con otros datos; `503` si Original Pay no responde, en cuyo caso la orden queda `pending` y se puede reintentar. Los reembolsos no entran en el MVP.
 
-### Decisiones por confirmar con quien mantiene Original Pay
+### Decisiones y pendientes con Original Pay
 
-- **De quién es la “app”.** La llave `apikey` pertenece a una app de Original Pay, y las credenciales de la pasarela (Stripe, MercadoPago...) viven ahí. Para que el dinero de cada cliente llegue a su propia cuenta, cada workspace necesita su app; este diseño asume una llave por workspace. Hay que confirmar si se crea a mano o por API.
-- **Aviso de pago confirmado.** Confirmar si existe un webhook hacia el comercio. Si existe, se agrega `POST /webhooks/original-pay` con verificación de firma y la tarea de reconciliación queda como respaldo.
-- **Pruebas.** Todo el desarrollo debe apuntar al sandbox (`BACKEND_URL_TEST`), nunca a producción.
-- **Montos mínimos.** Original Pay rechaza montos menores o iguales a cero y algunas pasarelas tienen mínimo (por ejemplo, Stripe en MXN); el servidor lo valida antes de publicar.
+- **Una sola app (decidido).** Original Flow usa una única app de Original Pay; el dinero de todos los negocios llega a la cuenta de esa app. Cobrar a cada cliente en su propia cuenta requeriría una app por negocio y queda fuera del MVP.
+- **Credenciales y ambiente.** Las credenciales recibidas no fueron aceptadas por `api-test.origpay.com` ni por `api.origpay.com` (`Invalid token_app`); falta confirmar con Original Pay si la app está activada y en qué servidor es válida. La respuesta exitosa de `init` (`payment_url`) todavía no se ha visto de verdad.
+- **Métodos de pago.** El comprador elige el método en la pantalla de Original Pay; `init` no recibe método. De momento solo Stripe está habilitado en la app.
+- **Montos mínimos.** Algunas pasarelas tienen mínimo (por ejemplo Stripe en MXN); Original Pay responde con un error que el servidor devuelve como `422 PAYMENT_REQUEST_INVALID`.
 
 **Original Auth y los compradores.** En el MVP Original Auth sirve para iniciar sesión en la plataforma. Crear una cuenta para quien compra queda fuera, porque el visitante no es usuario de Original Flow.
 
@@ -392,7 +393,7 @@ El orden va de lo que no depende de nada a lo que depende de todo. Cada paso ter
 | 4 | Funnels sin IA: registro de tipos, crear, editar `content` y `typeConfig`, CTA automáticos | `/funnel-types`, `/funnels*`, `/funnels/:id/content`, `/funnels/:id/type-config`, `/funnels/:id/ctas*` | Paso 3 |
 | 5 | Publicar y ver la página | `/funnels/:id/publish`, `/public/pages/:slug` | Paso 4 |
 | 6 | Captura y medición | `/public/funnels/:slug/leads`, `/public/funnels/:slug/events` | Paso 5 |
-| 7 | Pagos con Original Pay (funnels de venta) | `/workspaces/:id/payments`, `/public/funnels/:slug/checkout`, `/public/orders/:publicToken`, `/orders*`, tarea de reconciliación | Pasos 5 y 6, y la llave del sandbox |
+| 7 | Pagos con Original Pay (funnels de venta) | `/workspaces/:id/payments`, `/public/funnels/:slug/checkout`, `/public/orders/:publicToken`, `/orders*`, `/webhooks/original-pay` | Pasos 5 y 6, y las credenciales de la app de Original Pay |
 | 8 | Dashboard y leads, ya con ingresos | `/analytics/*`, `/leads*`, `/lead-stages*` | Pasos 6 y 7 |
 | 9 | Archivos y marca con IA | `/assets/*`, `/brand/*` | Paso 3 y acceso a los servicios |
 | 10 | Generación del funnel con IA, usando la definición de cada tipo | `/funnels/:id/generate`, `/brand-brief`, regenerar bloque | Pasos 4 y 9 |
@@ -420,4 +421,4 @@ Estos puntos salen de revisar el diseño contra `03-seguridad.md` y `02-arquitec
 | Log operativo y log de auditoría | Dos registros separados, con tablas propias en la base de datos desde el día 1. La auditoría es de solo lectura y cubre login, cambios de configuración, creación y eliminación de recursos y toda transacción de pago | **Resuelto en el modelo:** tablas `OperationLog` y `AuditLog` (sin claves foráneas, para que sobrevivan al borrado de usuarios o funnels). `AuditLog` es de solo lectura también a nivel de base de datos (disparador). Falta escribir en ellas desde los servicios (pasos 2 y 3 en adelante) |
 | Límite de peticiones | Los endpoints públicos o costosos (checkout, IA) necesitan límite, y se decide a propósito si falla abierto o cerrado | Sin Redis, el límite vive en memoria de un solo proceso: sirve con una instancia. Para checkout y los endpoints de IA conviene que falle cerrado (protegen costo real) |
 | Encabezados y CORS | Lista explícita de orígenes (nunca `*` con credenciales) y encabezados de seguridad con `helmet` | **Hecho** en el servidor base (`helmet`, CORS con lista explícita validada al arrancar) |
-| Secretos que se vuelven a leer | La `apiKey` de Original Pay de cada workspace se cifra de forma reversible (no se hashea) con una clave fuera del repositorio | Variable `PAYMENT_CONFIG_ENCRYPTION_KEY` en `backend/.env.example`; falta elegir el algoritmo |
+| Secretos que se vuelven a leer | Original Flow es una sola app de Original Pay: `token_app` y `secret_key` son variables de entorno del servidor (`ORIGINALPAY_TOKEN_APP` y `ORIGINALPAY_SECRET_KEY`), nunca se guardan por negocio | **Resuelto:** ya no hay llaves de pago en la base de datos |

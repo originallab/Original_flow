@@ -42,6 +42,8 @@ import { createOriginalPayClient } from './integrations/original-pay/client.js';
 import { createOperationLogModel } from './models/operationLog.model.js';
 import { createOrderModel } from './models/order.model.js';
 import { createCheckoutService } from './services/checkout.service.js';
+import { createPaymentWebhookService } from './services/paymentWebhook.service.js';
+import { createWebhooksRouter } from './routes/webhooks.routes.js';
 import { createOperationLogService } from './services/operationLog.service.js';
 import { createWorkspaceService } from './services/workspace.service.js';
 
@@ -63,7 +65,7 @@ export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClien
   const me = createMeService(users, memberships);
   const access = createAccessService(workspaceModel, memberships);
   const workspaces = createWorkspaceService({ workspaces: workspaceModel, memberships, users, access, audit });
-  const payments = createPaymentsService({ config, logger, workspaces: workspaceModel, access, audit });
+  const payments = createPaymentsService({ workspaces: workspaceModel, access, audit });
   const funnelModel = createFunnelModel(prisma);
   const funnels = createFunnelService({ funnels: funnelModel, access, audit });
   const ctaModel = createCtaModel(prisma);
@@ -77,8 +79,16 @@ export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClien
   const leadStages = createLeadStageService({ stages: leadStageModel, access, audit });
   const publicPages = createPublicPageService(funnelModel);
   const publicCapture = createPublicCaptureService({ funnels: funnelModel, leads: leadModel, events: createEventModel(prisma) });
-  const pay = createOriginalPayClient({ baseUrl: config.originalPay.baseUrl, logger, operationLog: createOperationLogService(createOperationLogModel(prisma), logger), fetchFn: overrides.fetchFn, sleep: overrides.fetchFn ? async () => {} : undefined });
-  const checkout = createCheckoutService({ funnels: funnelModel, leads: leadModel, orders: createOrderModel(prisma), payments, pay });
+  const orderModel = createOrderModel(prisma);
+  const pay = createOriginalPayClient({
+    baseUrl: config.originalPay.baseUrl,
+    tokenApp: config.originalPay.tokenApp,
+    logger,
+    operationLog: createOperationLogService(createOperationLogModel(prisma), logger),
+    fetchFn: overrides.fetchFn,
+  });
+  const checkout = createCheckoutService({ funnels: funnelModel, leads: leadModel, orders: orderModel, payments, pay });
+  const paymentWebhook = createPaymentWebhookService({ config, logger, orders: orderModel });
   const requireAuth = createRequireAuth(auth);
   const authSessionRateLimit = createRateLimit({ max: config.rateLimit.authSessionPerMinute });
 
@@ -99,6 +109,10 @@ export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClien
     createRateLimit({ max: config.rateLimit.publicPerMinute }),
     createPublicRouter(publicPages, publicCapture, checkout, createRateLimit({ max: config.rateLimit.leadsPerMinute })),
   );
+
+  // Avisos de otros servicios (por ejemplo, el pago confirmado de Original Pay): de servidor a servidor,
+  // sin CORS ni sesión; se autentican con las credenciales de la app.
+  app.use('/api/v1/webhooks', createRateLimit({ max: config.rateLimit.publicPerMinute }), createWebhooksRouter(paymentWebhook));
 
   // Lista explícita de orígenes; nunca "*" junto con credenciales (playbook 03).
   app.use(cors({ origin: config.corsOrigins, credentials: true }));

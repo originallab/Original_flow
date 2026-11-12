@@ -40,7 +40,7 @@ export function createPublicRouter(pages: PublicPageService, capture: PublicCapt
 
   router.get('/orders/:publicToken', async (req, res) => {
     const { publicToken } = orderTokenParamsSchema.parse(req.params);
-    res.json(await checkout.getOrder(publicToken, getRequestId(res)));
+    res.json(await checkout.getOrder(publicToken));
   });
 
   return router;

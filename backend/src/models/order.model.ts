@@ -1,4 +1,4 @@
-import type { OrderStatus, Prisma, PrismaClient } from '../generated/prisma/client.js';
+import type { Prisma, PrismaClient } from '../generated/prisma/client.js';
 
 export interface NewOrder {
   funnelId: string;
@@ -21,7 +21,6 @@ const FIELDS = {
   currency: true,
   status: true,
   paymentMethod: true,
-  opOrderToken: true,
   customerEmail: true,
   paymentUrl: true,
   paidAt: true,
@@ -36,6 +35,11 @@ export function createOrderModel(prisma: PrismaClient) {
   return {
     findByPublicToken(publicToken: string): Promise<OrderRecord | null> {
       return prisma.order.findUnique({ where: { publicToken }, select: FIELDS });
+    },
+
+    /** La orden con ese número (el que Original Pay devuelve en su aviso de pago). */
+    findByOrderNumber(orderNumber: string): Promise<OrderRecord | null> {
+      return prisma.order.findUnique({ where: { orderNumber }, select: FIELDS });
     },
 
     findByIdempotencyKey(funnelId: string, idempotencyKey: string): Promise<OrderRecord | null> {
@@ -56,25 +60,13 @@ export function createOrderModel(prisma: PrismaClient) {
       return prisma.order.create({ data: order, select: FIELDS });
     },
 
-    /** Guarda lo que devolvió Original Pay al despachar el cobro. */
-    setPaymentInfo(id: string, info: { opOrderToken: string; paymentMethod: string; paymentUrl?: string }): Promise<OrderRecord> {
-      return prisma.order.update({ where: { id }, data: { opOrderToken: info.opOrderToken, paymentMethod: info.paymentMethod, paymentUrl: info.paymentUrl ?? null }, select: FIELDS });
-    },
-
-    /** Órdenes pendientes con orden en Original Pay, entre dos edades, para la reconciliación. */
-    findPendingBetween(olderThan: Date, newerThan: Date, take: number): Promise<OrderRecord[]> {
-      return prisma.order.findMany({
-        where: { status: 'pending', opOrderToken: { not: null }, createdAt: { lte: olderThan, gte: newerThan } },
-        orderBy: { createdAt: 'asc' },
-        take,
+    /** Guarda a dónde mandar a la persona a pagar (lo que devolvió Original Pay) y el método que eligió, si lo eligió. */
+    setPaymentInfo(id: string, info: { paymentUrl: string; paymentMethod?: string }): Promise<OrderRecord> {
+      return prisma.order.update({
+        where: { id },
+        data: { paymentUrl: info.paymentUrl, ...(info.paymentMethod ? { paymentMethod: info.paymentMethod } : {}) },
         select: FIELDS,
       });
-    },
-
-    /** Orden cancelada o fallida: solo cambia el estado si sigue pendiente. */
-    async closeIfPending(id: string, status: Extract<OrderStatus, 'cancelled' | 'failed'>): Promise<boolean> {
-      const { count } = await prisma.order.updateMany({ where: { id, status: 'pending' }, data: { status } });
-      return count === 1;
     },
 
     /**
@@ -82,9 +74,19 @@ export function createOrderModel(prisma: PrismaClient) {
      * `payment_completed`, todo en una transacción. Devuelve false si otra petición ya la había marcado
      * (así el evento nunca se duplica).
      */
-    markPaid(order: { id: string; funnelId: string; leadId: string | null; workspaceId: string; amount: Prisma.Decimal | number | string }): Promise<boolean> {
+    markPaid(order: {
+      id: string;
+      funnelId: string;
+      leadId: string | null;
+      workspaceId: string;
+      amount: Prisma.Decimal | number | string;
+      paymentMethod?: string;
+    }): Promise<boolean> {
       return prisma.$transaction(async (tx) => {
-        const { count } = await tx.order.updateMany({ where: { id: order.id, status: { not: 'paid' } }, data: { status: 'paid', paidAt: new Date() } });
+        const { count } = await tx.order.updateMany({
+          where: { id: order.id, status: { not: 'paid' } },
+          data: { status: 'paid', paidAt: new Date(), ...(order.paymentMethod ? { paymentMethod: order.paymentMethod } : {}) },
+        });
         if (count === 0) return false;
         if (order.leadId) {
           const won = await tx.leadStage.findFirst({ where: { workspaceId: order.workspaceId, isWon: true }, orderBy: { order: 'asc' }, select: { id: true } });

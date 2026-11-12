@@ -1,8 +1,5 @@
 import type { Prisma } from '../generated/prisma/client.js';
-import type { AppConfig } from '../config/index.js';
-import { decryptSecret, encryptSecret } from '../lib/crypto.js';
 import { AppError } from '../lib/errors.js';
-import type { Logger } from '../lib/logger.js';
 import type { WorkspaceModel } from '../models/workspace.model.js';
 import { storedPaymentConfigSchema, type ConnectPaymentsBody } from '../schemas/payments.schemas.js';
 import type { AccessService } from './access.service.js';
@@ -17,32 +14,23 @@ export interface PaymentsStatus {
   methods?: string[];
 }
 
-export interface PaymentCredentials {
-  apiKey: string;
+/** Lo que el negocio habilitó para cobrar. */
+export interface PaymentSettings {
   currency: string;
   methods: string[];
 }
 
 interface Deps {
-  config: AppConfig;
-  logger: Logger;
   workspaces: WorkspaceModel;
   access: AccessService;
   audit: AuditService;
 }
 
 /**
- * Conexión de un workspace con Original Pay. La apikey se guarda cifrada (AES-256-GCM) y solo se
- * descifra en el momento de llamar a Original Pay: ni la API ni los logs la devuelven jamás.
+ * Habilitar el cobro con Original Pay en un workspace (divisa y métodos). Las credenciales de la app de
+ * Original Pay son del servidor (`ORIGINALPAY_TOKEN_APP`), no de cada negocio.
  */
-export function createPaymentsService({ config, logger, workspaces, access, audit }: Deps) {
-  function encryptionKey(): string {
-    if (!config.paymentConfigEncryptionKey) {
-      throw AppError.serviceUnavailable('PAYMENTS_NOT_CONFIGURED', 'El servidor no tiene configurada la clave para guardar llaves de pago');
-    }
-    return config.paymentConfigEncryptionKey;
-  }
-
+export function createPaymentsService({ workspaces, access, audit }: Deps) {
   async function loadManaged(userId: string, workspaceId: string) {
     const resolved = await access.resolve(userId, workspaceId);
     if (!resolved) throw AppError.notFound('WORKSPACE_NOT_FOUND', 'Workspace no encontrado');
@@ -60,12 +48,11 @@ export function createPaymentsService({ config, logger, workspaces, access, audi
   }
 
   return {
-    /** PUT /workspaces/:id/payments: conecta (o reemplaza la conexión de) Original Pay. */
+    /** PUT /workspaces/:id/payments: habilita (o reemplaza la configuración de) Original Pay. */
     async connect(userId: string, workspaceId: string, body: ConnectPaymentsBody, ctx: RequestContext): Promise<PaymentsStatus> {
       await loadManaged(userId, workspaceId);
       const stored = {
         provider: 'original_pay' as const,
-        apiKeyEnc: encryptSecret(body.apiKey, encryptionKey()),
         currency: body.currency,
         methods: body.methods,
       };
@@ -82,24 +69,16 @@ export function createPaymentsService({ config, logger, workspaces, access, audi
       return toStatus(stored);
     },
 
-    /** GET /workspaces/:id/payments: estado de la conexión. Nunca devuelve la llave. */
+    /** GET /workspaces/:id/payments: estado de la conexión. */
     async getStatus(userId: string, workspaceId: string): Promise<PaymentsStatus> {
       await loadManaged(userId, workspaceId);
       return toStatus(await readStored(workspaceId));
     },
 
-    /** Para los servicios de cobro: la apikey ya descifrada, o null si el workspace no conectó pagos. */
-    async credentialsFor(workspaceId: string): Promise<PaymentCredentials | null> {
+    /** Para el cobro: lo que el negocio habilitó, o null si no habilitó pagos. */
+    async settingsFor(workspaceId: string): Promise<PaymentSettings | null> {
       const stored = await readStored(workspaceId);
-      if (!stored) return null;
-      try {
-        return { apiKey: decryptSecret(stored.apiKeyEnc, encryptionKey()), currency: stored.currency, methods: stored.methods };
-      } catch (err) {
-        if (err instanceof AppError) throw err;
-        // Clave de cifrado distinta a la usada al guardar, o dato alterado.
-        logger.error('no se pudo descifrar la apikey de pagos del workspace', { workspaceId });
-        throw AppError.serviceUnavailable('PAYMENTS_MISCONFIGURED', 'La conexión de pagos del negocio no es válida; vuelve a conectarla');
-      }
+      return stored ? { currency: stored.currency, methods: stored.methods } : null;
     },
   };
 }

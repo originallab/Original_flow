@@ -14,7 +14,6 @@ flowchart LR
         API["routes/<br/>validan con Zod y delegan"] --> SV["services/<br/>reglas de negocio y permisos"]
         SV --> MD["models/ (Prisma)"]
         SV --> IN["integrations/(un cliente por servicio)"]
-        JOB["jobs/<br/>reconciliación de pagos"] --> SV
         SV --> LOG[("Log operativo<br/>y de auditoría")]
     end
 
@@ -41,7 +40,7 @@ flowchart LR
 | Esquemas | `backend/src/schemas/` | Validación de entrada y salida (Zod), incluida la forma de los campos JSON | Lógica de negocio |
 | Integraciones | `backend/src/integrations/<servicio>/` | Clientes de Original Auth, Original Pay, Media-as-a-Service y Original AI Engine, con `client.ts`, `types.ts` y `config.ts` | Lógica de negocio propia |
 | Tipos de funnel | `backend/src/funnel-types/` | El registro de definiciones (bloques base, CTA principal, esquema de `typeConfig`, conversión, si cobra) | Tocar la base de datos |
-| Trabajos | `backend/src/jobs/` | Tareas programadas, como la reconciliación de pagos | Conocer HTTP |
+| Trabajos | `backend/src/jobs/` | Tareas programadas (hoy ninguna: los pagos se confirman por el aviso de Original Pay) | Conocer HTTP |
 | Middleware | `backend/src/middleware/` | Autenticación por grupo de rutas, CORS, encabezados de seguridad, límite de peticiones, `requestId` | Reglas de negocio |
 | Configuración | `backend/src/config/` | Única lectura de variables de entorno | Cualquier otra cosa |
 
@@ -235,7 +234,7 @@ erDiagram
 | `industry` | texto | No | Rubro (cursos, ecommerce, servicios...) |
 | `logoFileId` | texto | No | Id del logo en Media-as-a-Service |
 | `brandPalette` | JSON | No | Paleta generada con IA y editable |
-| `paymentConfig` | JSON | No | Conexión con Original Pay. La llave va cifrada y nunca se devuelve al frontend |
+| `paymentConfig` | JSON | No | Cobro habilitado con Original Pay: divisa y métodos. No guarda llaves (las credenciales son del servidor) |
 
 **LeadStage**: etapas del tablero de leads, configurables por workspace. Al crear el workspace se generan 5 por defecto.
 
@@ -398,10 +397,10 @@ Cuando la persona elige una plantilla, `designSpec` lleva además `"template"` (
 
 **`flow`** (futuro): `{ "nodes": [{ "id": "n1", "type": "landing" }, { "id": "n2", "type": "formulario" }], "edges": [{ "from": "n1", "to": "n2" }] }`. Vacío en el MVP.
 
-**`Workspace.paymentConfig`**: conexión con Original Pay. La llave se guarda cifrada y nunca se devuelve.
+**`Workspace.paymentConfig`**: cobro habilitado con Original Pay. No lleva llaves: Original Flow es una sola app de Original Pay.
 
 ```json
-{ "provider": "original_pay", "apiKeyEnc": "<cifrada>", "currency": "MXN", "methods": ["stripe", "mercadopago"] }
+{ "provider": "original_pay", "currency": "MXN", "methods": ["stripe"] }
 ```
 
 **`Lead.utm`**: `{ "utm_source": "instagram", "utm_medium": "...", "utm_campaign": "octubre", "referrer": "..." }`. **`Order.gateway`**: resumen de la respuesta de la pasarela, sin datos de tarjeta. **`Event.properties`**: `source` (origen del clic), `section` (sección de la página) y `blockKey`, según el evento.
@@ -422,7 +421,7 @@ El orden va de lo que no depende de nada a lo que depende de todo. Cada paso ter
 | 4 | Funnels sin IA: registro de tipos, crear, editar `content` y `typeConfig`, CTA automáticos — **hecho** | Paso 3 |
 | 5 | Publicar y ver la página — **hecho** | Paso 4 |
 | 6 | Captura y medición (leads y eventos públicos) — **hecho** | Paso 5 |
-| 7 | Pagos con Original Pay (funnels de venta) y tarea de reconciliación | Pasos 5 y 6, y la llave del sandbox |
+| 7 | Pagos con Original Pay (funnels de venta) y aviso de pago | Pasos 5 y 6, y las credenciales de la app de Original Pay |
 | 8 | Dashboard y leads, ya con ingresos — **hecho** (`/analytics/*`, `/leads*` y `/lead-stages*`); los ingresos se llenan cuando el paso 7 cree órdenes | Pasos 6 y 7 |
 | 9 | Archivos y marca con IA (`/assets/*`, `/brand/*`) | Paso 3 y acceso a los servicios |
 | 10 | Generación del funnel con IA, usando la definición de cada tipo | Pasos 4 y 9 |

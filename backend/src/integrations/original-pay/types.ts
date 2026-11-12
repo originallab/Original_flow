@@ -1,4 +1,4 @@
-/** Métodos de pago que ofrece Original Pay (ficha de integración del playbook). */
+/** Métodos de pago que puede aceptar un negocio. El comprador lo elige en la pantalla de Original Pay. */
 export const PAYMENT_METHODS = ['stripe', 'paypal', 'mercadopago', 'spei_direct', 'webpay'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
@@ -10,10 +10,11 @@ export interface CallContext {
   workspaceId?: string;
 }
 
+/** Lo que pide `POST /payment/init` (guía de integración de Original Pay). */
 export interface InitPaymentInput {
   amount: number;
   currency: Currency;
-  /** Nuestro número de orden (`Order.orderNumber`). */
+  /** Nuestro número de orden (`Order.orderNumber`): único y generado por esta aplicación; el aviso de pago lo trae de vuelta. */
   orderNumber: string;
   /** Producto: usamos el slug del funnel. */
   productCode: string;
@@ -21,17 +22,6 @@ export interface InitPaymentInput {
   customerEmail: string;
 }
 
-export interface ProcessPaymentInput {
-  orderToken: string;
-  paymentMethod: PaymentMethod;
-}
-
-export interface ProcessPaymentResult {
-  /** Dirección a la que mandar a la persona a pagar (MercadoPago, PayPal...). */
-  paymentUrl?: string;
-  /** Secreto que el navegador necesita para completar el cobro con Stripe. No se guarda. */
-  clientSecret?: string;
-}
-
-/** Estado de una orden, ya traducido a los valores propios de Original Flow. */
-export type RemoteOrderStatus = 'pending' | 'paid' | 'cancelled';
+/** Los estados con los que Original Pay avisa de un pago (`payment_status` del webhook). */
+export const PAYMENT_STATUSES = ['approved', 'pending', 'rejected', 'cancelled'] as const;
+export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];

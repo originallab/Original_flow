@@ -24,6 +24,9 @@ Para quien despliega. Son tres servicios: base de datos PostgreSQL, backend y fr
 | `CORS_ORIGINS` | La dirección **exacta** del frontend, con `https://` y sin `/` al final |
 | `PUBLIC_CORS_ORIGINS` | La misma dirección del frontend (páginas públicas `/p/…`) |
 | `LOG_LEVEL` | `info` |
+| `ORIGINALPAY_BASE_URL` | `https://api-test.origpay.com/` (sandbox) o `https://api.origpay.com/` (producción) |
+| `ORIGINALPAY_TOKEN_APP` | `<token_app de la app «Original Flow»>` |
+| `ORIGINALPAY_SECRET_KEY` | `<secret_key de la app>`; con el `token_app` autentica el aviso de pago |
 
 - **No** poner `NODE_ENV` (la imagen ya trae `production`; con `development` aceptaría credenciales de desarrollo).
 - **Quitar** cualquier credencial de desarrollo (`token-app-de-desarrollo`, `cambia-este-secreto-local`) y `AUTH_MODE=mock_callback`.

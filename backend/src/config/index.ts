@@ -58,11 +58,10 @@ const envSchema = z
     IAENGINE_API_KEY: z.string().min(1).optional(),
     IAENGINE_SECRET_KEY: z.string().min(1).optional(),
     ORIGINALPAY_BASE_URL: z.url().default('https://api-test.origpay.com/'),
-    // 32 bytes en hexadecimal (64 caracteres). Cifra la apikey de Original Pay de cada workspace.
-    PAYMENT_CONFIG_ENCRYPTION_KEY: z
-      .string()
-      .regex(/^[0-9a-fA-F]{64}$/, 'debe ser una clave de 32 bytes en hexadecimal (64 caracteres)')
-      .optional(),
+    // Original Flow es UNA sola app de Original Pay: sus credenciales son del servidor, no de cada negocio.
+    // `token_app` va en el cuerpo del cobro; ambas autentican el aviso de pago (webhook) que Original Pay envía.
+    ORIGINALPAY_TOKEN_APP: z.string().min(1).optional(),
+    ORIGINALPAY_SECRET_KEY: z.string().min(1).optional(),
   })
   .superRefine((env, ctx) => {
     // El atajo de login simulado nunca puede llegar a producción.
@@ -71,14 +70,6 @@ const envSchema = z
         code: 'custom',
         path: ['AUTH_MODE'],
         message: 'debe ser "real" cuando NODE_ENV es production',
-      });
-    }
-    // Sin esta clave no se pueden guardar ni leer las llaves de pago; en producción es obligatoria.
-    if (env.NODE_ENV === 'production' && !env.PAYMENT_CONFIG_ENCRYPTION_KEY) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['PAYMENT_CONFIG_ENCRYPTION_KEY'],
-        message: 'es obligatoria cuando NODE_ENV es production',
       });
     }
   });
@@ -96,8 +87,7 @@ export interface AppConfig {
   originalAuth: { tokenApp: string; secretKey: string; mode: 'real' | 'mock_callback' };
   mediaAas: { baseUrl?: string; apiKey?: string; secretKey?: string };
   aiEngine: { baseUrl?: string; apiKey?: string; secretKey?: string };
-  originalPay: { baseUrl: string };
-  paymentConfigEncryptionKey?: string;
+  originalPay: { baseUrl: string; tokenApp?: string; secretKey?: string };
 }
 
 export class ConfigError extends Error {
@@ -137,7 +127,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     originalAuth: { tokenApp: e.ORIGINALAUTH_TOKEN_APP, secretKey: e.ORIGINALAUTH_SECRET_KEY, mode: e.AUTH_MODE },
     mediaAas: { baseUrl: e.MEDIAAS_BASE_URL, apiKey: e.MEDIAAS_API_KEY, secretKey: e.MEDIAAS_SECRET_KEY },
     aiEngine: { baseUrl: e.IAENGINE_BASE_URL, apiKey: e.IAENGINE_API_KEY, secretKey: e.IAENGINE_SECRET_KEY },
-    originalPay: { baseUrl: e.ORIGINALPAY_BASE_URL },
-    paymentConfigEncryptionKey: e.PAYMENT_CONFIG_ENCRYPTION_KEY,
+    originalPay: { baseUrl: e.ORIGINALPAY_BASE_URL, tokenApp: e.ORIGINALPAY_TOKEN_APP, secretKey: e.ORIGINALPAY_SECRET_KEY },
   };
 }

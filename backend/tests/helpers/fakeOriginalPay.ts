@@ -1,100 +1,86 @@
 /**
- * Original Pay de mentira para las pruebas: responde lo mismo que el servicio real según su
- * ficha de integración (init, process y consulta de estado) y registra cada llamada. Las pruebas
- * nunca hablan con el servicio verdadero (playbook 04: se mockean los servicios externos).
+ * Original Pay de mentira para las pruebas: responde lo mismo que el servicio real según su guía de
+ * integración (`POST /payment/init` con `token_app` en el cuerpo y respuesta con `payment_url`) y registra cada
+ * llamada. También arma los avisos de pago (webhook) que Original Pay enviaría. Las pruebas nunca hablan con
+ * el servicio verdadero (playbook 04: se mockean los servicios externos).
  */
 export interface FakeCall {
   method: string;
   path: string;
-  apiKey: string | null;
+  headers: Record<string, string>;
   body: Record<string, unknown> | null;
 }
 
-type Operation = 'init' | 'process' | 'status';
 type Failure = { network: true } | { status: number; detail?: string };
 
-interface FakeOrder {
-  token: string;
-  apiKey: string;
-  email: string;
-  productCode: string;
-  amount: number;
-  status: 'pendiente' | 'pagado' | 'cancelado' | 'parcialmente_pagado';
-}
+/** Las credenciales de la app «Original Flow» en las pruebas. */
+export const FAKE_TOKEN_APP = 'app_token_de_prueba_123';
+export const FAKE_SECRET_KEY = 'sk_secreto_de_prueba_456';
+
+const REQUIRED = ['amount', 'currency', 'order_number', 'product_code', 'description', 'customer_email'] as const;
 
 export function createFakeOriginalPay() {
   const calls: FakeCall[] = [];
-  const orders = new Map<string, FakeOrder>();
-  const failures: Record<Operation, Failure[]> = { init: [], process: [], status: [] };
-  const invalidKeys = new Set<string>();
-  let counter = 0;
-  // El token de cada orden es único en la base de pruebas (que se reutiliza entre ejecuciones): `Order.opOrderToken` es único.
-  const runId = Math.random().toString(36).slice(2, 8);
+  const failures: Failure[] = [];
+  const orders = new Map<string, Record<string, unknown>>();
 
-  const json = (status: number, body: unknown) =>
-    new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
   const fetchFn = (async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const url = new URL(String(input));
-    const headers = new Headers(init?.headers);
-    const apiKey = headers.get('apikey');
     const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : null;
-    calls.push({ method: init?.method ?? 'GET', path: url.pathname, apiKey, body });
+    calls.push({ method: init?.method ?? 'GET', path: url.pathname, headers: Object.fromEntries(new Headers(init?.headers).entries()), body });
 
-    const operation: Operation | null = url.pathname === '/payment/init' ? 'init' : url.pathname === '/payment/process' ? 'process' : url.pathname.startsWith('/payment/data/') ? 'status' : null;
-    if (!operation) return json(404, { detail: 'Ruta no encontrada' });
+    if (url.pathname !== '/payment/init') return json(404, { detail: 'Ruta no encontrada' });
 
-    const failure = failures[operation].shift();
+    const failure = failures.shift();
     if (failure) {
       if ('network' in failure) throw new TypeError('fetch failed');
-      return json(failure.status, { detail: failure.detail ?? 'Error simulado' });
+      return json(failure.status, { error: true, detail: failure.detail ?? 'Error simulado' });
     }
-    if (!apiKey || invalidKeys.has(apiKey)) return json(403, { detail: 'Invalid token_app' });
-
-    if (operation === 'init') {
-      const email = String(body?.customer_email);
-      const productCode = String(body?.product_code);
-      // Deduplicación del servicio real: misma app, mismo comprador y mismo producto con la orden pendiente.
-      const existing = [...orders.values()].find((o) => o.apiKey === apiKey && o.email === email && o.productCode === productCode && o.status === 'pendiente');
-      if (existing) return json(200, { success: true, order_token: existing.token });
-      counter += 1;
-      const order: FakeOrder = { token: `ord_tok_${runId}_${counter}`, apiKey, email, productCode, amount: Number(body?.amount), status: 'pendiente' };
-      orders.set(order.token, order);
-      return json(200, { success: true, order_token: order.token, app_order_id: counter });
+    // Igual que el servicio real: primero valida los campos, después la autenticación.
+    for (const field of REQUIRED) {
+      if (body?.[field] === undefined || body[field] === null || body[field] === '') {
+        return json(422, { error: true, error_code: 'VALIDATION_ERROR', message: `${field} is required`, detail: `${field} is required` });
+      }
     }
-
-    if (operation === 'process') {
-      const order = orders.get(String(body?.order_token));
-      if (!order) return json(404, { detail: 'Orden no encontrada' });
-      if (body?.payment_method === 'stripe') return json(200, { success: true, client_secret: `pi_${order.token}_secret_xyz` });
-      return json(200, { success: true, payment_url: `https://pago.ejemplo.com/pay/${order.token}` });
+    if (body?.token_app !== FAKE_TOKEN_APP) {
+      return json(403, { error: true, error_code: 'FORBIDDEN', message: 'Invalid token_app', detail: 'Invalid token_app' });
     }
-
-    const order = orders.get(decodeURIComponent(url.pathname.replace('/payment/data/', '')));
-    if (!order) return json(404, { detail: 'Orden no encontrada' });
-    return json(200, { order_token: order.token, status: order.status, amount: order.amount, currency: 'MXN' });
+    const orderNumber = String(body.order_number);
+    orders.set(orderNumber, body);
+    return json(200, { success: true, payment_url: `https://pago.ejemplo.com/pay/${orderNumber}` });
   }) as typeof fetch;
 
   return {
     fetchFn,
     calls,
-    callsTo: (path: string) => calls.filter((c) => c.path.startsWith(path)),
-    /** La próxima llamada de esa operación falla (red caída o un código HTTP). Se puede encolar varias veces. */
-    failNext: (operation: Operation, failure: Failure, times = 1) => {
-      for (let i = 0; i < times; i += 1) failures[operation].push(failure);
+    /** La próxima llamada a `init` falla (red caída o un código HTTP). Se puede encolar varias veces. */
+    failNext: (failure: Failure, times = 1) => {
+      for (let i = 0; i < times; i += 1) failures.push(failure);
     },
-    rejectKey: (apiKey: string) => invalidKeys.add(apiKey),
-    setStatus: (token: string, status: FakeOrder['status']) => {
-      const order = orders.get(token);
-      if (!order) throw new Error(`orden desconocida: ${token}`);
-      order.status = status;
+    /** Los números de orden que Original Pay recibió en `init`. */
+    orderNumbers: () => [...orders.keys()],
+    /** El aviso de pago que Original Pay enviaría al servidor para esa orden. */
+    webhook: (orderNumber: string, paymentStatus: 'approved' | 'pending' | 'rejected' | 'cancelled', overrides: Record<string, unknown> = {}) => {
+      const order = orders.get(orderNumber);
+      return {
+        token_app: FAKE_TOKEN_APP,
+        secret_key: FAKE_SECRET_KEY,
+        order_number: orderNumber,
+        payment_status: paymentStatus,
+        payment_method: 'stripe',
+        amount: order?.amount ?? 0,
+        currency: order?.currency ?? 'MXN',
+        payer_email: order?.customer_email ?? 'comprador@example.com',
+        raw_data: { stripe_payment_intent: 'pi_prueba' },
+        ...overrides,
+      };
     },
-    orderTokens: () => [...orders.keys()],
     reset: () => {
       calls.length = 0;
       orders.clear();
-      invalidKeys.clear();
-      for (const k of ['init', 'process', 'status'] as const) failures[k].length = 0;
+      failures.length = 0;
     },
   };
 }
