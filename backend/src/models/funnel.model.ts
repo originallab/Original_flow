@@ -180,6 +180,14 @@ export function createFunnelModel(prisma: PrismaClient) {
       });
     },
 
+    /** Lo que necesita el cobro: solo un funnel publicado, con su precio y divisa (única fuente de verdad del monto). */
+    findPublishedForCheckout(slug: string) {
+      return prisma.funnel.findFirst({
+        where: { slug, status: 'published' },
+        select: { id: true, workspaceId: true, objective: true, name: true, slug: true, price: true, currency: true, typeConfig: true },
+      });
+    },
+
     /**
      * Lo que necesita para dibujarse una página publicada. Solo lo público: no incluye el
      * workspace, la marca ni `typeConfig` (que puede traer enlaces que solo ve quien se registra).

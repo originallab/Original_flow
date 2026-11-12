@@ -28,6 +28,8 @@ export function createFakeOriginalPay() {
   const failures: Record<Operation, Failure[]> = { init: [], process: [], status: [] };
   const invalidKeys = new Set<string>();
   let counter = 0;
+  // El token de cada orden es único en la base de pruebas (que se reutiliza entre ejecuciones): `Order.opOrderToken` es único.
+  const runId = Math.random().toString(36).slice(2, 8);
 
   const json = (status: number, body: unknown) =>
     new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -56,7 +58,7 @@ export function createFakeOriginalPay() {
       const existing = [...orders.values()].find((o) => o.apiKey === apiKey && o.email === email && o.productCode === productCode && o.status === 'pendiente');
       if (existing) return json(200, { success: true, order_token: existing.token });
       counter += 1;
-      const order: FakeOrder = { token: `ord_tok_${counter}`, apiKey, email, productCode, amount: Number(body?.amount), status: 'pendiente' };
+      const order: FakeOrder = { token: `ord_tok_${runId}_${counter}`, apiKey, email, productCode, amount: Number(body?.amount), status: 'pendiente' };
       orders.set(order.token, order);
       return json(200, { success: true, order_token: order.token, app_order_id: counter });
     }

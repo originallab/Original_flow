@@ -85,13 +85,19 @@ export function createLeadModel(prisma: PrismaClient) {
       return stage?.id ?? null;
     },
 
-    /** Crea el lead y su evento `lead_created` en una sola transacción. */
-    createWithEvent(lead: NewLead, eventProperties: Prisma.InputJsonValue): Promise<void> {
+    /** El lead de ese funnel con ese correo (el más antiguo), o null. */
+    findByEmail(funnelId: string, email: string): Promise<{ id: string } | null> {
+      return prisma.lead.findFirst({ where: { funnelId, email }, orderBy: { createdAt: 'asc' }, select: { id: true } });
+    },
+
+    /** Crea el lead y su evento `lead_created` en una sola transacción. Devuelve el id del lead. */
+    createWithEvent(lead: NewLead, eventProperties: Prisma.InputJsonValue): Promise<string> {
       return prisma.$transaction(async (tx) => {
         const created = await tx.lead.create({ data: { ...lead, source: 'web_form' }, select: { id: true } });
         await tx.event.create({
           data: { funnelId: lead.funnelId, leadId: created.id, type: 'lead_created', properties: eventProperties },
         });
+        return created.id;
       });
     },
 

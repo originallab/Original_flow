@@ -68,4 +68,17 @@ const eventSchema = z.object({
 export const eventsBodySchema = z.object({ events: z.array(eventSchema).min(1).max(MAX_EVENTS_PER_BATCH) });
 export type EventsBody = z.infer<typeof eventsBodySchema>;
 
+/** POST /public/funnels/:slug/checkout. El monto nunca viaja: sale del precio del funnel. */
+export const checkoutBodySchema = z.object({
+  name: text(200),
+  email: emailSchema,
+  phone: phoneSchema.optional(),
+  paymentMethod: z.enum(['stripe', 'paypal', 'mercadopago', 'spei_direct', 'webpay']).optional(),
+  consent: z.literal(true, { error: 'debe aceptar el tratamiento de sus datos' }),
+  utm: utmSchema,
+});
+export type CheckoutBody = z.infer<typeof checkoutBodySchema>;
+
+export const orderTokenParamsSchema = z.object({ publicToken: z.uuid() });
+
 export const slugParamsSchema = z.object({ slug: z.string().min(1).max(100) });

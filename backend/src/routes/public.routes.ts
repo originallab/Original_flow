@@ -1,5 +1,7 @@
 import { Router, type RequestHandler } from 'express';
-import { eventsBodySchema, leadBodySchema, slugParamsSchema } from '../schemas/public.schemas.js';
+import { getRequestId } from '../middleware/requestId.js';
+import { checkoutBodySchema, eventsBodySchema, leadBodySchema, orderTokenParamsSchema, slugParamsSchema } from '../schemas/public.schemas.js';
+import type { CheckoutService } from '../services/checkout.service.js';
 import type { PublicCaptureService } from '../services/publicCapture.service.js';
 import type { PublicPageService } from '../services/publicPage.service.js';
 
@@ -8,7 +10,7 @@ import type { PublicPageService } from '../services/publicPage.service.js';
  * su propia política de CORS y su propio límite de peticiones (ver app.ts). El funnel se
  * identifica por su slug, nunca por un id enviado en el cuerpo.
  */
-export function createPublicRouter(pages: PublicPageService, capture: PublicCaptureService, leadsRateLimit: RequestHandler): Router {
+export function createPublicRouter(pages: PublicPageService, capture: PublicCaptureService, checkout: CheckoutService, leadsRateLimit: RequestHandler): Router {
   const router = Router();
 
   router.get('/pages/:slug', async (req, res) => {
@@ -25,6 +27,20 @@ export function createPublicRouter(pages: PublicPageService, capture: PublicCapt
     const { slug } = slugParamsSchema.parse(req.params);
     const body = eventsBodySchema.parse(req.body);
     res.status(202).json(await capture.recordEvents(slug, body));
+  });
+
+  /** Compra: el monto sale del funnel. `Idempotency-Key` (opcional) evita cobrar dos veces al reintentar. */
+  router.post('/funnels/:slug/checkout', leadsRateLimit, async (req, res) => {
+    const { slug } = slugParamsSchema.parse(req.params);
+    const body = checkoutBodySchema.parse(req.body);
+    const key = req.header('Idempotency-Key')?.trim();
+    const idempotencyKey = key && key.length <= 100 ? key : undefined;
+    res.status(201).json(await checkout.checkout(slug, body, { idempotencyKey, requestId: getRequestId(res) }));
+  });
+
+  router.get('/orders/:publicToken', async (req, res) => {
+    const { publicToken } = orderTokenParamsSchema.parse(req.params);
+    res.json(await checkout.getOrder(publicToken, getRequestId(res)));
   });
 
   return router;

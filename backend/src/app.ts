@@ -38,6 +38,11 @@ import { createLeadService } from './services/lead.service.js';
 import { createLeadStageService } from './services/leadStage.service.js';
 import { createMeService } from './services/me.service.js';
 import { createPaymentsService } from './services/payments.service.js';
+import { createOriginalPayClient } from './integrations/original-pay/client.js';
+import { createOperationLogModel } from './models/operationLog.model.js';
+import { createOrderModel } from './models/order.model.js';
+import { createCheckoutService } from './services/checkout.service.js';
+import { createOperationLogService } from './services/operationLog.service.js';
 import { createWorkspaceService } from './services/workspace.service.js';
 
 /** Tamaño máximo del cuerpo JSON. Las subidas de archivos usarán su propia ruta. */
@@ -47,7 +52,7 @@ const JSON_BODY_LIMIT = '100kb';
  * Arma la aplicación: crea los modelos, los servicios y las rutas y los conecta.
  * Es el único lugar donde se instancian las dependencias.
  */
-export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClient): Express {
+export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClient, overrides: { fetchFn?: typeof fetch } = {}): Express {
   const sessions = createSessionModel(prisma);
   const users = createUserModel(prisma);
   const memberships = createMembershipModel(prisma);
@@ -72,6 +77,8 @@ export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClien
   const leadStages = createLeadStageService({ stages: leadStageModel, access, audit });
   const publicPages = createPublicPageService(funnelModel);
   const publicCapture = createPublicCaptureService({ funnels: funnelModel, leads: leadModel, events: createEventModel(prisma) });
+  const pay = createOriginalPayClient({ baseUrl: config.originalPay.baseUrl, logger, operationLog: createOperationLogService(createOperationLogModel(prisma), logger), fetchFn: overrides.fetchFn, sleep: overrides.fetchFn ? async () => {} : undefined });
+  const checkout = createCheckoutService({ funnels: funnelModel, leads: leadModel, orders: createOrderModel(prisma), payments, pay });
   const requireAuth = createRequireAuth(auth);
   const authSessionRateLimit = createRateLimit({ max: config.rateLimit.authSessionPerMinute });
 
@@ -90,7 +97,7 @@ export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClien
     '/api/v1/public',
     cors({ origin: config.publicCorsOrigins, methods: ['GET', 'POST'] }),
     createRateLimit({ max: config.rateLimit.publicPerMinute }),
-    createPublicRouter(publicPages, publicCapture, createRateLimit({ max: config.rateLimit.leadsPerMinute })),
+    createPublicRouter(publicPages, publicCapture, checkout, createRateLimit({ max: config.rateLimit.leadsPerMinute })),
   );
 
   // Lista explícita de orígenes; nunca "*" junto con credenciales (playbook 03).

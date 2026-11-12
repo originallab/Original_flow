@@ -27,10 +27,10 @@ export function testConfig(overrides: NodeJS.ProcessEnv = {}): AppConfig {
  * Crea la app con su cliente de base de datos. Si hay TEST_DATABASE_URL se conecta a esa
  * base real; si no, el cliente no llega a conectarse (solo lo usan las pruebas de base de datos).
  */
-export function buildTestApp(overrides: NodeJS.ProcessEnv = {}): { app: Express; prisma: PrismaClient; config: AppConfig } {
+export function buildTestApp(overrides: NodeJS.ProcessEnv = {}, deps: { fetchFn?: typeof fetch } = {}): { app: Express; prisma: PrismaClient; config: AppConfig } {
   const config = testConfig({ ...(testDatabaseUrl ? { DATABASE_URL: testDatabaseUrl } : {}), ...overrides });
   const prisma = createPrismaClient(config.databaseUrl);
-  return { app: createApp(config, createLogger(config.logLevel), prisma), prisma, config };
+  return { app: createApp(config, createLogger(config.logLevel), prisma, deps), prisma, config };
 }
 
 export function testApp(overrides: NodeJS.ProcessEnv = {}): Express {
