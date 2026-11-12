@@ -84,6 +84,7 @@ En el despliegue (EasyPanel) la ruta de compilación es `backend/`. Las migracio
 | `docs/PROJECT_CONTEXT.md` | Qué es el proyecto, decisiones, stack, servicios, pendientes |
 | `docs/ARCHITECTURE.md` | Arquitectura, modelo de datos, orden de construcción |
 | `docs/API_MVP.md` | Contratos de la API del MVP |
+| `docs/DESPLIEGUE.md` | Guía paso a paso para desplegar en EasyPanel (variables, build args, verificación) |
 | `docs/STRUCTURE.md` | Mapa de carpetas y archivos |
 | `docs/GUIDELINES.md` | Reglas de trabajo (basadas en el playbook de The Original Lab) |
 

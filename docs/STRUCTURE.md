@@ -69,12 +69,15 @@ original_flow/
 │   │   ├── layouts/         PlatformLayout (encabezado con el logo, menú lateral y selector de negocio), OnboardingLayout (alta, sin menú) y WizardLayout (asistente a pantalla completa)
 │   │   └── pages/           LoginPage, AuthReturnPage (`/auth/return`, a donde regresa Original Auth) y AuthErrorPage (`/auth/error`), OnboardingPage (alta en 3 pasos), BusinessPage («Mi negocio»), FunnelsPage (lista), NewFunnelPage (asistente), EditorPage (editor de la página), PublicPage (la página publicada en `/p/:slug`, sin sesión ni logotipo de la plataforma), OrderPage (`/p/:slug/orden/:token`, el retorno del pago), DemoPayPage (la pasarela de mentira, solo en desarrollo), LeadsPage (tablero de leads), DashboardPage (métricas del negocio), TeamPage (equipo e invitaciones), NotFoundPage (404) y HomePage (el dashboard, o un saludo para quien no puede verlo); orquestadores de pantalla
 │   └── tests/               Vitest + Testing Library (logo, tema, tokens, API, sesión, login, negocios y marca, modo demostración, combobox de países, imagen de la marca, bloques, funnels, generación de páginas, editor, ajustes, publicar, reglas del lead, página pública, leads (servicio, demostración, tablero y presentación), analítica, dashboard, equipo, historial, compra y pagos y que la compilación de producción no incluya el modo demostración); acceso real a Original Auth, helpers/fakeBackend.ts simula el backend, helpers/renderApp.tsx monta la app completa y helpers/publicApp.ts prepara un funnel publicado para las pruebas de la página pública y helpers/leadsApp.ts un negocio con leads para las del tablero
+├── scripts/
+│   └── verificar-despliegue.sh  comprobaciones en línea de solo lectura (salud, CORS, frontend compilado)
 └── docs/
     ├── PROJECT_CONTEXT.md   qué es, alcance, decisiones, stack, servicios y pendientes
     ├── ARCHITECTURE.md      arquitectura, modelo de datos y orden de construcción
     ├── API_MVP.md           contratos de la API del MVP
     ├── STRUCTURE.md         este archivo
     ├── GUIDELINES.md        reglas de trabajo basadas en el playbook
+    ├── DESPLIEGUE.md        guía para desplegar en EasyPanel (variables, build args, verificación)
     └── design/
         └── modelo-datos/    diagramas ER (5 imágenes) y schema.sql (copia de las migraciones)
 ```
