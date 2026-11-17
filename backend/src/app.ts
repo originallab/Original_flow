@@ -42,6 +42,7 @@ import { createOriginalPayClient } from './integrations/original-pay/client.js';
 import { createOperationLogModel } from './models/operationLog.model.js';
 import { createOrderModel } from './models/order.model.js';
 import { createCheckoutService } from './services/checkout.service.js';
+import { createAiEngineClient } from './integrations/ai-engine/client.js';
 import { createUnavailableAiEngine } from './integrations/ai-engine/unavailable.js';
 import type { AiEngine } from './integrations/ai-engine/types.js';
 import { createWindowLimiter } from './lib/windowLimiter.js';
@@ -59,7 +60,7 @@ const JSON_BODY_LIMIT = '100kb';
  * Arma la aplicación: crea los modelos, los servicios y las rutas y los conecta.
  * Es el único lugar donde se instancian las dependencias.
  */
-export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClient, overrides: { fetchFn?: typeof fetch; aiEngine?: AiEngine } = {}): Express {
+export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClient, overrides: { fetchFn?: typeof fetch; aiFetchFn?: typeof fetch; aiEngine?: AiEngine } = {}): Express {
   const sessions = createSessionModel(prisma);
   const users = createUserModel(prisma);
   const memberships = createMembershipModel(prisma);
@@ -95,11 +96,26 @@ export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClien
   const checkout = createCheckoutService({ funnels: funnelModel, leads: leadModel, orders: orderModel, payments, pay });
   const paymentWebhook = createPaymentWebhookService({ config, logger, orders: orderModel });
   const orders = createOrderService({ orders: orderModel, access });
-  // El motor de IA real se conecta aquí cuando llegue el contrato de Original AI Engine; mientras tanto, «no disponible».
+  // El motor de IA: el cliente real de IA Engine si hay credenciales; si no, «no disponible» (503 AI_NOT_CONFIGURED).
+  const { apiKey: aiApiKey, secretKey: aiSecretKey } = config.aiEngine;
+  const aiEngine =
+    overrides.aiEngine ??
+    (aiApiKey && aiSecretKey
+      ? createAiEngineClient({
+          baseUrl: config.aiEngine.baseUrl,
+          apiKey: aiApiKey,
+          secretKey: aiSecretKey,
+          model: config.aiEngine.model,
+          timeoutMs: config.aiEngine.timeoutMs,
+          logger,
+          operationLog: createOperationLogService(createOperationLogModel(prisma), logger),
+          fetchFn: overrides.aiFetchFn,
+        })
+      : createUnavailableAiEngine());
   const ai = createAiService({
     funnels: funnelModel,
     funnelService: funnels,
-    engine: overrides.aiEngine ?? createUnavailableAiEngine(),
+    engine: aiEngine,
     limiter: createWindowLimiter({ max: config.rateLimit.aiPerHour, windowMs: 60 * 60_000 }),
     audit,
   });

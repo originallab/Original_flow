@@ -56,9 +56,13 @@ const envSchema = z
     MEDIAAS_BASE_URL: z.url().optional(),
     MEDIAAS_API_KEY: z.string().min(1).optional(),
     MEDIAAS_SECRET_KEY: z.string().min(1).optional(),
-    IAENGINE_BASE_URL: z.url().optional(),
+    // IA Engine (gateway de IA): con `IAENGINE_API_KEY` y `IAENGINE_SECRET_KEY` la generación con IA se activa;
+    // sin ellas, los endpoints responden 503 AI_NOT_CONFIGURED.
+    IAENGINE_BASE_URL: z.url().default('https://api.ai.impactcore.net'),
     IAENGINE_API_KEY: z.string().min(1).optional(),
     IAENGINE_SECRET_KEY: z.string().min(1).optional(),
+    IAENGINE_MODEL: z.string().min(1).default('gpt-5.4-mini'),
+    IAENGINE_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300_000).default(90_000),
     ORIGINALPAY_BASE_URL: z.url().default('https://api-test.origpay.com/'),
     // Original Flow es UNA sola app de Original Pay: sus credenciales son del servidor, no de cada negocio.
     // `token_app` va en el cuerpo del cobro; ambas autentican el aviso de pago (webhook) que Original Pay envía.
@@ -88,7 +92,7 @@ export interface AppConfig {
   rateLimit: { authSessionPerMinute: number; publicPerMinute: number; leadsPerMinute: number; aiPerHour: number };
   originalAuth: { tokenApp: string; secretKey: string; mode: 'real' | 'mock_callback' };
   mediaAas: { baseUrl?: string; apiKey?: string; secretKey?: string };
-  aiEngine: { baseUrl?: string; apiKey?: string; secretKey?: string };
+  aiEngine: { baseUrl: string; apiKey?: string; secretKey?: string; model: string; timeoutMs: number };
   originalPay: { baseUrl: string; tokenApp?: string; secretKey?: string };
 }
 
@@ -129,7 +133,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     },
     originalAuth: { tokenApp: e.ORIGINALAUTH_TOKEN_APP, secretKey: e.ORIGINALAUTH_SECRET_KEY, mode: e.AUTH_MODE },
     mediaAas: { baseUrl: e.MEDIAAS_BASE_URL, apiKey: e.MEDIAAS_API_KEY, secretKey: e.MEDIAAS_SECRET_KEY },
-    aiEngine: { baseUrl: e.IAENGINE_BASE_URL, apiKey: e.IAENGINE_API_KEY, secretKey: e.IAENGINE_SECRET_KEY },
+    aiEngine: { baseUrl: e.IAENGINE_BASE_URL, apiKey: e.IAENGINE_API_KEY, secretKey: e.IAENGINE_SECRET_KEY, model: e.IAENGINE_MODEL, timeoutMs: e.IAENGINE_TIMEOUT_MS },
     originalPay: { baseUrl: e.ORIGINALPAY_BASE_URL, tokenApp: e.ORIGINALPAY_TOKEN_APP, secretKey: e.ORIGINALPAY_SECRET_KEY },
   };
 }

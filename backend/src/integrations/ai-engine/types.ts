@@ -2,9 +2,9 @@ import type { BlockType } from '../../funnel-types/blocks.js';
 import type { FunnelObjective } from '../../generated/prisma/client.js';
 
 /**
- * ESQUELETO: este es el contrato que Original Flow NECESITA del motor de IA, no el contrato del servicio
- * (todavía no lo tenemos: falta la documentación de Original AI Engine). Cuando llegue, solo cambia la
- * implementación real en `client.ts`; el servicio y las rutas no se tocan. Lo que devuelve el motor es
+ * Lo que Original Flow necesita del motor de IA. La implementación real (`client.ts`) habla con IA Engine, un
+ * gateway de modelos de lenguaje: no tiene endpoints de «generar página», así que las instrucciones al modelo
+ * (`prompts.ts`) las armamos nosotros. Hay otra implementación que responde «no disponible» (`unavailable.ts`). Lo que devuelve el motor es
  * `unknown` a propósito: el servicio lo valida con los esquemas de los bloques antes de usarlo.
  */
 
@@ -29,6 +29,9 @@ export interface GeneratePageInput {
   name: string;
   productName?: string;
   targetAudience?: string;
+  /** El precio y la divisa del funnel, si tiene: la IA no debe inventar otros. */
+  price?: number;
+  currency?: string;
   /** Lo que la persona escribió en el asistente: el motor no debe salirse de esto. */
   brandBrief?: AiBrandBrief;
   /** Todos los tipos de bloque que puede usar. */
