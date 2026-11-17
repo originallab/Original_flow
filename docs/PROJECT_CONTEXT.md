@@ -31,6 +31,15 @@ El MVP es: **generar páginas con IA, poder modificarlas, cobrar dentro de ellas
 | Captura de leads y tablero kanban | |
 | Dashboard: resumen, conversión, origen de clics y abandono por sección | |
 
+
+### Recorte de alcance (17 de noviembre de 2026)
+
+**Media-as-a-Service queda fuera del MVP** (decisión de la persona; el producto funciona sin él). Consecuencias:
+
+- **Logo de la marca:** se muestra en pantalla pero no se guarda; no hay `POST /assets/upload` ni `DELETE /assets/:fileId`. La marca se define con nombre y paleta.
+- **Imágenes de los bloques:** solo por dirección (URL) de una imagen que ya esté en internet.
+- **Funnel tipo `magnet`:** el recurso descargable depende de este servicio, así que ese tipo no entrega el archivo hasta que se integre. Los otros cinco tipos no se ven afectados.
+- Se retoma cuando haya credenciales y contrato de Media-as-a-Service.
 ## Decisiones tomadas
 
 | Tema | Decisión | Por qué |
@@ -92,7 +101,7 @@ Hasta ahora, ninguna desviación del `01-stack-estandar.md`.
 | Servicio | Uso en Original Flow | Integrado |
 | --- | --- | --- |
 | Original Auth | Inicio de sesión de quien usa la plataforma | Funcionando en QA con credenciales reales (probado de punta a punta el 12 de nov de 2026) |
-| Media-as-a-Service | Logo de la marca e imágenes de los bloques | Diseñado; faltan credenciales |
+| Media-as-a-Service | Logo de la marca e imágenes de los bloques | **Fuera del MVP** (decisión del 17 de nov de 2026); sin credenciales |
 | Original AI Engine | Generar página, bloques, paleta, logo e imagen de marca | Solo diseño en pantallas; faltan credenciales |
 | Original Pay | Cobro dentro de los funnels de venta. Dos pasos (`/payment/init` y `/payment/process`) con la cabecera `apikey`; estado con `/payment/data/{order_token}`; estados pendiente, pagado, cancelado y parcialmente pagado; timeout de 15 s; hay sandbox | Diseñado; dudas por confirmar (ver Pendientes) |
 | Servicio de dominios | Publica la URL del funnel a partir de su `slug` | Falta definir el contrato |
@@ -157,7 +166,7 @@ Decisiones o datos que faltan y que bloquean partes concretas.
 | Original Pay: aviso de pago | Confirmar si existe un webhook hacia el comercio; si existe, se agrega `POST /webhooks/original-pay` con verificación de firma y la reconciliación queda de respaldo | Paso 7 |
 | Original Pay: pruebas y mínimos | Todo el desarrollo apunta al sandbox; algunas pasarelas tienen monto mínimo (por ejemplo Stripe en MXN) y el servidor lo valida antes de publicar | Paso 7 |
 | Servicio de dominios | Contrato de integración: cómo recibe el `slug` de cada funnel publicado y desde qué dominio(s) se leen las páginas (hay que poner esos orígenes en `PUBLIC_CORS_ORIGINS`; vacío = ninguno) | Producción |
-| Credenciales | Media-as-a-Service y Original AI Engine (las de Original Auth ya están y funcionan) | Pasos 9 y 10 |
+| Credenciales | Original AI Engine (las de Original Auth y Original Pay ya están; Media-as-a-Service quedó fuera del MVP) | Paso 10 |
 | Token de sesión en el frontend | Confirmar con Original Auth qué mecanismo usa (cookie `HttpOnly` o token) y dónde se guarda; el playbook prohíbe `localStorage` para tokens | Paso 2 |
 | Repositorio y despliegue | Confirmar monorepo con la empresa y la organización de GitHub (`originallab`) | Primer push |
 | Cobro de la propia plataforma | Si Original Flow cobra una suscripción con Original Pay desde el día 1 o el v1 es interno o gratuito; si cobra, diseñar planes y límites | Planes |
@@ -171,7 +180,7 @@ Decisiones o datos que faltan y que bloquean partes concretas.
 | Formas de pago en la página pública | El contrato no dice cómo sabe la página qué formas de pago ofrecer. El frontend asume que `GET /public/pages/:slug` agrega `paymentMethods` (las del negocio) solo en funnels que cobran y con Pay conectado; los `typeConfig.paymentMethods` del funnel venta son textos libres y no se usan. Confirmar o cambiar en `API_MVP.md` | Paso 7 |
 | Página de retorno del pago | El frontend define `/p/:slug/orden/:publicToken` como retorno y `GET /public/orders/:publicToken` → `{ publicToken, status, message?, redirectUrl? }` (con `message` y `redirectUrl` solo al pagar: `successMessage` y `successUrl` del funnel). Confirmar con Original Pay cómo se configura la URL de retorno | Paso 7 |
 | Anti-spam del formulario | El límite de 10 leads por minuto por IP no frena a un atacante con muchas IP ni a un robot que comparte la IP de una oficina. Falta decidir una protección adicional (por ejemplo un campo trampa o un captcha) | Antes de producción |
-| Descarga del recurso de un magnet | Hoy el servidor devuelve el `resourceFileId`; convertirlo en un enlace de descarga depende de Media-as-a-Service | Paso 9 |
+| Descarga del recurso de un magnet | Hoy el servidor devuelve el `resourceFileId`; convertirlo en un enlace de descarga depende de Media-as-a-Service, que quedó fuera del MVP | Fuera del MVP |
 | Content-Security-Policy del frontend | La imagen de producción (nginx) ya manda `nosniff`, `Referrer-Policy` y `Permissions-Policy`, pero no una CSP: las páginas publicadas llevan estilos de la marca del cliente y hay que decidirla con calma, con la página real y el servicio de dominios a la vista | Antes de producción |
 | Acceso real a Original Auth en el front | **Construido** (redirección, `/auth/return` con consulta repetida a `/auth/validate`, `/auth/error`), pero la dirección de inicio de sesión de Original Auth y los nombres de sus parámetros no están en el repositorio: se configura como plantilla en `VITE_ORIGINALAUTH_LOGIN_URL` (con `{session}`, `{token_app}` y `{client_id}`; el cliente id va en `VITE_ORIGINALAUTH_CLIENT_ID`). Falta que Original Auth confirme esa dirección, qué manda a `/auth/error` y si usará cookie `HttpOnly`, y probar con las credenciales reales y una URL pública para el callback | Cuando lleguen las credenciales |
 | Editor y generación de la página | El asistente crea el funnel y arma la página **con la plantilla** (sin IA); la siguiente pantalla es el editor para modificarla (bloques, propiedades, vista previa, autoguardado). La IA se enchufa después con un `PageGenerator` (ver `docs/GUIDELINES.md`). Los campos del formulario de instrucciones para la IA son una primera propuesta y todavía no se guardan (el endpoint `PUT /funnels/:id/brand-brief` no existe en el backend). Ya están: ajustes del funnel (datos, ajustes del tipo y CTA), el diálogo de **publicar** con su lista de requisitos y despublicar, y las **páginas públicas** (`/p/:slug`: dibujan la página con formulario, botones, cuenta regresiva y preguntas que funcionan, mandan el lead y los eventos, y muestran la pantalla de gracias según el tipo; los campos de SEO que ya trae la página —título, descripción e indexación— se aplican, pero todavía no se pueden editar en los ajustes). El **tablero de leads** (`/leads`) ya está: una columna por etapa, arrastrar para mover, detalle con valor estimado y filtros por funnel y texto y el **dashboard** (`/`: visitas, leads, conversión, ingresos y ticket promedio con su cambio, embudo de conversión, de dónde vienen las visitas, abandono por sección y rendimiento por funnel; los endpoints `/analytics/*` solo existen en la demostración). También está el **equipo** (`/equipo`: ver, invitar por correo con un rol y quitar acceso; sin correo de aviso, la persona entra con ese correo). El **historial de versiones** también está (botón «Historial» del editor: guardar una versión con nombre y restaurar con confirmación; los endpoints `/funnels/:id/history*` solo existen en la demostración). **Faltan:** ver o comparar una versión antes de restaurarla, cambiar el rol de alguien (no hay endpoint), una gráfica de tendencia en el tiempo (la API todavía no tiene una serie por día), filtros por país, dispositivo o idioma, datos de ejemplo en la demostración (hoy el dashboard se llena con las visitas y leads que generes en `/p/:slug`), campos de SEO en los ajustes, configurar las etapas del tablero, alta manual de leads y asignar vendedor (hoy `Lead.source` solo admite `web_form` y `whatsapp`), paginar cada columna (hoy trae los 100 más recientes), subir imágenes y logos (Media-as-a-Service), un funnel que cobra no se puede publicar hasta que exista Original Pay (igual que en el backend real) y las seis plantillas afinadas con tus modificaciones | Las siguientes piezas del front |
