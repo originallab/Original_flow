@@ -42,6 +42,10 @@ import { createOriginalPayClient } from './integrations/original-pay/client.js';
 import { createOperationLogModel } from './models/operationLog.model.js';
 import { createOrderModel } from './models/order.model.js';
 import { createCheckoutService } from './services/checkout.service.js';
+import { createUnavailableAiEngine } from './integrations/ai-engine/unavailable.js';
+import type { AiEngine } from './integrations/ai-engine/types.js';
+import { createWindowLimiter } from './lib/windowLimiter.js';
+import { createAiService } from './services/ai.service.js';
 import { createOrderService } from './services/order.service.js';
 import { createPaymentWebhookService } from './services/paymentWebhook.service.js';
 import { createWebhooksRouter } from './routes/webhooks.routes.js';
@@ -55,7 +59,7 @@ const JSON_BODY_LIMIT = '100kb';
  * Arma la aplicación: crea los modelos, los servicios y las rutas y los conecta.
  * Es el único lugar donde se instancian las dependencias.
  */
-export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClient, overrides: { fetchFn?: typeof fetch } = {}): Express {
+export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClient, overrides: { fetchFn?: typeof fetch; aiEngine?: AiEngine } = {}): Express {
   const sessions = createSessionModel(prisma);
   const users = createUserModel(prisma);
   const memberships = createMembershipModel(prisma);
@@ -91,6 +95,14 @@ export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClien
   const checkout = createCheckoutService({ funnels: funnelModel, leads: leadModel, orders: orderModel, payments, pay });
   const paymentWebhook = createPaymentWebhookService({ config, logger, orders: orderModel });
   const orders = createOrderService({ orders: orderModel, access });
+  // El motor de IA real se conecta aquí cuando llegue el contrato de Original AI Engine; mientras tanto, «no disponible».
+  const ai = createAiService({
+    funnels: funnelModel,
+    funnelService: funnels,
+    engine: overrides.aiEngine ?? createUnavailableAiEngine(),
+    limiter: createWindowLimiter({ max: config.rateLimit.aiPerHour, windowMs: 60 * 60_000 }),
+    audit,
+  });
   const requireAuth = createRequireAuth(auth);
   const authSessionRateLimit = createRateLimit({ max: config.rateLimit.authSessionPerMinute });
 
@@ -120,7 +132,7 @@ export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClien
   app.use(cors({ origin: config.corsOrigins, credentials: true }));
 
   app.use(healthRouter);
-  app.use('/api/v1', createApiRouter({ auth, me, workspaces, payments, funnels, funnelContent, funnelPublish, funnelHistory, analytics, leads, leadStages, orders, requireAuth, authSessionRateLimit }));
+  app.use('/api/v1', createApiRouter({ auth, me, workspaces, payments, funnels, funnelContent, funnelPublish, funnelHistory, analytics, leads, leadStages, orders, ai, requireAuth, authSessionRateLimit }));
 
   app.use(notFoundHandler);
   app.use(errorHandler(logger));

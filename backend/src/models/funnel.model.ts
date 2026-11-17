@@ -151,6 +151,18 @@ export function createFunnelModel(prisma: PrismaClient) {
       return prisma.funnel.update({ where: { id }, data: { designSpec }, select: FULL_FIELDS });
     },
 
+    /** Guarda lo que generó la IA (contenido y, si vienen, diseño y SEO) y sincroniza los CTA, todo en una transacción. */
+    applyGenerated(
+      funnelId: string,
+      data: { content: Prisma.InputJsonValue; designSpec?: Prisma.InputJsonValue; seo?: Prisma.InputJsonValue },
+      desired: DesiredCta[],
+    ): Promise<void> {
+      return prisma.$transaction(async (tx) => {
+        await tx.funnel.update({ where: { id: funnelId }, data });
+        await syncCtas(tx, funnelId, desired);
+      });
+    },
+
     setTypeConfig(id: string, typeConfig: Prisma.InputJsonValue): Promise<FunnelRecord> {
       return prisma.funnel.update({ where: { id }, data: { typeConfig }, select: FULL_FIELDS });
     },

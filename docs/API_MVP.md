@@ -115,6 +115,8 @@ El funnel es una sola fila con su contenido en JSON, así que el editor trabaja 
 
 **`PUT /funnels/:id/brand-brief`** guarda un objeto con `personality`, `visualStyle`, `tone`, `typography`, `inspiration` y `avoid`.
 
+**Estado de la IA: esqueleto (sin motor).** `POST /funnels/:id/generate` y `POST /funnels/:id/content/blocks/:key/regenerate` ya existen y están probados con un motor simulado, pero hoy el motor real no está conectado: ambos responden `503 AI_NOT_CONFIGURED` y no cambian nada, así que el flujo con plantilla sigue igual. Lo que ya hace el servicio, con cualquier motor: permisos de edición (SA, CA, MM y DI), cupo de usos por negocio y hora (`RATE_LIMIT_AI_PER_HOUR`, `429 AI_RATE_LIMITED`), `409 FUNNEL_PUBLISHED` si el funnel está publicado (generar sobrescribe la página; regenerar un bloque sí se permite), y **validación de lo que devuelve la IA** con las mismas reglas del editor (si algo no sirve, `503 AI_BAD_RESPONSE` y no se guarda nada). Al generar se guardan el contenido, el diseño y el SEO en una transacción y se sincronizan los CTA. Falta, y depende del contrato de Original AI Engine: el cliente real (`integrations/ai-engine/client.ts`: firma HMAC, rutas y formato) y los endpoints de marca (`/brand/*`).
+
 **`POST /funnels/:id/generate`** responde con el funnel actualizado. No publica nada: el resultado queda en borrador para que la persona lo revise y lo edite. Si la IA no responde, devuelve `503` y el funnel queda como estaba.
 
 **`PUT /funnels/:id/content`**

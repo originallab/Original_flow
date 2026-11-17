@@ -42,6 +42,8 @@ const envSchema = z
     SESSION_PENDING_TTL_MINUTES: z.coerce.number().int().min(1).max(120).default(15),
     SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(30),
     RATE_LIMIT_AUTH_SESSION_PER_MINUTE: z.coerce.number().int().min(1).max(10_000).default(30),
+    // Usos de la IA por negocio y hora (acota el gasto).
+    RATE_LIMIT_AI_PER_HOUR: z.coerce.number().int().min(1).max(10_000).default(30),
 
     // Original Auth: obligatorias, el login no funciona sin ellas. En desarrollo con
     // AUTH_MODE=mock_callback pueden ser valores inventados, solo locales.
@@ -83,7 +85,7 @@ export interface AppConfig {
   databaseUrl: string;
   trustProxyHops: number;
   session: { pendingTtlMs: number; ttlMs: number };
-  rateLimit: { authSessionPerMinute: number; publicPerMinute: number; leadsPerMinute: number };
+  rateLimit: { authSessionPerMinute: number; publicPerMinute: number; leadsPerMinute: number; aiPerHour: number };
   originalAuth: { tokenApp: string; secretKey: string; mode: 'real' | 'mock_callback' };
   mediaAas: { baseUrl?: string; apiKey?: string; secretKey?: string };
   aiEngine: { baseUrl?: string; apiKey?: string; secretKey?: string };
@@ -123,6 +125,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     },
     rateLimit: { authSessionPerMinute: e.RATE_LIMIT_AUTH_SESSION_PER_MINUTE, publicPerMinute: e.RATE_LIMIT_PUBLIC_PER_MINUTE,
       leadsPerMinute: e.RATE_LIMIT_LEADS_PER_MINUTE,
+      aiPerHour: e.RATE_LIMIT_AI_PER_HOUR,
     },
     originalAuth: { tokenApp: e.ORIGINALAUTH_TOKEN_APP, secretKey: e.ORIGINALAUTH_SECRET_KEY, mode: e.AUTH_MODE },
     mediaAas: { baseUrl: e.MEDIAAS_BASE_URL, apiKey: e.MEDIAAS_API_KEY, secretKey: e.MEDIAAS_SECRET_KEY },
