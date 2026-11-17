@@ -83,6 +83,14 @@ describe.skipIf(!testDatabaseUrl)('generación con IA (esqueleto con motor simul
       expect((llamada?.input as unknown as { blockTypes: string[] }).blockTypes).toContain('encabezado');
     });
 
+    it('le pasa al motor el brief del asistente (resultado, objeciones, tono...) y rechaza un campo demasiado largo', async () => {
+      const f = await funnel();
+      const brief = { result: 'Conseguir tu primer empleo de datos', objections: 'No tengo tiempo', tone: 'cercano', callToAction: 'Quiero empezar', extra: 'Hay clases grabadas' };
+      expect((await generar(f.token, f.f.id, { brief })).status).toBe(200);
+      expect((fake.calls[0]?.input as unknown as { details: unknown }).details).toEqual(brief);
+      expect((await generar(f.token, f.f.id, { brief: { result: 'x'.repeat(501) } })).status).toBe(422);
+    });
+
     it('si el diseño o el SEO no vienen, conserva los que ya tenía', async () => {
       const f = await funnel();
       await prisma.funnel.update({ where: { id: f.f.id }, data: { seo: { title: 'Mi título' }, designSpec: { template: 'impacto' } } });

@@ -65,6 +65,13 @@ ${catalog(AI_BLOCK_TYPES)}
     precio: input.price,
     divisa: input.currency,
     marca: input.brandBrief,
+    detalles: input.details && {
+      resultado_que_promete: input.details.result,
+      dudas_u_objeciones_del_publico: input.details.objections,
+      tono: input.details.tone,
+      llamado_a_la_accion: input.details.callToAction,
+      notas: input.details.extra,
+    },
     indicacion: input.instruction,
   };
   return [

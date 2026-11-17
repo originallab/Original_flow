@@ -23,6 +23,15 @@ export interface AiBrandBrief {
   description?: string;
 }
 
+/** Lo que la persona contó en el asistente: el resultado que promete, las dudas de su público, el tono... */
+export interface AiPageDetails {
+  result?: string;
+  objections?: string;
+  tone?: string;
+  callToAction?: string;
+  extra?: string;
+}
+
 export interface GeneratePageInput {
   objective: FunnelObjective;
   language: string;
@@ -34,6 +43,8 @@ export interface GeneratePageInput {
   currency?: string;
   /** Lo que la persona escribió en el asistente: el motor no debe salirse de esto. */
   brandBrief?: AiBrandBrief;
+  /** El resto de lo que escribió en el asistente. */
+  details?: AiPageDetails;
   /** Todos los tipos de bloque que puede usar. */
   blockTypes: readonly BlockType[];
   /** Los bloques con los que arranca este tipo de funnel (el esqueleto sugerido). */

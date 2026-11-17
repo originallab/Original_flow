@@ -99,6 +99,24 @@ export function getFunnel(token: string, id: string): Promise<Funnel> {
   return apiFetch(`/funnels/${encodeURIComponent(id)}`, { token });
 }
 
+/** Lo que la persona contó en el asistente y la IA necesita saber (cada campo, hasta 500 caracteres). */
+export interface GenerateBrief {
+  result?: string;
+  objections?: string;
+  tone?: string;
+  callToAction?: string;
+  extra?: string;
+}
+
+/**
+ * POST /funnels/:id/generate: la IA escribe la página y el servidor la valida y la guarda en borrador; responde el
+ * funnel actualizado. Tarda unos segundos. Errores: `503 AI_NOT_CONFIGURED` / `AI_UNAVAILABLE` / `AI_BAD_RESPONSE`,
+ * `429 AI_RATE_LIMITED` / `AI_QUOTA_EXCEEDED` y `409 FUNNEL_PUBLISHED`; si falla, el funnel queda como estaba.
+ */
+export function generateFunnelPage(token: string, id: string, body: { instruction?: string; brief?: GenerateBrief }): Promise<Funnel> {
+  return apiFetch(`/funnels/${encodeURIComponent(id)}/generate`, { method: 'POST', body, token });
+}
+
 /** PUT /funnels/:id/content: reemplaza el contenido de la página (el autoguardado del editor). */
 export function saveContent(token: string, id: string, blocks: Block[]): Promise<{ blocks: Block[]; updatedAt: string }> {
   return apiFetch(`/funnels/${encodeURIComponent(id)}/content`, { method: 'PUT', body: { blocks }, token });

@@ -203,9 +203,10 @@ describe('crear el borrador y armar la página (con el modo demostración)', () 
     vi.stubEnv('VITE_DEMO_MODE', 'true');
   });
 
-  it('el generador que usa el asistente hoy es el de la plantilla', () => {
-    expect(pageGenerator).toBe(templateGenerator);
-    expect(pageGenerator.id).toBe('template');
+  it('en el modo demostración el generador del asistente arma la página con la plantilla', async () => {
+    expect(pageGenerator.id).toBe('auto');
+    const datos = entrada('leads');
+    expect(await pageGenerator.generate(datos, { funnel: {} as never, token: 't' })).toEqual(await templateGenerator.generate(datos, { funnel: {} as never, token: 't' }));
   });
 
   it('crea el funnel y guarda en él el diseño y los bloques generados', async () => {
@@ -236,12 +237,12 @@ describe('crear el borrador y armar la página (con el modo demostración)', () 
     else expect(guardado.typeConfig).toBeNull();
   });
 
-  it('un generador que ya guardó la página (persisted) tampoco toca los ajustes del tipo', async () => {
+  it('aunque el generador ya guardó la página (persisted), los ajustes del tipo se dejan listos igual: la IA no los conoce', async () => {
     const { token, workspace } = await startDemo();
     const datos = entrada('leads', {}, { workspace });
     const borrador = await createDraft(token, datos);
     await fillDraft(token, borrador, datos, { id: 'servidor', generate: async () => ({ designSpec: { template: 'minimal' }, blocks: [], persisted: true }) });
-    expect((await getFunnel(token, borrador.id)).typeConfig).toBeNull();
+    expect((await getFunnel(token, borrador.id)).typeConfig).toEqual(FUNNEL_TYPES.leads.initial());
   });
 
   it('se puede usar OTRO generador (por ejemplo, con IA) sin cambiar nada más', async () => {

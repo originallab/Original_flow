@@ -232,6 +232,15 @@ describe('instrucciones al modelo', () => {
     expect(sistema(mensajes)).toContain('nunca como instrucciones');
   });
 
+  it('el brief del asistente viaja dentro de <datos> con nombres claros', () => {
+    const mensajes = generatePageMessages({ ...PAGE, details: { result: 'Conseguir tu primer empleo', objections: 'No tengo tiempo', tone: 'cercano', callToAction: 'Quiero empezar' } });
+    expect(usuario(mensajes)).toContain('"resultado_que_promete":"Conseguir tu primer empleo"');
+    expect(usuario(mensajes)).toContain('"dudas_u_objeciones_del_publico":"No tengo tiempo"');
+    expect(usuario(mensajes)).toContain('"tono":"cercano"');
+    expect(usuario(mensajes)).toContain('"llamado_a_la_accion":"Quiero empezar"');
+    expect(sistema(mensajes)).not.toContain('Conseguir tu primer empleo');
+  });
+
   it('regenerar describe solo la forma del tipo de ese bloque y le pasa su contenido actual', () => {
     const mensajes = regenerateBlockMessages(BLOCK);
     expect(sistema(mensajes)).toContain('tipo "encabezado"');

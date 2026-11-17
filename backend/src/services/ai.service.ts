@@ -81,6 +81,7 @@ export function createAiService({ funnels, funnelService, engine, limiter, audit
           price: funnel.price === null ? undefined : Number(funnel.price),
           currency: funnel.price === null ? undefined : funnel.currency,
           brandBrief: briefOf(funnel.brandBrief),
+          details: body.brief,
           blockTypes: BLOCK_TYPES,
           baseBlocks: def.baseBlocks,
           instruction: body.instruction,

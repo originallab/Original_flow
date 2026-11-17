@@ -3,8 +3,19 @@ import { blockSchema, designSpecBodySchema } from './funnel.schemas.js';
 
 const instruction = z.string().trim().min(1).max(500);
 
-/** POST /funnels/:id/generate: una indicación opcional de la persona («más corto», «tono formal»...). */
-export const generateBodySchema = z.object({ instruction: instruction.optional() });
+const detail = z.string().trim().min(1).max(500);
+
+/** Lo que la persona escribió en el asistente y no vive en el funnel: se le pasa a la IA como información. */
+export const generateBriefSchema = z.object({
+  result: detail.optional(),
+  objections: detail.optional(),
+  tone: detail.optional(),
+  callToAction: detail.optional(),
+  extra: detail.optional(),
+});
+
+/** POST /funnels/:id/generate: el brief del asistente y una indicación opcional de la persona («más corto», «tono formal»...). */
+export const generateBodySchema = z.object({ instruction: instruction.optional(), brief: generateBriefSchema.optional() });
 export type GenerateBody = z.infer<typeof generateBodySchema>;
 
 /** POST /funnels/:id/content/blocks/:key/regenerate */
