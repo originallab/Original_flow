@@ -213,6 +213,19 @@ describe.skipIf(!testDatabaseUrl)('generación con IA (esqueleto con motor simul
       expect(fake.calls[0]?.input).toMatchObject({ block: { key: 'hero', type: 'encabezado', content: { title: 'Título original' } }, instruction: 'más corto' });
     });
 
+    it('un bloque de un tipo que la IA no debe inventar (testimonios, logos...) responde 422 AI_BLOCK_NOT_SUPPORTED y no llama al motor', async () => {
+      const f = await funnel();
+      const bloques = [
+        { key: 'hero', type: 'encabezado', order: 1, content: { title: 'Hola' }, style: {} },
+        { key: 'opiniones', type: 'testimonios', order: 2, content: { items: [{ name: 'Ana', quote: 'Muy bueno' }] }, style: {} },
+      ];
+      await request(app).put(`/api/v1/funnels/${f.f.id}/content`).set(encabezados(f.token)).send({ blocks: bloques });
+      const res = await regenerar(f.token, f.f.id, 'opiniones');
+      expect(res.status).toBe(422);
+      expect(res.body.error.code).toBe('AI_BLOCK_NOT_SUPPORTED');
+      expect(fake.calls).toHaveLength(0);
+    });
+
     it('un bloque que no existe responde 404 y no llama al motor', async () => {
       const f = await funnel();
       const res = await regenerar(f.token, f.f.id, 'no-existe');

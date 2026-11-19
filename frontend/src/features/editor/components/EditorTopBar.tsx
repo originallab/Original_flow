@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowLeft, Check, Eye, History, Loader2, Pencil, Rocket } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Check, Eye, History, Loader2, Pencil, Rocket, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/shared/ui/Button';
 import { Logo } from '@/shared/ui/Logo';
@@ -19,6 +19,8 @@ interface Props {
   canPublish: boolean;
   onPublish: () => void;
   onOpenHistory: () => void;
+  /** Volver a generar la página con IA: no se puede con la página publicada (no se sobrescribe una página en vivo). */
+  onGenerate: () => void;
 }
 
 const STATUS_TEXT: Record<SaveStatus, string> = {
@@ -30,7 +32,7 @@ const STATUS_TEXT: Record<SaveStatus, string> = {
 };
 
 /** Barra superior del editor: el logotipo a la izquierda (como en toda la plataforma), el nombre del funnel, el estado del guardado y la vista previa. */
-export function EditorTopBar({ name, templateName, status, preview, onTogglePreview, onRetry, published, canPublish, onPublish, onOpenHistory }: Props) {
+export function EditorTopBar({ name, templateName, status, preview, onTogglePreview, onRetry, published, canPublish, onPublish, onOpenHistory, onGenerate }: Props) {
   const failing = status === 'invalid' || status === 'error';
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border bg-surface px-3 sm:gap-4 sm:px-6">
@@ -64,6 +66,18 @@ export function EditorTopBar({ name, templateName, status, preview, onTogglePrev
         <Button size="sm" variant={preview ? 'primary' : 'secondary'} aria-pressed={preview} aria-label={preview ? 'Volver a editar' : 'Vista previa'} title={preview ? 'Volver a editar' : 'Vista previa'} onClick={onTogglePreview}>
           {preview ? <Pencil size={14} aria-hidden /> : <Eye size={14} aria-hidden />}
           <span className="hidden whitespace-nowrap lg:inline">{preview ? 'Volver a editar' : 'Vista previa'}</span>
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={published}
+          aria-label="Volver a generar con IA"
+          title={published ? 'Despublica el funnel para volver a generar su página.' : 'Volver a generar la página con IA'}
+          onClick={onGenerate}
+        >
+          <Sparkles size={14} aria-hidden />
+          {/* Con tantos botones, el texto solo cabe en pantallas anchas; antes queda el ícono. */}
+          <span className="hidden whitespace-nowrap xl:inline">Generar con IA</span>
         </Button>
         <Button size="sm" variant="secondary" aria-label="Historial de versiones" title="Historial de versiones" onClick={onOpenHistory}>
           <History size={14} aria-hidden />

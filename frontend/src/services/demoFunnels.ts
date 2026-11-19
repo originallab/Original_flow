@@ -1,6 +1,7 @@
 import { TEMPLATE_IDS, type DesignSpec } from '@/shared/blocks/types';
 import { validateBlocks } from '@/shared/blocks/validate';
 import { asObject, done, fail, invalid, notFound, ownFunnel, skip, uuid, type Answer, type DemoDb, type FunnelsContext } from './demoCore';
+import { demoAiRoute } from './demoAi';
 import { demoFunnelActionsRoute, syncCtas } from './demoFunnelActions';
 import { OBJECTIVES, type Currency, type Funnel, type FunnelStatus } from './funnels';
 
@@ -154,6 +155,10 @@ export function demoFunnelsRoute(ctx: FunnelsContext): Answer {
     save();
     return done({ designSpec: funnel.designSpec });
   }
+
+  // La IA de mentira (generar la página y reescribir un bloque).
+  const ai = demoAiRoute(ctx);
+  if (ai.handled) return ai;
 
   // Editar el funnel, sus ajustes y CTA, publicar y despublicar.
   return demoFunnelActionsRoute(ctx);

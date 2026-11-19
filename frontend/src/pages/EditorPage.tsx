@@ -5,6 +5,7 @@ import { BlockList } from '@/features/editor/components/BlockList';
 import { EditorTopBar } from '@/features/editor/components/EditorTopBar';
 import { PropertiesPanel } from '@/features/editor/components/PropertiesPanel';
 import { PublishDialog, type SettingsSection } from '@/features/editor/components/PublishDialog';
+import { RegenerateDialog } from '@/features/editor/components/RegenerateDialog';
 import { SettingsPanel } from '@/features/editor/settings/SettingsPanel';
 import { useFunnelEditor } from '@/features/editor/useFunnelEditor';
 import { HistoryDialog } from '@/features/history/components/HistoryDialog';
@@ -33,8 +34,8 @@ const SECTION_IDS: Record<SettingsSection, string> = { details: 'ajustes-datos',
 /**
  * Editor de la página de un funnel: la lista de bloques a la izquierda, la página en el centro y, a
  * la derecha, las propiedades del bloque elegido o los ajustes del funnel. Guarda solo y desde aquí se
- * publica. La primera versión de la página la arma el generador del asistente (hoy con la plantilla,
- * luego con IA) y aquí se modifica.
+ * publica. La primera versión de la página la arma el generador del asistente (con IA, o con la
+ * plantilla si no hay IA) y aquí se modifica, también con ayuda de la IA (reescribir un bloque o volver a generar todo).
  */
 export function EditorPage() {
   const { id = '' } = useParams();
@@ -45,6 +46,9 @@ export function EditorPage() {
   const [panel, setPanel] = useState<'block' | 'settings'>('block');
   const [publishing, setPublishing] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  /** Sube cada vez que la IA vuelve a generar la página: descarta las propuestas de bloque que quedaron abiertas. */
+  const [generation, setGeneration] = useState(0);
   const [settingsDirty, setSettingsDirty] = useState(false);
 
   if (editor.load === 'loading') {
@@ -110,6 +114,7 @@ export function EditorPage() {
         canPublish={canPublishFunnels(role)}
         onPublish={() => setPublishing(true)}
         onOpenHistory={() => setHistoryOpen(true)}
+        onGenerate={() => setRegenerating(true)}
       />
 
       {/* En pantallas chicas los tres bloques se apilan y se desplaza toda la pantalla; en grandes, cada columna se desplaza sola. */}
@@ -146,7 +151,12 @@ export function EditorPage() {
               ))}
             </div>
             <div role="tabpanel" id="panel-block" aria-labelledby="tab-block" hidden={panel !== 'block'}>
-              <PropertiesPanel block={selected} errors={selected ? (editor.errors[selected.key] ?? {}) : {}} onChange={(content) => selected && editor.updateContent(selected.key, content)} />
+              <PropertiesPanel
+                block={selected}
+                errors={selected ? (editor.errors[selected.key] ?? {}) : {}}
+                onChange={(content) => selected && editor.updateContent(selected.key, content)}
+                ai={{ token, funnelId: funnel.id, saveNow: editor.saveNow, resetKey: generation }}
+              />
             </div>
             <div role="tabpanel" id="panel-settings" aria-labelledby="tab-settings" hidden={panel !== 'settings'}>
               <SettingsPanel funnel={funnel} token={token} blocks={blocks} contentVersion={editor.contentVersion} onFunnelChange={editor.applyFunnel} onDirtyChange={setSettingsDirty} />
@@ -158,6 +168,11 @@ export function EditorPage() {
       {historyOpen && (
         <HistoryDialog funnelId={funnel.id} token={token} canRestore={canRestoreHistory(role)} saveNow={editor.saveNow} onRestored={editor.replaceFunnel} onClose={() => setHistoryOpen(false)} />
       )}
+
+      {regenerating && <RegenerateDialog funnel={funnel} token={token} saveNow={editor.saveNow} onGenerated={(generated) => {
+            editor.replaceFunnel(generated);
+            setGeneration((n) => n + 1);
+          }} onClose={() => setRegenerating(false)} />}
 
       {publishing && (
         <PublishDialog

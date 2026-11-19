@@ -2,6 +2,7 @@ import { validateBlockContent, BLOCK_TYPES, type BlockType } from '../funnel-typ
 import { getFunnelType } from '../funnel-types/index.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import type { AiBrandBrief, AiContext, AiEngine } from '../integrations/ai-engine/types.js';
+import { AI_BLOCK_TYPES } from '../integrations/ai-engine/prompts.js';
 import { AppError } from '../lib/errors.js';
 import type { WindowLimiter } from '../lib/windowLimiter.js';
 import type { FunnelModel, FunnelRecord } from '../models/funnel.model.js';
@@ -119,6 +120,10 @@ export function createAiService({ funnels, funnelService, engine, limiter, audit
       const { funnel } = await funnelService.load(userId, funnelId, 'funnel:edit');
       const block = (funnel.content as { blocks?: { key: string; type: BlockType; content: Record<string, unknown> }[] } | null)?.blocks?.find((b) => b.key === key);
       if (!block) throw AppError.notFound('BLOCK_NOT_FOUND', 'Bloque no encontrado');
+      // Los bloques que necesitan datos que la IA no debe inventar (testimonios, logos, imágenes...) no se reescriben.
+      if (!AI_BLOCK_TYPES.includes(block.type)) {
+        throw AppError.unprocessable('AI_BLOCK_NOT_SUPPORTED', 'La IA no puede reescribir este tipo de bloque');
+      }
 
       const proposal = await ask(funnel, ctx.requestId, 'regenerate_block', (aiCtx) =>
         engine.regenerateBlock(aiCtx, {

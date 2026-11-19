@@ -1,4 +1,4 @@
-import type { Block, DesignSpec } from '@/shared/blocks/types';
+import type { Block, BlockType, DesignSpec } from '@/shared/blocks/types';
 import { apiFetch } from './api';
 
 /** Tipos de funnel (`objective` en el backend). Hoy se pueden crear los que no están marcados como «próximamente». */
@@ -115,6 +115,22 @@ export interface GenerateBrief {
  */
 export function generateFunnelPage(token: string, id: string, body: { instruction?: string; brief?: GenerateBrief }): Promise<Funnel> {
   return apiFetch(`/funnels/${encodeURIComponent(id)}/generate`, { method: 'POST', body, token });
+}
+
+/** La propuesta de la IA para un bloque: se muestra a la persona y no se guarda hasta que la acepta. */
+export interface BlockProposal {
+  key: string;
+  type: BlockType;
+  content: Record<string, unknown>;
+}
+
+/**
+ * POST /funnels/:id/content/blocks/:key/regenerate: la IA propone un texto nuevo para ese bloque y NO lo guarda. Lee el
+ * bloque tal como está guardado, así que lo pendiente del editor debe guardarse antes. Errores: `422 AI_BLOCK_NOT_SUPPORTED`,
+ * `503 AI_NOT_CONFIGURED` / `AI_UNAVAILABLE` / `AI_BAD_RESPONSE` y `429 AI_RATE_LIMITED` / `AI_QUOTA_EXCEEDED`.
+ */
+export function regenerateBlock(token: string, funnelId: string, key: string, body: { instruction?: string }): Promise<BlockProposal> {
+  return apiFetch(`/funnels/${encodeURIComponent(funnelId)}/content/blocks/${encodeURIComponent(key)}/regenerate`, { method: 'POST', body, token });
 }
 
 /** PUT /funnels/:id/content: reemplaza el contenido de la página (el autoguardado del editor). */
