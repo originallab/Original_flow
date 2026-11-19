@@ -1,4 +1,5 @@
 import { ArrowLeft, ArrowUpRight, Info, Sparkles } from 'lucide-react';
+import type { TemplateId } from '@/shared/blocks/types';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/AuthProvider';
@@ -36,12 +37,13 @@ export function NewFunnelPage() {
   // El borrador ya creado: si armar la página falla, se reintenta sobre el mismo funnel (no se crea otro).
   const draft = useRef<Funnel | null>(null);
   const [goalId, setGoalId] = useState(GOALS[0]!.id);
-  const [templateId, setTemplateId] = useState(TEMPLATES[0]!.id);
+  /** `null`: que la IA elija la plantilla y el diseño (lo predeterminado). */
+  const [templateId, setTemplateId] = useState<TemplateId | null>(null);
   const [brief, setBrief] = useState(EMPTY_BRIEF);
 
   const last = step === WIZARD_STEPS.length - 1;
   const goal = GOALS.find((g) => g.id === goalId)!;
-  const template = TEMPLATES.find((t) => t.id === templateId)!;
+  const template = TEMPLATES.find((t) => t.id === templateId) ?? null;
   const heading = HEADINGS[step]!;
 
   async function generate() {
@@ -97,6 +99,14 @@ export function NewFunnelPage() {
 
             {step === 2 && (
               <div role="radiogroup" aria-label="Plantilla" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <ChoiceCard group="plantilla" value="ia" label="Que la IA elija" selected={templateId === null} onSelect={() => setTemplateId(null)}>
+                  <span className="grid h-24 place-items-center rounded-lg bg-violet-tint text-violet-tint-text">
+                    <Sparkles size={28} aria-hidden />
+                  </span>
+                  <span className="mt-4 font-medium">Que la IA elija</span>
+                  <span className="mt-1 w-fit rounded-md bg-chip px-2 py-0.5 text-xs text-text-2">Recomendado</span>
+                  <span className="mt-2 text-sm text-text-2">La IA escoge la plantilla y los colores que mejor van con tu negocio y arma tu página. Después la ajustas a tu gusto.</span>
+                </ChoiceCard>
                 {TEMPLATES.map((t) => (
                   <ChoiceCard key={t.id} group="plantilla" value={t.id} label={t.name} selected={t.id === templateId} onSelect={() => setTemplateId(t.id)}>
                     <TemplateThumb template={t} />
@@ -122,7 +132,7 @@ export function NewFunnelPage() {
                     ['Tono', TONES.find((t) => t.id === brief.tone)?.name ?? 'Sin definir'],
                     ['Botón principal', brief.cta.trim() || 'Sin definir'],
                     ['Instrucciones adicionales', brief.extra.trim() || 'Sin definir'],
-                    ['Plantilla', `${template.name} · ${template.tag}`],
+                    ['Plantilla', template ? `${template.name} · ${template.tag}` : 'La IA la elige'],
                   ].map(([term, value]) => (
                     <div key={term} className="grid gap-1 px-5 py-3 sm:grid-cols-[10rem_1fr]">
                       <dt className="text-sm text-muted">{term}</dt>
@@ -158,7 +168,7 @@ export function NewFunnelPage() {
             </Button>
             {last ? (
               <Button onClick={() => void generate()} disabled={busy}>
-                <Sparkles size={16} aria-hidden /> {busy ? 'Generando…' : 'Generar funnel'}
+                <Sparkles size={16} aria-hidden /> {busy ? 'La IA está armando tu página…' : 'Generar funnel'}
               </Button>
             ) : (
               <Button onClick={() => setStep((s) => s + 1)}>

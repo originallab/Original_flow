@@ -91,6 +91,31 @@ describe.skipIf(!testDatabaseUrl)('generación con IA (esqueleto con motor simul
       expect((await generar(f.token, f.f.id, { brief: { result: 'x'.repeat(501) } })).status).toBe(422);
     });
 
+    it('sin marca, se queda con la plantilla y la paleta que eligió la IA', async () => {
+      const f = await funnel();
+      await generar(f.token, f.f.id);
+      expect((await guardado(f.f.id)).designSpec).toEqual(VALID_PAGE.designSpec);
+      expect((fake.calls[0]?.input as unknown as { brandPalette?: unknown }).brandPalette).toBeUndefined();
+    });
+
+    it('con paleta de marca, se le pide a la IA y se garantiza aunque la IA elija otra: la plantilla es la de la IA, los colores los de la marca', async () => {
+      const f = await funnel();
+      const marca = { primary: '#112233', secondary: '#223344', accent: '#334455', background: '#F0F0F0', text: '#101010' };
+      await prisma.workspace.update({ where: { id: f.workspace.id }, data: { brandPalette: marca } });
+      await generar(f.token, f.f.id);
+      expect((fake.calls[0]?.input as unknown as { brandPalette: unknown }).brandPalette).toEqual(marca);
+      expect((await guardado(f.f.id)).designSpec).toEqual({ template: 'claridad', palette: marca });
+    });
+
+    it('con paleta de marca y una IA que no manda diseño, igual se guarda la paleta de la marca', async () => {
+      const f = await funnel();
+      const marca = { primary: '#112233', secondary: '#223344', accent: '#334455', background: '#F0F0F0', text: '#101010' };
+      await prisma.workspace.update({ where: { id: f.workspace.id }, data: { brandPalette: marca } });
+      fake.respondPage({ blocks: VALID_PAGE.blocks });
+      await generar(f.token, f.f.id);
+      expect(((await guardado(f.f.id)).designSpec as { palette: unknown }).palette).toEqual(marca);
+    });
+
     it('si el diseño o el SEO no vienen, conserva los que ya tenía', async () => {
       const f = await funnel();
       await prisma.funnel.update({ where: { id: f.f.id }, data: { seo: { title: 'Mi título' }, designSpec: { template: 'impacto' } } });

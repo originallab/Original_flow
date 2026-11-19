@@ -43,6 +43,8 @@ export interface GeneratePageInput {
   currency?: string;
   /** Lo que la persona escribió en el asistente: el motor no debe salirse de esto. */
   brandBrief?: AiBrandBrief;
+  /** La paleta de la marca del negocio, si la tiene: la página debe usarla tal cual. */
+  brandPalette?: { primary: string; secondary: string; accent: string; background: string; text: string };
   /** El resto de lo que escribió en el asistente. */
   details?: AiPageDetails;
   /** Todos los tipos de bloque que puede usar. */

@@ -9,7 +9,8 @@ export interface GenerationInput {
   objective: FunnelObjective;
   /** Las instrucciones para la IA (producto, público, tono…). */
   brief: Brief;
-  templateId: TemplateId;
+  /** La plantilla que la persona eligió; `null`: que la IA elija (y si no hay IA, se usa «claridad»). */
+  templateId: TemplateId | null;
 }
 
 /** La página que arma un generador: su diseño y sus bloques. */

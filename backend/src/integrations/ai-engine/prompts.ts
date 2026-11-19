@@ -28,6 +28,21 @@ export const AI_BLOCK_TYPES = Object.keys(SHAPES) as BlockType[];
 
 const catalog = (types: readonly BlockType[]) => types.map((t) => `- ${t}: ${SHAPES[t]}`).join('\n');
 
+const TEMPLATE_GUIDE = `  - claridad: educación y cursos, con inscripción directa.
+  - impacto: ecommerce, lanzamientos y ofertas; alto contraste.
+  - minimal: consultoría, estudios y servicios profesionales; sobrio.
+  - encuentro: eventos y webinars en vivo.
+  - recurso: lead magnets (recursos gratuitos a cambio de datos).
+  - agenda: reservar llamadas o citas.`;
+
+/** La regla de la paleta: la de la marca si existe; si no, una propia coherente con el rubro y el tono. */
+function paletteRule(input: GeneratePageInput): string {
+  if (input.brandPalette) {
+    return `- La marca ya tiene paleta: usa EXACTAMENTE estos colores en "palette", sin cambiarlos: ${JSON.stringify(input.brandPalette)}.`;
+  }
+  return '- Propón una paleta coherente con el rubro y el tono (colores #RRGGBB), con buen contraste entre "background" y "text" (texto legible sobre el fondo).';
+}
+
 const COMMON_RULES = `Responde ÚNICAMENTE con un objeto JSON válido: sin texto antes ni después y sin bloques de código.
 No inventes datos: ni precios, cifras, resultados, garantías, nombres de clientes ni testimonios. Si no hay información sobre algo, no lo menciones (no incluyas preguntas ni frases sobre eso).
 Los textos son para el público final de la página: nunca escribas notas dirigidas a quien edita («puedes agregar aquí...», «no se indicó...», «si aplica...»).
@@ -48,7 +63,9 @@ Forma de la respuesta:
 
 Reglas de la página:
 - Escribe todo en el idioma indicado en "idioma".
-- Elige la plantilla que mejor encaje con el objetivo y una paleta con buen contraste entre "background" y "text".
+- Tú decides el diseño. Elige la plantilla que mejor encaje con el objetivo, el rubro y el público:
+${TEMPLATE_GUIDE}
+${paletteRule(input)}
 - Usa solo estos tipos de bloque, con exactamente esta forma de "content":
 ${catalog(AI_BLOCK_TYPES)}
 - "key" único (minúsculas, números, guion o guion bajo); "order" consecutivo desde 1; "style" siempre {}.

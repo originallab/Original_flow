@@ -109,7 +109,7 @@ function contentFor(type: BlockType, input: GenerationInput): Record<string, unk
  * El tono y las instrucciones adicionales los usará la IA cuando se conecte.
  */
 export function buildPage(input: GenerationInput): GeneratedPage {
-  const template = templateOf(input.templateId);
+  const template = templateOf(input.templateId ?? 'claridad');
   const blocks: Block[] = BASE_BLOCKS[input.objective].map((type, index) => ({
     key: type,
     type,

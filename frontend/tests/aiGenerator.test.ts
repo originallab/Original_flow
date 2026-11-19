@@ -64,17 +64,21 @@ describe('generador con IA', () => {
     expect(page.persisted).toBeUndefined();
   });
 
-  it('respeta la plantilla que eligió la persona, no la que propuso la IA', async () => {
+  it('si la persona eligió una plantilla se respeta; si dejó que la IA elija (null), se usa la que propuso la IA', async () => {
     generar.mockResolvedValue(respuesta());
-    const page = await createAiGenerator(templateGenerator).generate(entrada(), contexto);
-    expect(page.designSpec.template).toBe('impacto');
+    const ia = createAiGenerator(templateGenerator);
+    expect((await ia.generate(entrada(), contexto)).designSpec.template).toBe('impacto');
+    expect((await ia.generate({ ...entrada(), templateId: null }, contexto)).designSpec.template).toBe('claridad');
   });
 
-  it('la paleta es la de la marca si existe; si no, la de la IA; si tampoco, la de la plantilla', async () => {
+  it('la paleta es la que dejó la IA (el servidor ya aplica la de la marca); si no hay, la de la marca; si tampoco, la de la plantilla', async () => {
     const ia = createAiGenerator(templateGenerator);
     generar.mockResolvedValue(respuesta());
-    expect((await ia.generate(entrada({}, negocio(PALETA_MARCA)), contexto)).designSpec.palette).toEqual(PALETA_MARCA);
+    expect((await ia.generate(entrada({}, negocio(PALETA_MARCA)), contexto)).designSpec.palette).toEqual(PALETA_IA);
     expect((await ia.generate(entrada(), contexto)).designSpec.palette).toEqual(PALETA_IA);
+    generar.mockResolvedValue(respuesta({ designSpec: { template: 'claridad' } }));
+    expect((await ia.generate(entrada({}, negocio(PALETA_MARCA)), contexto)).designSpec.palette).toEqual(PALETA_MARCA);
+    generar.mockResolvedValue(respuesta());
     generar.mockResolvedValue(respuesta({ designSpec: null }));
     expect((await ia.generate(entrada(), contexto)).designSpec.palette).toEqual(templateOf('impacto').palette);
   });

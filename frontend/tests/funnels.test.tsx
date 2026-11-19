@@ -139,7 +139,7 @@ describe('asistente de creación', () => {
     expect(screen.getByText('Paso 2 de 4')).toBeInTheDocument();
     await continuar();
     expect(await screen.findByRole('heading', { name: /elige una plantilla/i })).toBeInTheDocument();
-    expect(screen.getAllByRole('radio')).toHaveLength(TEMPLATES.length);
+    expect(screen.getAllByRole('radio')).toHaveLength(TEMPLATES.length + 1);
     await continuar();
     expect(await screen.findByRole('heading', { name: /todo listo/i })).toBeInTheDocument();
     expect(pasoActual()).toHaveTextContent(WIZARD_STEPS[3].title);
@@ -341,12 +341,12 @@ describe('«Generar funnel»: crea el funnel, arma la página con la plantilla y
     expect(funnel.content.blocks.map((b) => b.type)).toEqual(['encabezado', 'imagen', 'formulario']);
   });
 
-  it('mientras genera deshabilita los botones y dice «Generando…»', async () => {
+  it('mientras genera deshabilita los botones y dice que la IA está armando la página', async () => {
     montar('/funnels/nuevo');
     await irAlResumen('Captar leads', 'Claridad');
     vi.mocked(funnelsService.createFunnel).mockImplementationOnce(() => new Promise(() => undefined)); // no responde nunca
     await userEvent.click(screen.getByRole('button', { name: /generar funnel/i }));
-    expect(screen.getByRole('button', { name: /generando/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /la ia está armando tu página/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /atrás/i })).toBeDisabled();
   });
 

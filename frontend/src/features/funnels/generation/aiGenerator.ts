@@ -17,8 +17,8 @@ export function briefForAi(brief: Brief): GenerateBrief {
 
 /**
  * Arma la página con la IA (`POST /funnels/:id/generate`): la IA escribe los bloques y el servidor los valida.
- * Se respeta lo que la persona eligió en el asistente: la plantilla y, si tiene, la paleta de su marca; de la IA
- * se toman los bloques y, si la marca no tiene paleta, sus colores y tipografías. Si el servidor dice que no hay
+ * La IA arma la página y decide el diseño: la plantilla (salvo que la persona haya elegido una), la paleta y los
+ * bloques. Si el negocio tiene paleta de marca, el servidor ya la aplica. Si el servidor dice que no hay
  * IA disponible (503) o que se agotó la cuota (429), se usa el generador de respaldo (la plantilla); cualquier
  * otro error se muestra, porque pedirle a la persona que reintente es mejor que esconder un fallo real.
  */
@@ -35,11 +35,12 @@ export function createAiGenerator(fallback: PageGenerator): PageGenerator {
       }
       if (funnel.content.blocks.length === 0) return fallback.generate(input, context);
 
-      const template = templateOf(input.templateId);
+      // Si la persona no eligió plantilla, la elige la IA; si eligió una, se respeta.
+      const template = templateOf(input.templateId ?? funnel.designSpec?.template ?? 'claridad');
       return {
         designSpec: {
           template: template.id,
-          palette: input.workspace.brandPalette ?? funnel.designSpec?.palette ?? template.palette,
+          palette: funnel.designSpec?.palette ?? input.workspace.brandPalette ?? template.palette,
           ...(funnel.designSpec?.fonts ? { fonts: funnel.designSpec.fonts } : {}),
         },
         blocks: funnel.content.blocks,

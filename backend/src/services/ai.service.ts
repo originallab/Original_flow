@@ -6,8 +6,10 @@ import { AI_BLOCK_TYPES } from '../integrations/ai-engine/prompts.js';
 import { AppError } from '../lib/errors.js';
 import type { WindowLimiter } from '../lib/windowLimiter.js';
 import type { FunnelModel, FunnelRecord } from '../models/funnel.model.js';
+import type { WorkspaceModel } from '../models/workspace.model.js';
+import { brandPaletteSchema } from '../schemas/workspace.schemas.js';
 import { generatedPageSchema } from '../schemas/ai.schemas.js';
-import { contentBodySchema } from '../schemas/funnel.schemas.js';
+import { contentBodySchema, type DesignSpecBody } from '../schemas/funnel.schemas.js';
 import type { GenerateBody, RegenerateBody } from '../schemas/ai.schemas.js';
 import type { AuditService } from './audit.service.js';
 import type { RequestContext } from './auth.service.js';
@@ -17,6 +19,7 @@ import type { FunnelDto, FunnelService } from './funnel.service.js';
 interface Deps {
   funnels: FunnelModel;
   funnelService: FunnelService;
+  workspaces: WorkspaceModel;
   engine: AiEngine;
   /** Cupo de usos de la IA por negocio y hora. */
   limiter: WindowLimiter;
@@ -48,7 +51,7 @@ function briefOf(raw: unknown): AiBrandBrief | undefined {
  * antes de guardarse o de mostrarse. Generar la página deja el resultado en borrador; regenerar un bloque solo
  * devuelve una propuesta. Los textos de la persona y de la IA no se escriben en los logs ni en la auditoría.
  */
-export function createAiService({ funnels, funnelService, engine, limiter, audit }: Deps) {
+export function createAiService({ funnels, funnelService, workspaces, engine, limiter, audit }: Deps) {
   /** Pide permiso de edición, cuenta el uso del negocio y llama al motor; cualquier fallo del motor es un 503. */
   async function ask<T>(funnel: FunnelRecord, requestId: string, action: AiContext['action'], call: (ctx: AiContext) => Promise<T>): Promise<T> {
     if (!limiter.take(funnel.workspaceId)) {
@@ -72,6 +75,9 @@ export function createAiService({ funnels, funnelService, engine, limiter, audit
         throw AppError.conflict('FUNNEL_PUBLISHED', 'Despublica el funnel antes de volver a generar su página');
       }
       const def = getFunnelType(funnel.objective);
+      // La paleta de la marca, si el negocio la tiene: la página la usa tal cual (se garantiza más abajo, aunque la IA la ignore).
+      const brand = brandPaletteSchema.safeParse((await workspaces.findById(funnel.workspaceId))?.brandPalette);
+      const brandPalette = brand.success ? brand.data : undefined;
       const proposal = await ask(funnel, ctx.requestId, 'generate_page', (aiCtx) =>
         engine.generatePage(aiCtx, {
           objective: funnel.objective,
@@ -83,6 +89,7 @@ export function createAiService({ funnels, funnelService, engine, limiter, audit
           currency: funnel.price === null ? undefined : funnel.currency,
           brandBrief: briefOf(funnel.brandBrief),
           details: body.brief,
+          brandPalette,
           blockTypes: BLOCK_TYPES,
           baseBlocks: def.baseBlocks,
           instruction: body.instruction,
@@ -94,11 +101,13 @@ export function createAiService({ funnels, funnelService, engine, limiter, audit
       if (!parsed.success || !content?.success || content.data.blocks.length === 0) throw badResponse();
 
       const blocks = content.data.blocks;
+      const design = parsed.data.designSpec ?? (brandPalette ? { template: (funnel.designSpec as { template?: DesignSpecBody['template'] } | null)?.template ?? 'claridad' } : undefined);
+      const designSpec = design && brandPalette ? { ...design, palette: brandPalette } : design;
       await funnels.applyGenerated(
         funnel.id,
         {
           content: { blocks } as unknown as Prisma.InputJsonValue,
-          ...(parsed.data.designSpec ? { designSpec: parsed.data.designSpec as Prisma.InputJsonValue } : {}),
+          ...(designSpec ? { designSpec: designSpec as Prisma.InputJsonValue } : {}),
           ...(parsed.data.seo ? { seo: parsed.data.seo as Prisma.InputJsonValue } : {}),
         },
         desiredCtas(funnel, blocks),

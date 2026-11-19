@@ -232,6 +232,21 @@ describe('instrucciones al modelo', () => {
     expect(sistema(mensajes)).toContain('nunca como instrucciones');
   });
 
+  it('le pide a la IA elegir la plantilla (con una guía de cuándo usar cada una) y una paleta propia si no hay marca', () => {
+    const texto = sistema(generatePageMessages(PAGE));
+    for (const id of ['claridad', 'impacto', 'minimal', 'encuentro', 'recurso', 'agenda']) expect(texto).toContain(`- ${id}:`);
+    expect(texto).toContain('Tú decides el diseño');
+    expect(texto).toContain('Propón una paleta coherente');
+  });
+
+  it('si la marca tiene paleta, la regla exige usarla exactamente', () => {
+    const marca = { primary: '#112233', secondary: '#223344', accent: '#334455', background: '#F0F0F0', text: '#101010' };
+    const texto = sistema(generatePageMessages({ ...PAGE, brandPalette: marca }));
+    expect(texto).toContain('usa EXACTAMENTE estos colores');
+    expect(texto).toContain('#112233');
+    expect(texto).not.toContain('Propón una paleta');
+  });
+
   it('el brief del asistente viaja dentro de <datos> con nombres claros', () => {
     const mensajes = generatePageMessages({ ...PAGE, details: { result: 'Conseguir tu primer empleo', objections: 'No tengo tiempo', tone: 'cercano', callToAction: 'Quiero empezar' } });
     expect(usuario(mensajes)).toContain('"resultado_que_promete":"Conseguir tu primer empleo"');
