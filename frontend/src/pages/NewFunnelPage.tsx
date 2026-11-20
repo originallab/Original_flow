@@ -9,7 +9,9 @@ import { ChoiceCard } from '@/features/funnels/components/ChoiceCard';
 import { TemplateThumb } from '@/features/funnels/components/TemplateThumb';
 import { WizardRail } from '@/features/funnels/components/WizardRail';
 import { createDraft, fillDraft, type GenerationInput } from '@/features/funnels/generation';
+import { ImageUploader } from '@/features/funnels/components/ImageUploader';
 import { randomBrief } from '@/features/funnels/sampleBrief';
+import type { Asset } from '@/services/assets';
 import { useWorkspaces } from '@/features/workspaces/WorkspaceProvider';
 import { ApiError } from '@/services/api';
 import type { Funnel } from '@/services/funnels';
@@ -41,6 +43,7 @@ export function NewFunnelPage() {
   /** `null`: que la IA elija la plantilla y el diseño (lo predeterminado). */
   const [templateId, setTemplateId] = useState<TemplateId | null>(null);
   const [brief, setBrief] = useState(EMPTY_BRIEF);
+  const [images, setImages] = useState<Asset[]>([]);
 
   const last = step === WIZARD_STEPS.length - 1;
   const goal = GOALS.find((g) => g.id === goalId)!;
@@ -49,7 +52,7 @@ export function NewFunnelPage() {
 
   async function generate() {
     if (!token || !active || busy) return;
-    const input: GenerationInput = { workspace: active, objective: goalId, brief, templateId };
+    const input: GenerationInput = { workspace: active, objective: goalId, brief, templateId, images };
     setBusy(true);
     setError(null);
     try {
@@ -102,6 +105,7 @@ export function NewFunnelPage() {
                   </Button>
                 </div>
                 <BriefForm value={brief} onChange={setBrief} />
+                {token && active && <ImageUploader token={token} workspaceId={active.id} value={images} onChange={setImages} />}
               </>
             )}
 
@@ -140,6 +144,7 @@ export function NewFunnelPage() {
                     ['Tono', TONES.find((t) => t.id === brief.tone)?.name ?? 'Sin definir'],
                     ['Botón principal', brief.cta.trim() || 'Sin definir'],
                     ['Instrucciones adicionales', brief.extra.trim() || 'Sin definir'],
+                    ['Fotos', images.length > 0 ? `${images.length} subida${images.length === 1 ? '' : 's'}` : 'Sin fotos'],
                     ['Plantilla', template ? `${template.name} · ${template.tag}` : 'La IA la elige'],
                   ].map(([term, value]) => (
                     <div key={term} className="grid gap-1 px-5 py-3 sm:grid-cols-[10rem_1fr]">

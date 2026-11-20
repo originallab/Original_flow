@@ -24,6 +24,9 @@ const SHAPES: Partial<Record<BlockType, string>> = {
   requisitos: '{"items": ["...", "..."]}',
 };
 
+/** Solo se ofrece cuando la persona subió imágenes: el bloque de imagen usa SOLO esas direcciones. */
+const IMAGE_SHAPE = '{"url": "una de las direcciones de \"imagenes\", exacta", "alt": "descripción breve de lo que muestra, según su nombre"}';
+
 export const AI_BLOCK_TYPES = Object.keys(SHAPES) as BlockType[];
 
 const catalog = (types: readonly BlockType[]) => types.map((t) => `- ${t}: ${SHAPES[t]}`).join('\n');
@@ -41,6 +44,12 @@ function paletteRule(input: GeneratePageInput): string {
     return `- La marca ya tiene paleta: usa EXACTAMENTE estos colores en "palette", sin cambiarlos: ${JSON.stringify(input.brandPalette)}.`;
   }
   return '- Propón una paleta coherente con el rubro y el tono (colores #RRGGBB), con buen contraste entre "background" y "text" (texto legible sobre el fondo).';
+}
+
+/** Las reglas de las imágenes que subió la persona: usarlas con su dirección exacta, y no inventar otras. */
+function imageRule(input: GeneratePageInput): string {
+  if (!input.images || input.images.length === 0) return '- No hay imágenes: no uses bloques "imagen".';
+  return `- La persona subió imágenes (en "imagenes"). Intégralas en la página con bloques "imagen" colocados donde mejor funcionen (por ejemplo, la del producto cerca del encabezado). Forma: ${IMAGE_SHAPE}. Usa cada dirección tal cual, sin cambiarla, y no inventes otras. No es obligatorio usarlas todas.`;
 }
 
 const COMMON_RULES = `Responde ÚNICAMENTE con un objeto JSON válido: sin texto antes ni después y sin bloques de código.
@@ -68,6 +77,7 @@ ${TEMPLATE_GUIDE}
 ${paletteRule(input)}
 - Usa solo estos tipos de bloque, con exactamente esta forma de "content":
 ${catalog(AI_BLOCK_TYPES)}
+${imageRule(input)}
 - "key" único (minúsculas, números, guion o guion bajo); "order" consecutivo desde 1; "style" siempre {}.
 - Empieza con un bloque "encabezado" y termina con el llamado a la acción del objetivo (un "boton", o un "formulario" si el objetivo es captar datos).
 - Estructura sugerida para este objetivo (puedes ajustarla): ${suggested.length > 0 ? suggested.join(', ') : 'encabezado, beneficios, boton'}.
@@ -80,6 +90,7 @@ ${catalog(AI_BLOCK_TYPES)}
     producto: input.productName,
     publico: input.targetAudience,
     precio: input.price,
+    imagenes: input.images,
     divisa: input.currency,
     marca: input.brandBrief,
     detalles: input.details && {

@@ -15,7 +15,14 @@ export const generateBriefSchema = z.object({
 });
 
 /** POST /funnels/:id/generate: el brief del asistente y una indicación opcional de la persona («más corto», «tono formal»...). */
-export const generateBodySchema = z.object({ instruction: instruction.optional(), brief: generateBriefSchema.optional() });
+export const MAX_PAGE_IMAGES = 6;
+
+/** `images`: ids de imágenes que la persona subió (`POST /assets`); la IA las integra en la página. */
+export const generateBodySchema = z.object({
+  instruction: instruction.optional(),
+  brief: generateBriefSchema.optional(),
+  images: z.array(z.uuid()).max(MAX_PAGE_IMAGES).optional(),
+});
 export type GenerateBody = z.infer<typeof generateBodySchema>;
 
 /** POST /funnels/:id/content/blocks/:key/regenerate */

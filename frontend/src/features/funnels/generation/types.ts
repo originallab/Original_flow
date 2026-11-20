@@ -1,4 +1,5 @@
 import type { Funnel, FunnelObjective } from '@/services/funnels';
+import type { Asset } from '@/services/assets';
 import type { Workspace } from '@/services/workspaces';
 import type { Block, DesignSpec, TemplateId } from '@/shared/blocks/types';
 import type { Brief } from '../catalog';
@@ -9,6 +10,8 @@ export interface GenerationInput {
   objective: FunnelObjective;
   /** Las instrucciones para la IA (producto, público, tono…). */
   brief: Brief;
+  /** Las fotos que la persona subió para la página: la IA las integra. */
+  images?: Asset[];
   /** La plantilla que la persona eligió; `null`: que la IA elija (y si no hay IA, se usa «claridad»). */
   templateId: TemplateId | null;
 }

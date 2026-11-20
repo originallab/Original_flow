@@ -6,6 +6,7 @@ import { AI_BLOCK_TYPES } from '../integrations/ai-engine/prompts.js';
 import { AppError } from '../lib/errors.js';
 import type { WindowLimiter } from '../lib/windowLimiter.js';
 import type { FunnelModel, FunnelRecord } from '../models/funnel.model.js';
+import type { AssetModel } from '../models/asset.model.js';
 import type { WorkspaceModel } from '../models/workspace.model.js';
 import { brandPaletteSchema } from '../schemas/workspace.schemas.js';
 import { generatedPageSchema } from '../schemas/ai.schemas.js';
@@ -20,6 +21,7 @@ interface Deps {
   funnels: FunnelModel;
   funnelService: FunnelService;
   workspaces: WorkspaceModel;
+  assets: AssetModel;
   engine: AiEngine;
   /** Cupo de usos de la IA por negocio y hora. */
   limiter: WindowLimiter;
@@ -51,7 +53,7 @@ function briefOf(raw: unknown): AiBrandBrief | undefined {
  * antes de guardarse o de mostrarse. Generar la página deja el resultado en borrador; regenerar un bloque solo
  * devuelve una propuesta. Los textos de la persona y de la IA no se escriben en los logs ni en la auditoría.
  */
-export function createAiService({ funnels, funnelService, workspaces, engine, limiter, audit }: Deps) {
+export function createAiService({ funnels, funnelService, workspaces, assets, engine, limiter, audit }: Deps) {
   /** Pide permiso de edición, cuenta el uso del negocio y llama al motor; cualquier fallo del motor es un 503. */
   async function ask<T>(funnel: FunnelRecord, requestId: string, action: AiContext['action'], call: (ctx: AiContext) => Promise<T>): Promise<T> {
     if (!limiter.take(funnel.workspaceId)) {
@@ -75,6 +77,11 @@ export function createAiService({ funnels, funnelService, workspaces, engine, li
         throw AppError.conflict('FUNNEL_PUBLISHED', 'Despublica el funnel antes de volver a generar su página');
       }
       const def = getFunnelType(funnel.objective);
+      // Las imágenes que la persona subió: deben ser de este negocio (las de otro no se aceptan, ni se revela que existen).
+      const wanted = [...new Set(body.images ?? [])];
+      const owned = wanted.length > 0 ? await assets.findOwned(funnel.workspaceId, wanted) : [];
+      if (owned.length !== wanted.length) throw AppError.unprocessable('ASSET_NOT_FOUND', 'Alguna de las imágenes no existe en este negocio');
+      const images = owned.map((a) => ({ url: a.publicUrl, name: a.name }));
       // La paleta de la marca, si el negocio la tiene: la página la usa tal cual (se garantiza más abajo, aunque la IA la ignore).
       const brand = brandPaletteSchema.safeParse((await workspaces.findById(funnel.workspaceId))?.brandPalette);
       const brandPalette = brand.success ? brand.data : undefined;
@@ -89,6 +96,7 @@ export function createAiService({ funnels, funnelService, workspaces, engine, li
           currency: funnel.price === null ? undefined : funnel.currency,
           brandBrief: briefOf(funnel.brandBrief),
           details: body.brief,
+          images: images.length > 0 ? images : undefined,
           brandPalette,
           blockTypes: BLOCK_TYPES,
           baseBlocks: def.baseBlocks,
@@ -101,6 +109,12 @@ export function createAiService({ funnels, funnelService, workspaces, engine, li
       if (!parsed.success || !content?.success || content.data.blocks.length === 0) throw badResponse();
 
       const blocks = content.data.blocks;
+      // La IA solo puede usar las imágenes que la persona subió: una dirección inventada o ajena invalida la página.
+      const allowedUrls = new Set(images.map((i) => i.url));
+      for (const b of blocks) {
+        const url = b.type === 'imagen' ? (b.content as { url?: unknown }).url : undefined;
+        if (b.type === 'imagen' && (typeof url !== 'string' || !allowedUrls.has(url))) throw badResponse();
+      }
       const design = parsed.data.designSpec ?? (brandPalette ? { template: (funnel.designSpec as { template?: DesignSpecBody['template'] } | null)?.template ?? 'claridad' } : undefined);
       const designSpec = design && brandPalette ? { ...design, palette: brandPalette } : design;
       await funnels.applyGenerated(

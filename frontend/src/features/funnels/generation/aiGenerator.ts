@@ -28,7 +28,7 @@ export function createAiGenerator(fallback: PageGenerator): PageGenerator {
     async generate(input: GenerationInput, context): Promise<GeneratedPage> {
       let funnel;
       try {
-        funnel = await generateFunnelPage(context.token, context.funnel.id, { brief: briefForAi(input.brief) });
+        funnel = await generateFunnelPage(context.token, context.funnel.id, { brief: briefForAi(input.brief), ...(input.images && input.images.length > 0 ? { images: input.images.map((image) => image.id) } : {}) });
       } catch (err) {
         if (err instanceof ApiError && NO_AI_STATUS.includes(err.status)) return fallback.generate(input, context);
         throw err;

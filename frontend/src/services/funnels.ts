@@ -113,7 +113,7 @@ export interface GenerateBrief {
  * funnel actualizado. Tarda unos segundos. Errores: `503 AI_NOT_CONFIGURED` / `AI_UNAVAILABLE` / `AI_BAD_RESPONSE`,
  * `429 AI_RATE_LIMITED` / `AI_QUOTA_EXCEEDED` y `409 FUNNEL_PUBLISHED`; si falla, el funnel queda como estaba.
  */
-export function generateFunnelPage(token: string, id: string, body: { instruction?: string; brief?: GenerateBrief }): Promise<Funnel> {
+export function generateFunnelPage(token: string, id: string, body: { instruction?: string; brief?: GenerateBrief; images?: string[] }): Promise<Funnel> {
   return apiFetch(`/funnels/${encodeURIComponent(id)}/generate`, { method: 'POST', body, token });
 }
 

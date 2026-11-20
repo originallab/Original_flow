@@ -116,6 +116,58 @@ describe.skipIf(!testDatabaseUrl)('generación con IA (esqueleto con motor simul
       expect(((await guardado(f.f.id)).designSpec as { palette: unknown }).palette).toEqual(marca);
     });
 
+    describe('con imágenes que subió la persona', () => {
+      const URL = 'https://maas.ejemplo.com/public/acme/app/image/producto.png';
+      const asset = (workspaceId: string, url = URL) =>
+        prisma.asset.create({ data: { workspaceId, mediaFileId: 1, s3Key: 'k', publicUrl: url, name: 'producto.png', mimeType: 'image/png', size: 10 } });
+      const conImagen = (url: string) => ({ blocks: [...VALID_PAGE.blocks, { key: 'foto', type: 'imagen', order: 4, content: { url, alt: 'El producto' }, style: {} }] });
+
+      it('se le pasan a la IA (solo su dirección y su nombre) y, si las usa, se guardan en la página', async () => {
+        const f = await funnel();
+        const a = await asset(f.workspace.id);
+        fake.respondPage(conImagen(URL));
+        const res = await generar(f.token, f.f.id, { images: [a.id] });
+        expect(res.status).toBe(200);
+        expect((fake.calls[0]?.input as unknown as { images: unknown }).images).toEqual([{ url: URL, name: 'producto.png' }]);
+        expect(res.body.content.blocks.some((b: { type: string }) => b.type === 'imagen')).toBe(true);
+      });
+
+      it('una dirección que la persona NO subió (inventada) invalida la página: 503 AI_BAD_RESPONSE y no se guarda nada', async () => {
+        const f = await funnel();
+        const a = await asset(f.workspace.id);
+        const antes = (await guardado(f.f.id)).content;
+        fake.respondPage(conImagen('https://otro-sitio.com/inventada.png'));
+        const res = await generar(f.token, f.f.id, { images: [a.id] });
+        expect(res.status).toBe(503);
+        expect(res.body.error.code).toBe('AI_BAD_RESPONSE');
+        expect((await guardado(f.f.id)).content).toEqual(antes);
+      });
+
+      it('sin imágenes, un bloque de imagen que invente la IA también se rechaza', async () => {
+        const f = await funnel();
+        fake.respondPage(conImagen(URL));
+        expect((await generar(f.token, f.f.id)).body.error.code).toBe('AI_BAD_RESPONSE');
+      });
+
+      it('una imagen de otro negocio, o que no existe, responde 422 ASSET_NOT_FOUND y no llama a la IA', async () => {
+        const f = await funnel();
+        const otro = await funnel();
+        const ajena = await asset(otro.workspace.id);
+        for (const id of [ajena.id, randomUUID()]) {
+          const res = await generar(f.token, f.f.id, { images: [id] });
+          expect(res.status).toBe(422);
+          expect(res.body.error.code).toBe('ASSET_NOT_FOUND');
+        }
+        expect(fake.calls).toHaveLength(0);
+      });
+
+      it('acepta hasta 6 imágenes; más, o ids que no son UUID, responde 422', async () => {
+        const f = await funnel();
+        expect((await generar(f.token, f.f.id, { images: Array.from({ length: 7 }, () => randomUUID()) })).status).toBe(422);
+        expect((await generar(f.token, f.f.id, { images: ['no-es-uuid'] })).status).toBe(422);
+      });
+    });
+
     it('si el diseño o el SEO no vienen, conserva los que ya tenía', async () => {
       const f = await funnel();
       await prisma.funnel.update({ where: { id: f.f.id }, data: { seo: { title: 'Mi título' }, designSpec: { template: 'impacto' } } });

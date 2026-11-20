@@ -64,6 +64,16 @@ describe('generador con IA', () => {
     expect(page.persisted).toBeUndefined();
   });
 
+  it('manda los ids de las fotos que subió la persona; sin fotos no manda el campo', async () => {
+    generar.mockResolvedValue(respuesta());
+    const ia = createAiGenerator(templateGenerator);
+    const foto = { id: 'a1', url: 'https://x/a.png', name: 'a.png', mimeType: 'image/png', size: 1, createdAt: '' };
+    await ia.generate({ ...entrada(), images: [foto, { ...foto, id: 'a2' }] }, contexto);
+    expect(generar).toHaveBeenLastCalledWith('tok', 'f1', { brief: { tone: 'Cercano' }, images: ['a1', 'a2'] });
+    await ia.generate(entrada(), contexto);
+    expect(generar).toHaveBeenLastCalledWith('tok', 'f1', { brief: { tone: 'Cercano' } });
+  });
+
   it('si la persona eligió una plantilla se respeta; si dejó que la IA elija (null), se usa la que propuso la IA', async () => {
     generar.mockResolvedValue(respuesta());
     const ia = createAiGenerator(templateGenerator);

@@ -247,6 +247,14 @@ describe('instrucciones al modelo', () => {
     expect(texto).not.toContain('Propón una paleta');
   });
 
+  it('con imágenes subidas, le dice a la IA que las use con su dirección exacta y se las pasa en <datos>; sin imágenes, que no use bloques de imagen', () => {
+    const con = generatePageMessages({ ...PAGE, images: [{ url: 'https://maas.ejemplo.com/public/a.png', name: 'producto.png' }] });
+    expect(sistema(con)).toContain('La persona subió imágenes');
+    expect(sistema(con)).toContain('no inventes otras');
+    expect(usuario(con)).toContain('"imagenes":[{"url":"https://maas.ejemplo.com/public/a.png","name":"producto.png"}]');
+    expect(sistema(generatePageMessages(PAGE))).toContain('No hay imágenes: no uses bloques "imagen"');
+  });
+
   it('el brief del asistente viaja dentro de <datos> con nombres claros', () => {
     const mensajes = generatePageMessages({ ...PAGE, details: { result: 'Conseguir tu primer empleo', objections: 'No tengo tiempo', tone: 'cercano', callToAction: 'Quiero empezar' } });
     expect(usuario(mensajes)).toContain('"resultado_que_promete":"Conseguir tu primer empleo"');

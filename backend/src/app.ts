@@ -130,6 +130,7 @@ export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClien
     funnels: funnelModel,
     funnelService: funnels,
     workspaces: workspaceModel,
+    assets: assetModel,
     engine: aiEngine,
     limiter: createWindowLimiter({ max: config.rateLimit.aiPerHour, windowMs: 60 * 60_000 }),
     audit,

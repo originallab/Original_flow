@@ -32,11 +32,12 @@ export async function apiFetch<T>(path: string, { method = 'GET', body, token, s
       method,
       headers: {
         Accept: 'application/json',
-        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        // Un archivo (Blob) viaja tal cual, con su propio tipo; lo demás, como JSON.
+        ...(body === undefined ? {} : { 'Content-Type': body instanceof Blob ? body.type : 'application/json' }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...headers,
       },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : body instanceof Blob ? body : JSON.stringify(body),
       signal,
       keepalive,
     });
