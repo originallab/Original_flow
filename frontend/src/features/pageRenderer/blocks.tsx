@@ -1,8 +1,9 @@
 import { CalendarDays, Check, Image as ImageIcon, Play } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { Block } from '@/shared/blocks/types';
+import { variantOf } from '@/shared/design';
 import { safeHttpUrl } from '@/shared/utils/safeUrl';
-import { CtaButton, LiveCountdown, PublicButtonLink, PublicForm, type PublicContext } from './public';
+import { buttonStyle, CtaButton, LiveCountdown, PublicButtonLink, PublicForm, type PublicContext } from './public';
 import { readableOn, type PageTheme } from './theme';
 
 /**
@@ -27,9 +28,10 @@ const strings = (value: unknown): string[] => (Array.isArray(value) ? value.filt
 /** Una banda de color que, en la página publicada, ocupa todo el ancho de la pantalla aunque el contenido esté centrado. */
 const bleed = (color: string): CSSProperties => ({ background: color, boxShadow: `0 0 0 100vmax ${color}`, clipPath: 'inset(0 -100vmax)' });
 
-function Section({ theme, children, style }: { theme: PageTheme; children: ReactNode; style?: CSSProperties }) {
+/** `pad`: el relleno vertical base en rem (2.5 por defecto); se ajusta con el aire que eligió la página. */
+function Section({ theme, children, style, pad = 2.5 }: { theme: PageTheme; children: ReactNode; style?: CSSProperties; pad?: number }) {
   return (
-    <section className="px-8 py-10" style={{ textAlign: theme.look.align, ...style }}>
+    <section className="px-8" style={{ textAlign: theme.look.align, paddingBlock: `${(pad * theme.look.spacing).toFixed(2)}rem`, ...style }}>
       {children}
     </section>
   );
@@ -43,18 +45,16 @@ function Heading({ theme, children, size = 'text-2xl' }: { theme: PageTheme; chi
   );
 }
 
-function PrimaryButton({ theme, children }: { theme: PageTheme; children: ReactNode }) {
+function PrimaryButton({ theme, children, variant }: { theme: PageTheme; children: ReactNode; variant?: string }) {
   return (
-    <span
-      className="inline-block px-6 py-3 text-sm font-semibold"
-      style={{ background: theme.palette.primary, color: readableOn(theme.palette.primary, theme.palette), borderRadius: theme.look.radius }}
-    >
+    <span className="inline-block px-6 py-3 text-sm font-semibold" style={buttonStyle(theme, variant)}>
       {children}
     </span>
   );
 }
 
-const card = (theme: PageTheme): CSSProperties => ({ borderRadius: theme.look.radius === '999px' ? '24px' : theme.look.radius, border: `1px solid ${theme.palette.secondary}22`, background: '#FFFFFF80' });
+const cardRadius = (theme: PageTheme) => (theme.look.radius === '999px' ? '24px' : theme.look.radius);
+const card = (theme: PageTheme): CSSProperties => ({ borderRadius: cardRadius(theme), border: `1px solid ${theme.surface.border}`, background: theme.surface.background });
 
 function Countdown({ endsAt }: { endsAt: string }) {
   const remaining = Math.max(0, Date.parse(endsAt) - Date.now());
@@ -81,17 +81,48 @@ export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
   const { palette } = theme;
 
   switch (block.type) {
-    case 'encabezado':
+    case 'encabezado': {
+      const variant = variantOf('encabezado', block.style);
+      const align = variant === 'centrado' ? 'center' : variant === 'izquierda' ? 'left' : theme.look.align;
+      const title = (
+        <h1
+          className={`${variant === 'grande' ? 'text-5xl sm:text-7xl' : 'text-4xl'} font-heading leading-tight`}
+          style={{ fontWeight: theme.look.headingWeight, textTransform: theme.look.headingTransform }}
+        >
+          {str(c.title)}
+        </h1>
+      );
+      if (variant === 'dividido') {
+        return (
+          <Section theme={theme} pad={3.5} style={{ textAlign: 'left' }}>
+            <div className="grid items-end gap-6 sm:grid-cols-2 sm:gap-10">
+              <div className="border-l-4 pl-5" style={{ borderColor: palette.primary }}>
+                {title}
+              </div>
+              {str(c.subtitle) && <p className="text-lg opacity-80">{str(c.subtitle)}</p>}
+            </div>
+          </Section>
+        );
+      }
       return (
-        <Section theme={theme} style={{ paddingTop: '3.5rem', paddingBottom: '3.5rem' }}>
-          <h1 className="text-4xl font-heading leading-tight" style={{ fontWeight: theme.look.headingWeight, textTransform: theme.look.headingTransform }}>
-            {str(c.title)}
-          </h1>
-          {str(c.subtitle) && <p className="mt-4 max-w-2xl text-lg opacity-80" style={{ marginInline: theme.look.align === 'center' ? 'auto' : undefined }}>{str(c.subtitle)}</p>}
+        <Section theme={theme} pad={variant === 'grande' ? 5 : 3.5} style={{ textAlign: align }}>
+          {title}
+          {str(c.subtitle) && <p className={`mt-4 max-w-2xl ${variant === 'grande' ? 'text-xl' : 'text-lg'} opacity-80`} style={{ marginInline: align === 'center' ? 'auto' : undefined }}>{str(c.subtitle)}</p>}
         </Section>
       );
+    }
 
     case 'texto':
+      if (variantOf('texto', block.style) === 'destacado') {
+        return (
+          <Section theme={theme} pad={3}>
+            <div className="mx-auto max-w-2xl border-l-4 pl-6 text-left" style={{ borderColor: palette.primary }}>
+              {str(c.title) && <Heading theme={theme}>{str(c.title)}</Heading>}
+              <p className="mt-3 whitespace-pre-line text-xl leading-relaxed">{str(c.body)}</p>
+            </div>
+          </Section>
+        );
+      }
       return (
         <Section theme={theme}>
           {str(c.title) && <Heading theme={theme}>{str(c.title)}</Heading>}
@@ -169,12 +200,16 @@ export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
         </Section>
       );
 
-    case 'boton':
+    case 'boton': {
+      const variant = variantOf('boton', block.style);
+      // «Banda»: el botón va sobre una franja del color de la marca que ocupa todo el ancho.
+      const strip = variant === 'banda' ? (publicCtx ? bleed(palette.primary) : { background: palette.primary }) : undefined;
       return (
-        <Section theme={theme} style={{ textAlign: 'center' }}>
-          {publicCtx ? <CtaButton block={block} theme={theme} ctx={publicCtx} /> : <PrimaryButton theme={theme}>{str(c.label)}</PrimaryButton>}
+        <Section theme={theme} pad={variant === 'banda' ? 3 : 2.5} style={{ textAlign: 'center', ...strip }}>
+          {publicCtx ? <CtaButton block={block} theme={theme} ctx={publicCtx} /> : <PrimaryButton theme={theme} variant={variant}>{str(c.label)}</PrimaryButton>}
         </Section>
       );
+    }
 
     case 'contador':
       return (
@@ -184,7 +219,25 @@ export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
         </Section>
       );
 
-    case 'precios':
+    case 'precios': {
+      const money = (price: unknown) => (typeof price === 'number' ? new Intl.NumberFormat('es-MX', { style: 'currency', currency, maximumFractionDigits: 0 }).format(price) : '');
+      if (variantOf('precios', block.style) === 'simple') {
+        return (
+          <Section theme={theme}>
+            <div className="mx-auto max-w-2xl divide-y text-left" style={{ borderColor: theme.surface.border }}>
+              {list(c.plans).map((plan, index) => (
+                <div key={`${str(plan.name)}-${index}`} className="py-5" style={{ borderColor: theme.surface.border }}>
+                  <div className="flex items-baseline justify-between gap-4">
+                    <p className="text-lg font-semibold font-heading">{str(plan.name)}</p>
+                    <p className="text-2xl font-bold" style={{ color: palette.primary }}>{money(plan.price)}</p>
+                  </div>
+                  <p className="mt-2 text-sm opacity-80">{strings(plan.features).join(' · ')}</p>
+                </div>
+              ))}
+            </div>
+          </Section>
+        );
+      }
       return (
         <Section theme={theme}>
           <div className="mx-auto grid max-w-3xl gap-4 text-left" style={{ gridTemplateColumns: `repeat(${Math.min(Math.max(list(c.plans).length, 1), 3)}, minmax(0, 1fr))` }}>
@@ -192,7 +245,7 @@ export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
               <div key={`${str(plan.name)}-${index}`} className="p-6" style={card(theme)}>
                 <p className="text-sm font-semibold uppercase tracking-wide opacity-70">{str(plan.name)}</p>
                 <p className="mt-2 text-3xl font-bold" style={{ color: palette.primary }}>
-                  {typeof plan.price === 'number' ? new Intl.NumberFormat('es-MX', { style: 'currency', currency, maximumFractionDigits: 0 }).format(plan.price) : ''}
+                  {money(plan.price)}
                 </p>
                 <ul className="mt-4 space-y-2 text-sm">
                   {strings(plan.features).map((feature, i) => (
@@ -207,6 +260,7 @@ export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
           </div>
         </Section>
       );
+    }
 
     case 'testimonios':
       return (
@@ -225,25 +279,29 @@ export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
         </Section>
       );
 
-    case 'faq':
+    case 'faq': {
+      const variant = variantOf('faq', block.style) ?? 'abierto';
+      const asCard = variant === 'tarjetas';
+      const dense = variant === 'compacto';
+      const itemStyle: CSSProperties | undefined = asCard ? card(theme) : undefined;
       return (
         <Section theme={theme}>
           <div className="mx-auto max-w-2xl text-left">
             <Heading theme={theme}>Preguntas frecuentes</Heading>
             {publicCtx ? (
-              <div className="mt-4 divide-y" style={{ borderColor: `${palette.secondary}33` }}>
+              <div className={asCard ? 'mt-4 space-y-3' : 'mt-4 divide-y'} style={{ borderColor: theme.surface.border }}>
                 {list(c.items).map((item, index) => (
-                  <details key={`${str(item.question)}-${index}`} className="group py-3">
-                    <summary className="cursor-pointer list-none font-semibold marker:content-none">{str(item.question)}</summary>
+                  <details key={`${str(item.question)}-${index}`} className={`group ${asCard ? 'p-4' : dense ? 'py-2' : 'py-3'}`} style={itemStyle}>
+                    <summary className={`cursor-pointer list-none font-semibold marker:content-none ${dense ? 'text-sm' : ''}`}>{str(item.question)}</summary>
                     <p className="mt-2 text-sm opacity-80">{str(item.answer)}</p>
                   </details>
                 ))}
               </div>
             ) : (
-              <dl className="mt-4 space-y-4">
+              <dl className={asCard ? 'mt-4 space-y-3' : dense ? 'mt-3 space-y-2' : 'mt-4 space-y-4'}>
                 {list(c.items).map((item, index) => (
-                  <div key={`${str(item.question)}-${index}`}>
-                    <dt className="font-semibold">{str(item.question)}</dt>
+                  <div key={`${str(item.question)}-${index}`} className={asCard ? 'p-4' : undefined} style={itemStyle}>
+                    <dt className={`font-semibold ${dense ? 'text-sm' : ''}`}>{str(item.question)}</dt>
                     <dd className="mt-1 text-sm opacity-80">{str(item.answer)}</dd>
                   </div>
                 ))}
@@ -252,6 +310,7 @@ export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
           </div>
         </Section>
       );
+    }
 
     case 'logos':
       return (
@@ -266,7 +325,48 @@ export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
         </Section>
       );
 
-    case 'beneficios':
+    case 'beneficios': {
+      const variant = variantOf('beneficios', block.style) ?? 'tarjetas';
+      const items = list(c.items);
+      if (variant === 'lista' || variant === 'numerados') {
+        return (
+          <Section theme={theme}>
+            {str(c.title) && <Heading theme={theme}>{str(c.title)}</Heading>}
+            <ul className="mx-auto mt-6 max-w-2xl divide-y text-left" style={{ borderColor: theme.surface.border }}>
+              {items.map((item, index) => (
+                <li key={`${str(item.title)}-${index}`} className="flex gap-4 py-4" style={{ borderColor: theme.surface.border }}>
+                  {variant === 'numerados' ? (
+                    <span className="w-12 shrink-0 text-3xl font-bold font-heading leading-none" style={{ color: palette.primary }}>
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                  ) : (
+                    <Check size={20} className="mt-0.5 shrink-0" style={{ color: palette.primary }} aria-hidden />
+                  )}
+                  <span>
+                    <span className="block font-semibold">{str(item.title)}</span>
+                    {str(item.description) && <span className="mt-1 block text-sm opacity-80">{str(item.description)}</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Section>
+        );
+      }
+      if (variant === 'columnas') {
+        return (
+          <Section theme={theme}>
+            {str(c.title) && <Heading theme={theme}>{str(c.title)}</Heading>}
+            <div className="mx-auto mt-8 grid max-w-4xl gap-8 text-left sm:grid-cols-3">
+              {items.map((item, index) => (
+                <div key={`${str(item.title)}-${index}`} className="border-t-4 pt-4" style={{ borderColor: palette.primary }}>
+                  <p className="font-semibold font-heading">{str(item.title)}</p>
+                  {str(item.description) && <p className="mt-2 text-sm opacity-80">{str(item.description)}</p>}
+                </div>
+              ))}
+            </div>
+          </Section>
+        );
+      }
       return (
         <Section theme={theme}>
           {str(c.title) && <Heading theme={theme}>{str(c.title)}</Heading>}
@@ -283,6 +383,7 @@ export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
           </div>
         </Section>
       );
+    }
 
     case 'calendario':
       return (

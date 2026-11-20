@@ -2,6 +2,7 @@ import { useEffect, useId, useState, type CSSProperties, type FormEvent, type Re
 import { ApiError } from '@/services/api';
 import type { PublicCta } from '@/services/publicPages';
 import type { Block } from '@/shared/blocks/types';
+import { variantOf } from '@/shared/design';
 import { buildLeadBody, fieldForIssuePath, formFieldsOf, validateLead, type FormField, type LeadBody } from '@/shared/leads';
 import { safeHttpUrl } from '@/shared/utils/safeUrl';
 import { readableOn, type PageTheme } from './theme';
@@ -26,16 +27,18 @@ export interface PublicContext {
   openCheckout: () => void;
 }
 
-export const buttonStyle = (theme: PageTheme): CSSProperties => ({
-  background: theme.palette.primary,
-  color: readableOn(theme.palette.primary, theme.palette),
-  borderRadius: theme.look.radius,
-});
+/** El botón de la página: sólido (por defecto), de contorno, o invertido sobre una banda del color de la marca. */
+export const buttonStyle = (theme: PageTheme, variant?: string): CSSProperties => {
+  const { primary } = theme.palette;
+  if (variant === 'contorno') return { background: 'transparent', color: primary, border: `2px solid ${primary}`, borderRadius: theme.look.radius };
+  if (variant === 'banda') return { background: readableOn(primary, theme.palette), color: primary, borderRadius: theme.look.radius };
+  return { background: primary, color: readableOn(primary, theme.palette), borderRadius: theme.look.radius };
+};
 export const BUTTON = 'inline-block px-6 py-3 text-sm font-semibold transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60';
 
-export function PublicButtonLink({ theme, href, children, onClick }: { theme: PageTheme; href: string; children: ReactNode; onClick?: () => void }) {
+export function PublicButtonLink({ theme, href, children, onClick, variant }: { theme: PageTheme; href: string; children: ReactNode; onClick?: () => void; variant?: string }) {
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" onClick={onClick} className={BUTTON} style={buttonStyle(theme)}>
+    <a href={href} target="_blank" rel="noopener noreferrer" onClick={onClick} className={BUTTON} style={buttonStyle(theme, variant)}>
       {children}
     </a>
   );
@@ -48,18 +51,19 @@ export function PublicButtonLink({ theme, href, children, onClick }: { theme: Pa
 export function CtaButton({ block, theme, ctx }: { block: Block; theme: PageTheme; ctx: PublicContext }) {
   const cta = ctx.ctas.find((c) => c.blockKey === block.key);
   const label = typeof block.content.label === 'string' ? block.content.label : '';
+  const variant = variantOf('boton', block.style);
 
   if (cta?.actionType === 'url') {
     const href = safeHttpUrl(cta.destination);
     if (href) {
       return (
-        <PublicButtonLink theme={theme} href={href} onClick={() => ctx.onCtaClick(block)}>
+        <PublicButtonLink theme={theme} variant={variant} href={href} onClick={() => ctx.onCtaClick(block)}>
           {label}
         </PublicButtonLink>
       );
     }
     return (
-      <button type="button" disabled className={BUTTON} style={buttonStyle(theme)}>
+      <button type="button" disabled className={BUTTON} style={buttonStyle(theme, variant)}>
         {label}
       </button>
     );
@@ -78,7 +82,7 @@ export function CtaButton({ block, theme, ctx }: { block: Block; theme: PageThem
           ctx.openCheckout();
         }}
         className={BUTTON}
-        style={buttonStyle(theme)}
+        style={buttonStyle(theme, variant)}
       >
         {label}
       </button>
@@ -95,7 +99,7 @@ export function CtaButton({ block, theme, ctx }: { block: Block; theme: PageThem
         if (target) ctx.scrollTo(target);
       }}
       className={BUTTON}
-      style={buttonStyle(theme)}
+      style={buttonStyle(theme, variant)}
     >
       {label}
     </button>

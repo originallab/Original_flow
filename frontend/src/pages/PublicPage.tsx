@@ -3,6 +3,7 @@ import { useLocation, useParams } from 'react-router-dom';
 import { PageRenderer } from '@/features/pageRenderer/PageRenderer';
 import type { PublicContext } from '@/features/pageRenderer/public';
 import { resolveTheme } from '@/features/pageRenderer/theme';
+import { fontStyle, PAGE_FONTS_CLASS } from '@/features/pageRenderer/fonts';
 import { readUtm, trafficSource } from '@/features/publicPage/traffic';
 import { rememberOrder } from '@/features/publicPage/lastOrder';
 import { CheckoutDialog } from '@/features/publicPage/CheckoutDialog';
@@ -145,7 +146,7 @@ export function PublicPage() {
   }
 
   return (
-    <div ref={root} className="min-h-screen overflow-x-hidden" style={{ background: theme.palette.background, color: theme.palette.text }}>
+    <div ref={root} className={`min-h-screen overflow-x-hidden ${PAGE_FONTS_CLASS}`} style={{ background: theme.palette.background, color: theme.palette.text, ...fontStyle(theme) }}>
       <main className="mx-auto max-w-3xl">
         <PageRenderer blocks={page.content.blocks} design={page.designSpec} currency={page.currency} mode="public" publicContext={context} />
       </main>

@@ -3,6 +3,7 @@ import type { Funnel } from '@/services/funnels';
 import type { Block } from '@/shared/blocks/types';
 import { FUNNEL_TYPES } from '@/shared/funnelTypes';
 import { CtaSettings } from './CtaSettings';
+import { DesignForm } from './DesignForm';
 import { DetailsForm } from './DetailsForm';
 import { TypeSettingsForm } from './TypeSettingsForm';
 
@@ -36,6 +37,7 @@ export function SettingsPanel({ funnel, token, blocks, contentVersion, onFunnelC
       <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">Ajustes</h2>
       <DetailsForm funnel={funnel} token={token} onSaved={onFunnelChange} onDirtyChange={reportDetails} />
       {hasTypeSettings && <TypeSettingsForm funnel={funnel} token={token} onSaved={onFunnelChange} onDirtyChange={reportType} />}
+      <DesignForm funnel={funnel} token={token} onSaved={onFunnelChange} />
       <CtaSettings funnel={funnel} token={token} blocks={blocks} refreshKey={contentVersion} onChanged={() => undefined} />
     </div>
   );

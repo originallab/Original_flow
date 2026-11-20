@@ -34,7 +34,7 @@ original_flow/
 │   │   ├── generated/       cliente de Prisma generado (no se versiona; `pnpm db:generate`)
 │   │   ├── middleware/      requestId, requestLogger, errorHandler (+ notFound), requireAuth y rateLimit
 │   │   ├── jobs/            tareas programadas (reconciliación de pagos cada 5 min)
-│   │   ├── funnel-types/    registro de los 8 tipos de funnel (index.ts) catálogo de bloques con su validación (blocks.ts), plantillas (templates.ts) y qué ve el visitante tras registrarse (afterSubmit.ts)
+│   │   ├── funnel-types/    registro de los 8 tipos de funnel (index.ts) catálogo de bloques con su validación (blocks.ts), plantillas (templates.ts), el catálogo de diseño que puede elegir la IA (design.ts: tipografías, aspecto, variantes por bloque y fondos) y qué ve el visitante tras registrarse (afterSubmit.ts)
 │   │   └── integrations/    un cliente por servicio de The Original Lab
 │   │       ├── original-auth/
 │   │       ├── original-pay/
@@ -60,7 +60,7 @@ original_flow/
 │   │   ├── features/workspaces/  WorkspaceProvider (negocios y negocio activo), RequireWorkspace, LoadState, brand.ts (paleta, rubros, diferencias), countries.ts (lista de países), useLogoFile.ts (imagen de la marca, solo en el navegador) y components/ (BusinessForm, PaletteEditor, BrandPreview, LogoUpload, PaymentsSection)
 │   │   ├── features/funnels/ catalog.ts (tipos de funnel, plantillas con su paleta, instrucciones para la IA y pasos del asistente), components/ (ChoiceCard, TemplateThumb, WizardRail, BriefForm) y generation/ (PageGenerator: la interfaz que cumplirá la IA, templateGenerator que arma la página sin IA, createDraft y fillDraft)
 │   │   ├── features/editor/ useFunnelEditor (carga, bloques, autoguardado), fieldHelpers.ts, components/ (BlockList, PropertiesPanel, FieldEditor, EditorTopBar, PublishDialog) y settings/ (ajustes: datos del funnel, ajustes del tipo y CTA)
-│   │   ├── features/pageRenderer/ PageRenderer (modos editar, vista previa y público), blocks.tsx (cómo se dibuja cada bloque), public.tsx (lo que solo funciona en la página publicada: formulario, botones con su acción y cuenta regresiva) y theme.ts (paleta y estilo de cada plantilla)
+│   │   ├── features/pageRenderer/ PageRenderer (modos editar, vista previa y público), blocks.tsx (cómo se dibuja cada bloque), public.tsx (lo que solo funciona en la página publicada: formulario, botones con su acción y cuenta regresiva) y theme.ts (paleta, aspecto y tipografías de cada plantilla, y los fondos de cada franja); `shared/design.ts` repite el catálogo de diseño del backend
 │   │   ├── features/leads/    useLeadsBoard (etapas, leads, filtros, mover con vuelta atrás si falla, dar de alta y corregir), useAssignees (a quién se puede asignar un lead), leadDisplay.ts (cómo se muestra un lead), constants.ts y components/ (LeadBoard con arrastrar y soltar, LeadCard, LeadDetail, LeadForm para el alta a mano, LeadContactForm para corregir datos y asignar, StagesDialog para administrar las etapas y LeadFilters)
 │   │   ├── features/dashboard/ useDashboard (carga todo con los filtros y conserva lo anterior al recargar), format.ts (conteos, porcentajes, dinero y variación) y components/ (DashboardFilters, StatTile, ChartCard con BarMark, ConversionCard, SourcesCard, DropOffCard y FunnelsCard)
 │   │   ├── features/history/  useHistory (versiones, guardar y restaurar con sus errores explicados) y components/ (HistoryDialog)

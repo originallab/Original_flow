@@ -198,6 +198,8 @@ export function useFunnelEditor(funnelId: string) {
   // --- acciones ---
   const updateContent = useCallback((key: string, content: Record<string, unknown>) => commit(latest.current.map((block) => (block.key === key ? { ...block, content } : block))), [commit]);
 
+  const updateStyle = useCallback((key: string, style: Record<string, unknown>) => commit(latest.current.map((block) => (block.key === key ? { ...block, style } : block))), [commit]);
+
   const addBlock = useCallback(
     (type: BlockType, afterKey?: string | null) => {
       const current = latest.current;
@@ -276,6 +278,7 @@ export function useFunnelEditor(funnelId: string) {
     status,
     errors,
     updateContent,
+    updateStyle,
     addBlock,
     removeBlock,
     moveBlock,

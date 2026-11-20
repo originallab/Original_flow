@@ -2,6 +2,7 @@ import { X } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { buttonStyle, BUTTON } from '@/features/pageRenderer/public';
 import type { PageTheme } from '@/features/pageRenderer/theme';
+import { fontStyle, PAGE_FONTS_CLASS } from '@/features/pageRenderer/fonts';
 import { ApiError } from '@/services/api';
 import type { PublicPage } from '@/services/publicPages';
 import { PAYMENT_LABELS, validateCheckout, type CheckoutBody, type PaymentMethod } from '@/shared/payments';
@@ -157,8 +158,8 @@ export function CheckoutDialog({ page, theme, onSubmit, onClose }: Props) {
         aria-modal="true"
         aria-labelledby={titleId}
         onKeyDown={onKeyDown}
-        className="max-h-full w-full max-w-md overflow-y-auto p-6 shadow-xl"
-        style={{ background: theme.palette.background, color: theme.palette.text, borderRadius: theme.look.radius }}
+        className={`max-h-full w-full max-w-md overflow-y-auto p-6 shadow-xl ${PAGE_FONTS_CLASS}`}
+        style={{ background: theme.palette.background, color: theme.palette.text, borderRadius: theme.look.radius, ...fontStyle(theme) }}
       >
         <div className="flex items-start justify-between gap-4">
           <h2 id={titleId} className="text-xl font-heading leading-tight" style={{ fontWeight: theme.look.headingWeight, textTransform: theme.look.headingTransform }}>

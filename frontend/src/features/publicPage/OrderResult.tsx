@@ -2,6 +2,7 @@ import { Check, Clock, XCircle } from 'lucide-react';
 import { useEffect } from 'react';
 import { PublicButtonLink } from '@/features/pageRenderer/public';
 import { readableOn, type PageTheme } from '@/features/pageRenderer/theme';
+import { fontStyle, PAGE_FONTS_CLASS, useGoogleFonts } from '@/features/pageRenderer/fonts';
 import type { OrderView, PublicPage } from '@/services/publicPages';
 import { navigation } from '@/shared/utils/navigation';
 import { safeHttpUrl } from '@/shared/utils/safeUrl';
@@ -19,6 +20,7 @@ interface Props {
 
 /** A dónde volvió la persona después de pagar: pago recibido, todavía confirmándose o no completado. Con los colores de la página. */
 export function OrderResult({ page, order, theme, stoppedPolling, checking, onRecheck }: Props) {
+  useGoogleFonts(theme.fonts);
   const redirectUrl = order.status === 'paid' ? safeHttpUrl(order.redirectUrl) : null;
   useEffect(() => {
     if (!redirectUrl) return;
@@ -33,7 +35,7 @@ export function OrderResult({ page, order, theme, stoppedPolling, checking, onRe
   const message = paid ? (order.message ?? 'Gracias por tu compra.') : pending ? (stoppedPolling ? 'Tu pago todavía no se confirma. Puede tardar unos minutos.' : 'No cierres esta página: se actualiza sola.') : 'No se completó la compra. Puedes intentarlo de nuevo.';
 
   return (
-    <div className="grid min-h-screen place-items-center px-6 py-12" style={{ background: theme.palette.background, color: theme.palette.text }}>
+    <div className={`grid min-h-screen place-items-center px-6 py-12 ${PAGE_FONTS_CLASS}`} style={{ background: theme.palette.background, color: theme.palette.text, ...fontStyle(theme) }}>
       <main role="status" aria-live="polite" className="w-full max-w-md text-center">
         <span className="mx-auto grid size-14 place-items-center rounded-full" style={{ background: theme.palette.accent, color: readableOn(theme.palette.accent, theme.palette) }}>
           <Icon size={26} aria-hidden />

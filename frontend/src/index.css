@@ -75,6 +75,10 @@
   color-scheme: dark;
 }
 
+.page-fonts .font-heading {
+  font-family: var(--page-heading, 'Montserrat Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif);
+}
+
 @theme inline {
   --color-brand: var(--brand);
   --color-bg: var(--bg);

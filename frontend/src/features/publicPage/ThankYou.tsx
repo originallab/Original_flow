@@ -2,6 +2,7 @@ import { CalendarDays, Check, Download, Video } from 'lucide-react';
 import { useEffect } from 'react';
 import { PublicButtonLink } from '@/features/pageRenderer/public';
 import { readableOn, type PageTheme } from '@/features/pageRenderer/theme';
+import { fontStyle, PAGE_FONTS_CLASS, useGoogleFonts } from '@/features/pageRenderer/fonts';
 import type { PublicPage } from '@/services/publicPages';
 import type { AfterSubmit } from '@/shared/afterSubmit';
 import { navigation } from '@/shared/utils/navigation';
@@ -25,6 +26,7 @@ function formatStart(startsAt: string, timezone?: string): string | null {
  * funnel, lleva al siguiente paso (agenda una cita, entrega el recurso, da el enlace al evento…).
  */
 export function ThankYou({ page, next, theme }: { page: PublicPage; next: AfterSubmit | null; theme: PageTheme }) {
+  useGoogleFonts(theme.fonts);
   const redirectUrl = page.objective === 'leads' ? safeHttpUrl(next?.redirectUrl) : null;
   const calendarUrl = page.objective === 'citas' ? safeHttpUrl(next?.redirectUrl) : null;
   const joinUrl = safeHttpUrl(next?.joinUrl);
@@ -40,7 +42,7 @@ export function ThankYou({ page, next, theme }: { page: PublicPage; next: AfterS
   const message = next?.message ?? (page.objective === 'webinar' ? 'Guarda la fecha y entra con el enlace de abajo.' : 'Recibimos tus datos.');
 
   return (
-    <div className="grid min-h-screen place-items-center px-6 py-12" style={{ background: theme.palette.background, color: theme.palette.text }}>
+    <div className={`grid min-h-screen place-items-center px-6 py-12 ${PAGE_FONTS_CLASS}`} style={{ background: theme.palette.background, color: theme.palette.text, ...fontStyle(theme) }}>
       <main role="status" aria-live="polite" className="w-full max-w-md text-center">
         <span className="mx-auto grid size-14 place-items-center rounded-full" style={{ background: theme.palette.accent, color: readableOn(theme.palette.accent, theme.palette) }}>
           <Check size={26} aria-hidden />

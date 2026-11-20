@@ -1,0 +1,74 @@
+import type { BlockType } from '@/shared/blocks/types';
+
+/**
+ * El catálogo de diseño de una página: las mismas opciones que acepta el backend (`funnel-types/design.ts`).
+ * Todo es un conjunto cerrado: el renderizador sabe dibujar cada una y lo que no esté aquí se ignora.
+ */
+
+export const HEADING_FONTS = ['Poppins', 'Montserrat', 'Playfair Display', 'DM Serif Display', 'Space Grotesk', 'Raleway', 'Oswald', 'Lora', 'Sora', 'Fraunces'] as const;
+export const BODY_FONTS = ['Inter', 'Open Sans', 'Lato', 'Source Sans 3', 'Nunito', 'DM Sans'] as const;
+
+export const RADII = ['none', 'sm', 'md', 'lg', 'pill'] as const;
+export const DENSITIES = ['compact', 'normal', 'airy'] as const;
+export const ALIGNS = ['left', 'center'] as const;
+export const HEADING_CASES = ['normal', 'upper'] as const;
+export const HEADING_WEIGHTS = [500, 600, 700, 800] as const;
+
+export interface PageLook {
+  radius?: (typeof RADII)[number];
+  density?: (typeof DENSITIES)[number];
+  align?: (typeof ALIGNS)[number];
+  headingCase?: (typeof HEADING_CASES)[number];
+  headingWeight?: (typeof HEADING_WEIGHTS)[number];
+}
+
+export const BACKGROUNDS = ['base', 'alt', 'accent', 'dark'] as const;
+export type BlockBackground = (typeof BACKGROUNDS)[number];
+
+export const BACKGROUND_LABELS: Record<BlockBackground, string> = { base: 'El de la página', alt: 'Suave', accent: 'Color de la marca', dark: 'Oscuro' };
+
+/** Las formas de dibujar cada tipo de bloque. La primera es la que se usa si no se elige ninguna. */
+export const BLOCK_VARIANTS: Partial<Record<BlockType, readonly string[]>> = {
+  encabezado: ['centrado', 'izquierda', 'dividido', 'grande'],
+  texto: ['normal', 'destacado'],
+  beneficios: ['tarjetas', 'lista', 'numerados', 'columnas'],
+  faq: ['abierto', 'tarjetas', 'compacto'],
+  precios: ['tarjetas', 'simple'],
+  boton: ['solido', 'contorno', 'banda'],
+};
+
+export const VARIANT_LABELS: Record<string, string> = {
+  centrado: 'Centrado',
+  izquierda: 'A la izquierda',
+  dividido: 'Dividido',
+  grande: 'Grande',
+  normal: 'Normal',
+  destacado: 'Destacado',
+  tarjetas: 'Tarjetas',
+  lista: 'Lista',
+  numerados: 'Numerados',
+  columnas: 'Columnas',
+  abierto: 'Abierto',
+  compacto: 'Compacto',
+  simple: 'Simple',
+  solido: 'Sólido',
+  contorno: 'Contorno',
+  banda: 'Banda',
+};
+
+const includes = (list: readonly string[], value: unknown): value is string => typeof value === 'string' && list.includes(value);
+
+/** La variante elegida de un bloque, solo si es una del catálogo para su tipo. */
+export function variantOf(type: BlockType, style: Record<string, unknown> | undefined): string | undefined {
+  const value = style?.variant;
+  return includes(BLOCK_VARIANTS[type] ?? [], value) ? value : undefined;
+}
+
+/** El fondo elegido de un bloque, solo si es uno del catálogo. */
+export function backgroundOf(style: Record<string, unknown> | undefined): BlockBackground {
+  const value = style?.background;
+  return includes(BACKGROUNDS, value) ? (value as BlockBackground) : 'base';
+}
+
+export const isHeadingFont = (value: unknown): value is (typeof HEADING_FONTS)[number] => includes(HEADING_FONTS, value);
+export const isBodyFont = (value: unknown): value is (typeof BODY_FONTS)[number] => includes(BODY_FONTS, value);

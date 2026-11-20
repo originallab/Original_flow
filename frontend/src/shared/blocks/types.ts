@@ -1,4 +1,5 @@
 import type { BrandPalette } from '@/services/workspaces';
+import type { PageLook } from '@/shared/design';
 
 /**
  * El modelo de una página, con la misma forma que el backend (docs/API_MVP.md → Funnels):
@@ -42,6 +43,8 @@ export interface DesignSpec {
   /** Si falta, la plantilla usa su paleta propia. */
   palette?: BrandPalette;
   fonts?: { heading: string; body: string };
+  /** El aspecto de la página (esquinas, aire, alineación, títulos); lo que falte lo pone la plantilla. */
+  look?: PageLook;
 }
 
 /** Un problema de validación: dónde está (`['items', 0, 'title']`) y qué pasa. */

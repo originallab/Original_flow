@@ -2,6 +2,7 @@ import { canRewriteWithAi } from '@/shared/aiBlocks';
 import { BLOCKS } from '@/shared/blocks/catalog';
 import type { Block } from '@/shared/blocks/types';
 import { withKey } from '../fieldHelpers';
+import { BlockStyleFields } from './BlockStyleFields';
 import { AiBlockAssistant } from './AiBlockAssistant';
 import { FieldEditor } from './FieldEditor';
 
@@ -10,12 +11,14 @@ interface Props {
   /** Mensajes de error de los campos de este bloque, por ruta. */
   errors: Record<string, string>;
   onChange: (content: Record<string, unknown>) => void;
+  /** Cambia cómo se ve el bloque (forma y fondo). */
+  onStyleChange: (style: Record<string, unknown>) => void;
   /** Lo que necesita «Reescribir con IA»; si falta, el botón no se ofrece. */
   ai?: { token: string; funnelId: string; saveNow: () => Promise<boolean>; resetKey?: number };
 }
 
 /** Panel de la derecha: los campos del bloque elegido. Se dibujan solos a partir del catálogo de bloques. */
-export function PropertiesPanel({ block, errors, onChange, ai }: Props) {
+export function PropertiesPanel({ block, errors, onChange, onStyleChange, ai }: Props) {
   if (!block) {
     return (
       <div className="p-5">
@@ -47,6 +50,8 @@ export function PropertiesPanel({ block, errors, onChange, ai }: Props) {
           />
         ))}
       </div>
+
+      <BlockStyleFields key={block.key} block={block} onChange={onStyleChange} />
 
       {ai && canRewriteWithAi(block.type) && <AiBlockAssistant key={`${block.key}:${ai.resetKey ?? 0}`} block={block} token={ai.token} funnelId={ai.funnelId} saveNow={ai.saveNow} onApply={onChange} />}
     </section>

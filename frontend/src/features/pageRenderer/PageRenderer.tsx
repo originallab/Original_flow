@@ -1,9 +1,12 @@
+import type { CSSProperties } from 'react';
 import type { Block, DesignSpec } from '@/shared/blocks/types';
+import { backgroundOf } from '@/shared/design';
 import type { PublicContext } from './public';
 import { BLOCKS } from '@/shared/blocks/catalog';
 import { cn } from '@/shared/utils/cn';
 import { BlockView } from './blocks';
-import { resolveTheme } from './theme';
+import { fontStyle, PAGE_FONTS_CLASS, useGoogleFonts } from './fonts';
+import { resolveTheme, toneOf } from './theme';
 
 interface Props {
   blocks: Block[];
@@ -23,28 +26,36 @@ interface Props {
  */
 export function PageRenderer({ blocks, design, currency = 'MXN', mode = 'preview', selectedKey = null, onSelect, publicContext }: Props) {
   const theme = resolveTheme(design);
+  useGoogleFonts(theme.fonts);
   const editing = mode === 'edit';
   const ordered = [...blocks].sort((a, b) => a.order - b.order);
 
   return (
-    <article aria-label="Página" data-template={theme.template} className={cn('font-sans', mode !== 'public' && 'overflow-hidden')} style={{ background: theme.palette.background, color: theme.palette.text }}>
+    <article aria-label="Página" data-template={theme.template} className={cn('font-sans', PAGE_FONTS_CLASS, mode !== 'public' && 'overflow-hidden')} style={{ background: theme.palette.background, color: theme.palette.text, ...fontStyle(theme) }}>
       {ordered.length === 0 && <p className="px-8 py-16 text-center text-sm opacity-60">Esta página todavía no tiene bloques.</p>}
       {ordered.map((block) => {
         const selected = editing && block.key === selectedKey;
+        const tone = toneOf(theme, backgroundOf(block.style));
+        // La franja de color de un bloque: en la página publicada llena todo el ancho de la pantalla.
+        const strip: CSSProperties | undefined = tone.background
+          ? mode === 'public'
+            ? { background: tone.background, color: tone.color ?? undefined, boxShadow: `0 0 0 100vmax ${tone.background}`, clipPath: 'inset(0 -100vmax)' }
+            : { background: tone.background, color: tone.color ?? undefined }
+          : undefined;
         return (
           <div
             key={block.key}
             data-block-key={block.key}
             onClick={editing ? () => onSelect?.(block.key) : undefined}
             className={cn('relative', editing && 'cursor-pointer outline-2 -outline-offset-2 transition hover:outline hover:outline-dashed', selected && 'outline outline-solid')}
-            style={editing ? { outlineColor: theme.palette.primary } : undefined}
+            style={{ ...strip, ...(editing ? { outlineColor: theme.palette.primary } : null) }}
           >
             {selected && (
               <span className="absolute left-2 top-2 z-10 rounded px-2 py-0.5 text-[11px] font-semibold text-white" style={{ background: theme.palette.primary }}>
                 {BLOCKS[block.type].label}
               </span>
             )}
-            <BlockView block={block} theme={theme} currency={currency} publicCtx={mode === 'public' ? publicContext : undefined} />
+            <BlockView block={block} theme={tone.theme} currency={currency} publicCtx={mode === 'public' ? publicContext : undefined} />
           </div>
         );
       })}

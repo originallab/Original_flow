@@ -155,6 +155,7 @@ export function EditorPage() {
                 block={selected}
                 errors={selected ? (editor.errors[selected.key] ?? {}) : {}}
                 onChange={(content) => selected && editor.updateContent(selected.key, content)}
+                onStyleChange={(style) => selected && editor.updateStyle(selected.key, style)}
                 ai={{ token, funnelId: funnel.id, saveNow: editor.saveNow, resetKey: generation }}
               />
             </div>
