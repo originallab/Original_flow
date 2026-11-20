@@ -2,6 +2,7 @@ import { TEMPLATE_IDS, type DesignSpec } from '@/shared/blocks/types';
 import { validateBlocks } from '@/shared/blocks/validate';
 import { asObject, done, fail, invalid, notFound, ownFunnel, skip, uuid, type Answer, type DemoDb, type FunnelsContext } from './demoCore';
 import { demoAiRoute } from './demoAi';
+import { demoFunnelCopyRoute } from './demoFunnelCopy';
 import { demoFunnelActionsRoute, syncCtas } from './demoFunnelActions';
 import { OBJECTIVES, type Currency, type Funnel, type FunnelStatus } from './funnels';
 
@@ -155,6 +156,10 @@ export function demoFunnelsRoute(ctx: FunnelsContext): Answer {
     save();
     return done({ designSpec: funnel.designSpec });
   }
+
+  // Copiar y eliminar funnels.
+  const copied = demoFunnelCopyRoute(ctx);
+  if (copied.handled) return copied;
 
   // La IA de mentira (generar la página y reescribir un bloque).
   const ai = demoAiRoute(ctx);

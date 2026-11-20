@@ -168,6 +168,16 @@ export function publishFunnel(token: string, id: string): Promise<Funnel> {
   return apiFetch(`/funnels/${encodeURIComponent(id)}/publish`, { method: 'POST', token });
 }
 
+/** POST /funnels/:id/duplicate: una copia en borrador («Copia de …») con el contenido y los ajustes del funnel. */
+export function duplicateFunnel(token: string, id: string): Promise<Funnel> {
+  return apiFetch(`/funnels/${encodeURIComponent(id)}/duplicate`, { method: 'POST', token });
+}
+
+/** DELETE /funnels/:id: solo administración; `409 FUNNEL_HAS_ORDERS` si ya tiene ventas (se desactiva en su lugar). */
+export function deleteFunnel(token: string, id: string): Promise<void> {
+  return apiFetch(`/funnels/${encodeURIComponent(id)}`, { method: 'DELETE', token });
+}
+
 /** POST /funnels/:id/unpublish: vuelve a borrador sin borrar nada. */
 export function unpublishFunnel(token: string, id: string): Promise<Funnel> {
   return apiFetch(`/funnels/${encodeURIComponent(id)}/unpublish`, { method: 'POST', token });

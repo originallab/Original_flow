@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { goalOf } from '@/features/funnels/catalog';
+import { FunnelRowActions } from '@/features/funnels/components/FunnelRowActions';
 import { useWorkspaces } from '@/features/workspaces/WorkspaceProvider';
 import { listFunnels, type FunnelSummary } from '@/services/funnels';
 import { Button, buttonStyles } from '@/shared/ui/Button';
@@ -18,6 +19,7 @@ export function FunnelsPage() {
   const { active } = useWorkspaces();
   const [state, setState] = useState<State>({ status: 'loading' });
   const [attempt, setAttempt] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
   const workspaceId = active?.id;
 
   useEffect(() => {
@@ -71,13 +73,19 @@ export function FunnelsPage() {
           </div>
         )}
 
+        {notice && (
+          <p role="alert" className="mb-3 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-500">
+            {notice}
+          </p>
+        )}
+
         {state.status === 'ready' && state.funnels.length > 0 && (
           <ul aria-label="Tus funnels" className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
             {state.funnels.map((funnel) => (
-              <li key={funnel.id}>
+              <li key={funnel.id} className="flex items-center gap-2 pr-4">
                 <Link
                   to={`/funnels/${funnel.id}/editor`}
-                  className="grid items-center gap-x-6 gap-y-2 px-5 py-4 transition hover:bg-surface-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-violet sm:grid-cols-[1fr_auto_8rem]"
+                  className="grid items-center gap-x-6 gap-y-2 px-5 py-4 transition hover:bg-surface-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-violet min-w-0 flex-1 sm:grid-cols-[1fr_auto_8rem]"
                 >
                   <div className="min-w-0">
                     <p className="truncate font-medium">{funnel.name}</p>
@@ -93,6 +101,7 @@ export function FunnelsPage() {
                   </span>
                   <p className="text-sm text-muted sm:text-right">{formatDate(funnel.updatedAt)}</p>
                 </Link>
+                {token && <FunnelRowActions funnel={funnel} token={token} role={active?.role} onChanged={() => setAttempt((n) => n + 1)} onNotice={setNotice} />}
               </li>
             ))}
           </ul>

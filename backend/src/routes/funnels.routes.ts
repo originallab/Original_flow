@@ -59,6 +59,11 @@ export function createFunnelsRouter(
     res.json(await funnels.update(getAuth(res).userId, id, body, contextOf(req, getRequestId(res))));
   });
 
+  router.post('/:id/duplicate', async (req, res) => {
+    const { id } = funnelIdParamsSchema.parse(req.params);
+    res.status(201).json(await funnels.duplicate(getAuth(res).userId, id, contextOf(req, getRequestId(res))));
+  });
+
   router.delete('/:id', async (req, res) => {
     const { id } = funnelIdParamsSchema.parse(req.params);
     await funnels.remove(getAuth(res).userId, id, contextOf(req, getRequestId(res)));

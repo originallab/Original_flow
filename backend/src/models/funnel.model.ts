@@ -115,6 +115,38 @@ export function createFunnelModel(prisma: PrismaClient) {
       return prisma.funnel.create({ data, select: FULL_FIELDS });
     },
 
+    /** Una copia en borrador de otro funnel: mismos datos, ajustes, diseño y contenido, con otro nombre y otro slug; y sus CTA. */
+    duplicate(source: FunnelRecord, copy: { name: string; slug: string }, desired: DesiredCta[]): Promise<FunnelRecord> {
+      // Los JSON que el original no tiene (nulos) no se mandan: la copia nace igual de vacía.
+      const json = (key: 'typeConfig' | 'brandBrief' | 'designSpec' | 'content' | 'seo' | 'flow') =>
+        source[key] === null || source[key] === undefined ? {} : { [key]: source[key] as Prisma.InputJsonValue };
+      return prisma.$transaction(async (tx) => {
+        const created = await tx.funnel.create({
+          data: {
+            workspaceId: source.workspaceId,
+            name: copy.name,
+            slug: copy.slug,
+            objective: source.objective,
+            status: 'draft',
+            language: source.language,
+            productName: source.productName,
+            price: source.price,
+            currency: source.currency,
+            targetAudience: source.targetAudience,
+            ...json('typeConfig'),
+            ...json('brandBrief'),
+            ...json('designSpec'),
+            ...json('content'),
+            ...json('seo'),
+            ...json('flow'),
+          },
+          select: FULL_FIELDS,
+        });
+        await syncCtas(tx, created.id, desired);
+        return created;
+      });
+    },
+
     findById(id: string): Promise<FunnelRecord | null> {
       return prisma.funnel.findUnique({ where: { id }, select: FULL_FIELDS });
     },

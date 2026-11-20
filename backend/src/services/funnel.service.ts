@@ -1,3 +1,5 @@
+import { readBlocks } from '../funnel-types/blocks.js';
+import { desiredCtas } from './funnelContent.service.js';
 import { randomUUID } from 'node:crypto';
 import type { MembershipRole } from '../generated/prisma/client.js';
 import { getFunnelType } from '../funnel-types/index.js';
@@ -95,6 +97,32 @@ export function createFunnelService({ funnels, access, audit }: Deps) {
         metadata: { objective: created.objective },
       });
       return withNumberPrice(created);
+    },
+
+    /** POST /funnels/:id/duplicate: copia el funnel en borrador («Copia de …»), con su contenido y ajustes. */
+    async duplicate(userId: string, funnelId: string, ctx: RequestContext): Promise<FunnelDto> {
+      const { funnel } = await load(userId, funnelId, 'funnel:edit');
+      const name = `Copia de ${funnel.name}`.slice(0, 120);
+      const blocks = readBlocks(funnel.content);
+      let copy: FunnelRecord | null = null;
+      for (let attempt = 0; attempt < 3 && !copy; attempt += 1) {
+        try {
+          copy = await funnels.duplicate(funnel, { name, slug: attempt === 0 ? await freeSlug(name) : `${slugify(name)}-${randomUUID().slice(0, 8)}` }, desiredCtas(funnel, blocks));
+        } catch (err) {
+          if (!isUniqueViolation(err)) throw err;
+        }
+      }
+      if (!copy) throw AppError.conflict('SLUG_TAKEN', 'No se pudo generar un slug disponible; intenta de nuevo');
+      await audit.record({
+        action: 'funnel.duplicate',
+        resourceType: 'funnel',
+        resourceId: copy.id,
+        workspaceId: copy.workspaceId,
+        userId,
+        ip: ctx.ip,
+        metadata: { from: funnel.id },
+      });
+      return withNumberPrice(copy);
     },
 
     /** GET /funnels/:id: el funnel completo para cargar el editor. */

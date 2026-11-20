@@ -10,6 +10,11 @@ export function canEditFunnels(role: string | undefined): boolean {
   return role === 'super_admin' || role === 'client_admin' || role === 'marketing_manager' || role === 'disenador';
 }
 
+/** Eliminar un funnel: solo super admin y administrador. */
+export function canDeleteFunnels(role: string | undefined): boolean {
+  return role === 'super_admin' || role === 'client_admin';
+}
+
 /** Publicar y despublicar funnels: super admin, administrador y marketing (el diseñador no). */
 export function canPublishFunnels(role: string | undefined): boolean {
   return role === 'super_admin' || role === 'client_admin' || role === 'marketing_manager';
