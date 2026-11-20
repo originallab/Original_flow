@@ -172,6 +172,18 @@ describe('asistente de creación', () => {
     expect(screen.getByRole('radio', { name: 'Claridad' })).not.toBeChecked();
   });
 
+  it('el botón «Autorrellenar para pruebas» llena el formulario con textos de ejemplo', async () => {
+    montar('/funnels/nuevo');
+    await screen.findByRole('heading', { name: /qué quieres lograr/i });
+    await continuar();
+    await screen.findByRole('form', { name: /instrucciones para la ia/i });
+    expect(screen.getByLabelText(/nombre del funnel/i)).toHaveValue('');
+    await userEvent.click(screen.getByRole('button', { name: /autorrellenar para pruebas/i }));
+    expect((screen.getByLabelText(/nombre del funnel/i) as HTMLInputElement).value).not.toBe('');
+    expect((screen.getByLabelText(/qué ofreces/i) as HTMLTextAreaElement).value).not.toBe('');
+    expect((screen.getByLabelText(/a quién va dirigido/i) as HTMLTextAreaElement).value).not.toBe('');
+  });
+
   it('el paso 2 es un formulario con las instrucciones para la IA, organizado en secciones', async () => {
     montar('/funnels/nuevo');
     await screen.findByRole('heading', { name: /qué quieres lograr/i });

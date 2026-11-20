@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowUpRight, Info, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Info, Shuffle, Sparkles } from 'lucide-react';
 import type { TemplateId } from '@/shared/blocks/types';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -9,6 +9,7 @@ import { ChoiceCard } from '@/features/funnels/components/ChoiceCard';
 import { TemplateThumb } from '@/features/funnels/components/TemplateThumb';
 import { WizardRail } from '@/features/funnels/components/WizardRail';
 import { createDraft, fillDraft, type GenerationInput } from '@/features/funnels/generation';
+import { randomBrief } from '@/features/funnels/sampleBrief';
 import { useWorkspaces } from '@/features/workspaces/WorkspaceProvider';
 import { ApiError } from '@/services/api';
 import type { Funnel } from '@/services/funnels';
@@ -94,7 +95,14 @@ export function NewFunnelPage() {
             )}
 
             {step === 1 && (
-              <BriefForm value={brief} onChange={setBrief} />
+              <>
+                <div className="mb-4 flex justify-end">
+                  <Button variant="secondary" size="sm" title="Llena el formulario con textos de ejemplo al azar, para hacer pruebas" onClick={() => setBrief(randomBrief(goalId))}>
+                    <Shuffle size={14} aria-hidden /> Autorrellenar para pruebas
+                  </Button>
+                </div>
+                <BriefForm value={brief} onChange={setBrief} />
+              </>
             )}
 
             {step === 2 && (
