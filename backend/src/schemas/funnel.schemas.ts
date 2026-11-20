@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { BLOCK_TYPES, validateBlockContent } from '../funnel-types/blocks.js';
+import { ALIGNS, DENSITIES, HEADING_CASES, RADII } from '../funnel-types/design.js';
 import { TEMPLATES } from '../funnel-types/templates.js';
 import { paginationQuerySchema } from '../lib/pagination.js';
 import { SLUG_PATTERN } from '../lib/slug.js';
@@ -111,8 +112,18 @@ const fontName = z.string().trim().regex(/^[A-Za-z0-9 ]{1,60}$/, 'solo letras, n
  * La paleta y las tipografías son opcionales: si faltan, la plantilla usa las suyas. Más
  * adelante la IA llenará este mismo objeto.
  */
+/** El aspecto general de la página (ver funnel-types/design.ts). */
+const lookSchema = z.object({
+  radius: z.enum(RADII).optional(),
+  density: z.enum(DENSITIES).optional(),
+  align: z.enum(ALIGNS).optional(),
+  headingCase: z.enum(HEADING_CASES).optional(),
+  headingWeight: z.union([z.literal(500), z.literal(600), z.literal(700), z.literal(800)]).optional(),
+});
+
 export const designSpecBodySchema = z.object({
   template: z.enum(TEMPLATES),
+  look: lookSchema.optional(),
   palette: z
     .object({ primary: hexColor, secondary: hexColor, accent: hexColor, background: hexColor, text: hexColor })
     .optional(),

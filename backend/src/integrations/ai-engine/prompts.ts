@@ -1,4 +1,5 @@
 import type { BlockType } from '../../funnel-types/blocks.js';
+import { ALIGNS, BACKGROUNDS, BLOCK_VARIANTS, BODY_FONTS, DENSITIES, HEADING_CASES, HEADING_FONTS, HEADING_WEIGHTS, RADII } from '../../funnel-types/design.js';
 import { TEMPLATES } from '../../funnel-types/templates.js';
 import type { GeneratePageInput, RegenerateBlockInput } from './types.js';
 
@@ -55,6 +56,13 @@ function imageRule(input: GeneratePageInput): string {
   return `- La persona subió imágenes (en "imagenes"). Intégralas en la página con bloques "imagen" colocados donde mejor funcionen (por ejemplo, la del producto cerca del encabezado). Forma: ${IMAGE_SHAPE}. Usa cada dirección tal cual, sin cambiarla, y no inventes otras. No es obligatorio usarlas todas.${logo}`;
 }
 
+/** El catálogo de diseño que la IA puede usar, para que cada página salga distinta a las demás. */
+const DESIGN_GUIDE = `Diseño (cada página debe verse distinta a las demás: varía de verdad según el rubro, el público y el tono; no repitas siempre lo mismo):
+  - "designSpec.fonts": {"heading": una de [${HEADING_FONTS.join(', ')}], "body": una de [${BODY_FONTS.join(', ')}]}. Combina con intención: serif elegante (Playfair Display, DM Serif Display, Lora, Fraunces) para cursos premium, servicios o editorial; geométricas (Poppins, Montserrat, Sora, Space Grotesk) para tecnología y modernidad; Oswald para impacto y ofertas.
+  - "designSpec.look": {"radius": ${RADII.join('|')}, "density": ${DENSITIES.join('|')}, "align": ${ALIGNS.join('|')}, "headingCase": ${HEADING_CASES.join('|')}, "headingWeight": ${HEADING_WEIGHTS.join('|')}}. Esquinas rectas y mayúsculas para impacto; redondeadas y aire para algo cercano; "airy" para marcas premium; "compact" para mucha información.
+  - Por bloque, en "style": {"variant": ..., "background": ${BACKGROUNDS.join('|')}}. Variantes por tipo: ${Object.entries(BLOCK_VARIANTS).map(([t, v]) => `${t}: ${v?.join('|')}`).join('; ')}. "background": "base" es el fondo de la página, "alt" uno suave, "accent" el color de la marca y "dark" uno oscuro.
+  - Crea ritmo visual: alterna fondos de un bloque a otro (por ejemplo base, alt, accent), no pongas dos franjas "accent" o "dark" seguidas, y deja el encabezado y el llamado a la acción como los más llamativos. Usa variantes distintas entre bloques parecidos.`;
+
 const COMMON_RULES = `Responde ÚNICAMENTE con un objeto JSON válido: sin texto antes ni después y sin bloques de código.
 No inventes datos: ni precios, cifras, resultados, garantías, nombres de clientes ni testimonios. Si no hay información sobre algo, no lo menciones (no incluyas preguntas ni frases sobre eso).
 Los textos son para el público final de la página: nunca escribas notas dirigidas a quien edita («puedes agregar aquí...», «no se indicó...», «si aplica...»).
@@ -68,9 +76,9 @@ ${COMMON_RULES}
 
 Forma de la respuesta:
 {
-  "designSpec": {"template": "${TEMPLATES.join(' | ')}", "palette": {"primary": "#RRGGBB", "secondary": "#RRGGBB", "accent": "#RRGGBB", "background": "#RRGGBB", "text": "#RRGGBB"}},
+  "designSpec": {"template": "${TEMPLATES.join(' | ')}", "fonts": {"heading": "...", "body": "..."}, "look": {...}, "palette": {"primary": "#RRGGBB", "secondary": "#RRGGBB", "accent": "#RRGGBB", "background": "#RRGGBB", "text": "#RRGGBB"}},
   "seo": {"title": "máx. 60 caracteres", "description": "máx. 160 caracteres"},
-  "blocks": [{"key": "hero", "type": "encabezado", "order": 1, "content": {...}, "style": {}}]
+  "blocks": [{"key": "hero", "type": "encabezado", "order": 1, "content": {...}, "style": {"variant": "...", "background": "..."}}]
 }
 
 Reglas de la página:
@@ -81,10 +89,11 @@ ${paletteRule(input)}
 - Usa solo estos tipos de bloque, con exactamente esta forma de "content":
 ${catalog(AI_BLOCK_TYPES)}
 ${imageRule(input)}
-- "key" único (minúsculas, números, guion o guion bajo); "order" consecutivo desde 1; "style" siempre {}.
+- "key" único (minúsculas, números, guion o guion bajo); "order" consecutivo desde 1.
 - Empieza con un bloque "encabezado" y termina con el llamado a la acción del objetivo (un "boton", o un "formulario" si el objetivo es captar datos).
 - Estructura sugerida para este objetivo (puedes ajustarla): ${suggested.length > 0 ? suggested.join(', ') : 'encabezado, beneficios, boton'}.
-- Entre 3 y 8 bloques.`;
+- Entre 3 y 8 bloques.
+- ${DESIGN_GUIDE}`;
 
   const data = {
     objetivo: input.objective,

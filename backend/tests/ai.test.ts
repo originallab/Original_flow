@@ -91,6 +91,32 @@ describe.skipIf(!testDatabaseUrl)('generación con IA (esqueleto con motor simul
       expect((await generar(f.token, f.f.id, { brief: { result: 'x'.repeat(501) } })).status).toBe(422);
     });
 
+    it('guarda el diseño que eligió la IA (tipografías, aspecto y estilo de cada bloque) y descarta lo que no está en el catálogo', async () => {
+      const f = await funnel();
+      fake.respondPage({
+        designSpec: { ...VALID_PAGE.designSpec, fonts: { heading: 'Playfair Display', body: 'Lato' }, look: { radius: 'pill', density: 'airy', headingWeight: 900 } },
+        blocks: [
+          { key: 'hero', type: 'encabezado', order: 1, content: { title: 'Hola' }, style: { variant: 'grande', background: 'dark', color: 'red' } },
+          { key: 'detalle', type: 'texto', order: 2, content: { body: 'Texto' }, style: { variant: 'inventada', background: 'alt' } },
+          { key: 'cta', type: 'boton', order: 3, content: { label: 'Entrar' }, style: { variant: 'banda', background: 'accent' } },
+        ],
+      });
+      const res = await generar(f.token, f.f.id);
+      expect(res.status).toBe(200);
+      const fila = await guardado(f.f.id);
+      expect(fila.designSpec).toMatchObject({ template: 'claridad', fonts: { heading: 'Playfair Display', body: 'Lato' }, look: { radius: 'pill', density: 'airy' } });
+      expect((fila.designSpec as { look: Record<string, unknown> }).look).not.toHaveProperty('headingWeight');
+      const estilos = (fila.content as { blocks: { key: string; style: unknown }[] }).blocks.map((b) => b.style);
+      expect(estilos).toEqual([{ variant: 'grande', background: 'dark' }, { background: 'alt' }, { variant: 'banda', background: 'accent' }]);
+    });
+
+    it('unas tipografías fuera del catálogo se descartan y la página igual se guarda', async () => {
+      const f = await funnel();
+      fake.respondPage({ ...VALID_PAGE, designSpec: { ...VALID_PAGE.designSpec, fonts: { heading: 'Comic Sans MS', body: 'Inter' } } });
+      expect((await generar(f.token, f.f.id)).status).toBe(200);
+      expect(((await guardado(f.f.id)).designSpec as Record<string, unknown>).fonts).toBeUndefined();
+    });
+
     it('sin marca, se queda con la plantilla y la paleta que eligió la IA', async () => {
       const f = await funnel();
       await generar(f.token, f.f.id);

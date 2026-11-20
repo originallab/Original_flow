@@ -239,6 +239,17 @@ describe('instrucciones al modelo', () => {
     expect(texto).toContain('Propón una paleta coherente');
   });
 
+  it('le da a la IA el catálogo de diseño completo (tipografías, aspecto, variantes por bloque y fondos) y le pide que cada página sea distinta', () => {
+    const texto = sistema(generatePageMessages(PAGE));
+    for (const fuente of ['Playfair Display', 'Montserrat', 'Inter', 'Lato']) expect(texto).toContain(fuente);
+    for (const clave of ['radius', 'density', 'headingCase', 'headingWeight']) expect(texto).toContain(clave);
+    expect(texto).toContain('encabezado: centrado|izquierda|dividido|grande');
+    expect(texto).toContain('beneficios: tarjetas|lista|numerados|columnas');
+    expect(texto).toContain('"background": base|alt|accent|dark');
+    expect(texto).toContain('cada página debe verse distinta');
+    expect(texto).toContain('no pongas dos franjas');
+  });
+
   it('si la marca tiene paleta, la regla exige usarla exactamente', () => {
     const marca = { primary: '#112233', secondary: '#223344', accent: '#334455', background: '#F0F0F0', text: '#101010' };
     const texto = sistema(generatePageMessages({ ...PAGE, brandPalette: marca }));

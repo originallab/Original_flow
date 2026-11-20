@@ -1,4 +1,5 @@
 import { validateBlockContent, BLOCK_TYPES, type BlockType } from '../funnel-types/blocks.js';
+import { cleanProposalDesign, sanitizeBlockStyle } from '../funnel-types/design.js';
 import { getFunnelType } from '../funnel-types/index.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import type { AiBrandBrief, AiContext, AiEngine } from '../integrations/ai-engine/types.js';
@@ -111,11 +112,12 @@ export function createAiService({ funnels, funnelService, workspaces, assets, en
         }),
       );
 
-      const parsed = generatedPageSchema.safeParse(proposal);
+      const parsed = generatedPageSchema.safeParse(cleanProposalDesign(proposal));
       const content = parsed.success ? contentBodySchema.safeParse({ blocks: parsed.data.blocks }) : null;
       if (!parsed.success || !content?.success || content.data.blocks.length === 0) throw badResponse();
 
-      const blocks = content.data.blocks;
+      // El estilo de cada bloque: solo variantes y fondos del catálogo; lo demás se descarta.
+      const blocks = content.data.blocks.map((b) => ({ ...b, style: sanitizeBlockStyle(b.type, b.style) }));
       // La IA solo puede usar las imágenes que la persona subió: una dirección inventada o ajena invalida la página.
       const allowedUrls = new Set([...images.map((i) => i.url), ...(logoUrl ? [logoUrl] : [])]);
       for (const b of blocks) {
