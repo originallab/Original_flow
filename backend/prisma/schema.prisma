@@ -96,8 +96,29 @@ model Workspace {
   memberships Membership[]
   funnels     Funnel[]
   leadStages  LeadStage[]
+  assets      Asset[]
 
   @@index([clientId])
+}
+
+// Una imagen que la persona subió (del producto, del logo...). El archivo vive en Media-as-a-Service; aquí solo está de
+// qué negocio es (el aislamiento entre negocios es nuestro: MediaAAS guarda los archivos de todos en una sola app).
+model Asset {
+  id          String   @id @default(uuid())
+  workspaceId String
+  mediaFileId Int
+  s3Key       String
+  // Dirección pública estable (sin firma): se usa dentro de las páginas publicadas.
+  publicUrl   String
+  name        String
+  mimeType    String
+  size        Int
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
 }
 
 // ---------------------------------------------------------------------------

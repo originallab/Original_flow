@@ -43,6 +43,11 @@ import { createOperationLogModel } from './models/operationLog.model.js';
 import { createOrderModel } from './models/order.model.js';
 import { createCheckoutService } from './services/checkout.service.js';
 import { createAiEngineClient } from './integrations/ai-engine/client.js';
+import { createMediaAasClient } from './integrations/media-aas/client.js';
+import type { MediaStore } from './integrations/media-aas/types.js';
+import { createUnavailableMediaStore } from './integrations/media-aas/unavailable.js';
+import { createAssetModel } from './models/asset.model.js';
+import { createAssetService } from './services/asset.service.js';
 import { createUnavailableAiEngine } from './integrations/ai-engine/unavailable.js';
 import type { AiEngine } from './integrations/ai-engine/types.js';
 import { createWindowLimiter } from './lib/windowLimiter.js';
@@ -60,7 +65,7 @@ const JSON_BODY_LIMIT = '100kb';
  * Arma la aplicación: crea los modelos, los servicios y las rutas y los conecta.
  * Es el único lugar donde se instancian las dependencias.
  */
-export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClient, overrides: { fetchFn?: typeof fetch; aiFetchFn?: typeof fetch; aiEngine?: AiEngine } = {}): Express {
+export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClient, overrides: { fetchFn?: typeof fetch; aiFetchFn?: typeof fetch; aiEngine?: AiEngine; mediaFetchFn?: typeof fetch; mediaStore?: MediaStore } = {}): Express {
   const sessions = createSessionModel(prisma);
   const users = createUserModel(prisma);
   const memberships = createMembershipModel(prisma);
@@ -96,6 +101,15 @@ export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClien
   const checkout = createCheckoutService({ funnels: funnelModel, leads: leadModel, orders: orderModel, payments, pay });
   const paymentWebhook = createPaymentWebhookService({ config, logger, orders: orderModel });
   const orders = createOrderService({ orders: orderModel, access });
+  // Imágenes: el cliente real de MediaAAS si hay credenciales; si no, «no disponible» (503 MEDIA_NOT_CONFIGURED).
+  const { baseUrl: mediaBaseUrl, apiKey: mediaApiKey, secretKey: mediaSecretKey } = config.mediaAas;
+  const mediaStore =
+    overrides.mediaStore ??
+    (mediaBaseUrl && mediaApiKey && mediaSecretKey
+      ? createMediaAasClient({ baseUrl: mediaBaseUrl, apiKey: mediaApiKey, secretKey: mediaSecretKey, logger, operationLog: createOperationLogService(createOperationLogModel(prisma), logger), fetchFn: overrides.mediaFetchFn })
+      : createUnavailableMediaStore());
+  const assetModel = createAssetModel(prisma);
+  const assets = createAssetService({ assets: assetModel, media: mediaStore, access, audit, limiter: createWindowLimiter({ max: 60, windowMs: 60 * 60_000 }) });
   // El motor de IA: el cliente real de IA Engine si hay credenciales; si no, «no disponible» (503 AI_NOT_CONFIGURED).
   const { apiKey: aiApiKey, secretKey: aiSecretKey } = config.aiEngine;
   const aiEngine =
@@ -149,7 +163,7 @@ export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClien
   app.use(cors({ origin: config.corsOrigins, credentials: true }));
 
   app.use(healthRouter);
-  app.use('/api/v1', createApiRouter({ auth, me, workspaces, payments, funnels, funnelContent, funnelPublish, funnelHistory, analytics, leads, leadStages, orders, ai, requireAuth, authSessionRateLimit }));
+  app.use('/api/v1', createApiRouter({ auth, me, workspaces, payments, funnels, funnelContent, funnelPublish, funnelHistory, analytics, leads, leadStages, orders, ai, assets, requireAuth, authSessionRateLimit }));
 
   app.use(notFoundHandler);
   app.use(errorHandler(logger));
