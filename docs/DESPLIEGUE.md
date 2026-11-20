@@ -26,6 +26,8 @@ Para quien despliega. Son tres servicios: base de datos PostgreSQL, backend y fr
 | `LOG_LEVEL` | `info` |
 | `ORIGINALPAY_BASE_URL` | `https://api-test.origpay.com/` (sandbox) o `https://api.origpay.com/` (producción) |
 | `ORIGINALPAY_TOKEN_APP` | `<token_app de la app «Original Flow»>` |
+| `MEDIAAS_API_KEY` | `<api_key de la app «Original Flow» en MediaAAS>` (activa la subida de imágenes; la URL base ya trae `https://getfile.media-as-a-service.io`) |
+| `MEDIAAS_SECRET_KEY` | `<secret_key de la app>`; solo firma, se muestra una sola vez al generarla |
 | `IAENGINE_API_KEY` | `<api_key del proyecto en IA Engine>` (activa la generación con IA) |
 | `IAENGINE_SECRET_KEY` | `<secret_key del proyecto>`; solo firma, nunca viaja |
 | `IAENGINE_MODEL` | `gpt-5.4-mini` |

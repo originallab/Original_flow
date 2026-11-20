@@ -53,7 +53,8 @@ const envSchema = z
 
     // Demás servicios de The Original Lab. Opcionales mientras no se integre cada uno;
     // cada integración exige las suyas al momento de usarse.
-    MEDIAAS_BASE_URL: z.url().optional(),
+    // Media-as-a-Service (almacén de archivos): con `MEDIAAS_API_KEY` y `MEDIAAS_SECRET_KEY` la subida de imágenes se activa.
+    MEDIAAS_BASE_URL: z.url().default('https://getfile.media-as-a-service.io'),
     MEDIAAS_API_KEY: z.string().min(1).optional(),
     MEDIAAS_SECRET_KEY: z.string().min(1).optional(),
     // IA Engine (gateway de IA): con `IAENGINE_API_KEY` y `IAENGINE_SECRET_KEY` la generación con IA se activa;
@@ -91,7 +92,7 @@ export interface AppConfig {
   session: { pendingTtlMs: number; ttlMs: number };
   rateLimit: { authSessionPerMinute: number; publicPerMinute: number; leadsPerMinute: number; aiPerHour: number };
   originalAuth: { tokenApp: string; secretKey: string; mode: 'real' | 'mock_callback' };
-  mediaAas: { baseUrl?: string; apiKey?: string; secretKey?: string };
+  mediaAas: { baseUrl: string; apiKey?: string; secretKey?: string };
   aiEngine: { baseUrl: string; apiKey?: string; secretKey?: string; model: string; timeoutMs: number };
   originalPay: { baseUrl: string; tokenApp?: string; secretKey?: string };
 }

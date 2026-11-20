@@ -1,7 +1,7 @@
 import { createHash, createHmac } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { createMediaAasClient } from '../src/integrations/media-aas/client.js';
-import { signRequest } from '../src/integrations/media-aas/signing.js';
+import { canonicalPath, signRequest } from '../src/integrations/media-aas/signing.js';
 import { createUnavailableMediaStore } from '../src/integrations/media-aas/unavailable.js';
 import { AppError } from '../src/lib/errors.js';
 import { createLogger } from '../src/lib/logger.js';
@@ -33,6 +33,13 @@ function setup(secret = MEDIA_SECRET_KEY) {
 const errorDe = async (p: Promise<unknown>) => (await p.catch((e) => e)) as AppError;
 
 describe('firma de MediaAAS', () => {
+  it('la ruta se firma sin host, decodificada y con la query ordenada alfabéticamente (como en su guía)', () => {
+    expect(canonicalPath('/client/files/?page=1&media_type=image')).toBe('/client/files/?media_type=image&page=1');
+    expect(canonicalPath('/client/media/acme/mi%20app/a.png?format=json')).toBe('/client/media/acme/mi app/a.png?format=json');
+    expect(canonicalPath('/client/upload')).toBe('/client/upload');
+    expect(signRequest('s', 'GET', '/client/files/?b=2&a=1', 5, new Uint8Array())).toBe(signRequest('s', 'GET', '/client/files/?a=1&b=2', 5, new Uint8Array()));
+  });
+
   it('multipart: el cuerpo NO se hashea (se usa el hash del texto vacío); lo demás sí', () => {
     const vacio = createHash('sha256').update('').digest('hex');
     const esperado = `sha256=${createHmac('sha256', 's').update(`POST\n/client/upload\n7\n${vacio}`).digest('hex')}`;
