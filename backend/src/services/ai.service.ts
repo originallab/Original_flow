@@ -28,6 +28,8 @@ interface Deps {
   audit: AuditService;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Una propuesta de bloque: se devuelve para que la persona la acepte o la descarte; no se guarda. */
 export interface BlockProposal {
   key: string;
@@ -77,13 +79,17 @@ export function createAiService({ funnels, funnelService, workspaces, assets, en
         throw AppError.conflict('FUNNEL_PUBLISHED', 'Despublica el funnel antes de volver a generar su página');
       }
       const def = getFunnelType(funnel.objective);
+      const workspace = await workspaces.findById(funnel.workspaceId);
       // Las imágenes que la persona subió: deben ser de este negocio (las de otro no se aceptan, ni se revela que existen).
       const wanted = [...new Set(body.images ?? [])];
       const owned = wanted.length > 0 ? await assets.findOwned(funnel.workspaceId, wanted) : [];
       if (owned.length !== wanted.length) throw AppError.unprocessable('ASSET_NOT_FOUND', 'Alguna de las imágenes no existe en este negocio');
       const images = owned.map((a) => ({ url: a.publicUrl, name: a.name }));
+      // El logo del negocio, si tiene: debe ser una imagen de este mismo negocio.
+      const [logoAsset] = workspace?.logoFileId && UUID.test(workspace.logoFileId) ? await assets.findOwned(funnel.workspaceId, [workspace.logoFileId]) : [];
+      const logoUrl = logoAsset?.publicUrl;
       // La paleta de la marca, si el negocio la tiene: la página la usa tal cual (se garantiza más abajo, aunque la IA la ignore).
-      const brand = brandPaletteSchema.safeParse((await workspaces.findById(funnel.workspaceId))?.brandPalette);
+      const brand = brandPaletteSchema.safeParse(workspace?.brandPalette);
       const brandPalette = brand.success ? brand.data : undefined;
       const proposal = await ask(funnel, ctx.requestId, 'generate_page', (aiCtx) =>
         engine.generatePage(aiCtx, {
@@ -97,6 +103,7 @@ export function createAiService({ funnels, funnelService, workspaces, assets, en
           brandBrief: briefOf(funnel.brandBrief),
           details: body.brief,
           images: images.length > 0 ? images : undefined,
+          logoUrl,
           brandPalette,
           blockTypes: BLOCK_TYPES,
           baseBlocks: def.baseBlocks,
@@ -110,7 +117,7 @@ export function createAiService({ funnels, funnelService, workspaces, assets, en
 
       const blocks = content.data.blocks;
       // La IA solo puede usar las imágenes que la persona subió: una dirección inventada o ajena invalida la página.
-      const allowedUrls = new Set(images.map((i) => i.url));
+      const allowedUrls = new Set([...images.map((i) => i.url), ...(logoUrl ? [logoUrl] : [])]);
       for (const b of blocks) {
         const url = b.type === 'imagen' ? (b.content as { url?: unknown }).url : undefined;
         if (b.type === 'imagen' && (typeof url !== 'string' || !allowedUrls.has(url))) throw badResponse();

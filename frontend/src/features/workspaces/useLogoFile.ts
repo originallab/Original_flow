@@ -5,14 +5,16 @@ export interface LogoFile {
   size: number;
   /** Dirección temporal (`blob:`) para mostrar la imagen en esta pantalla. */
   url: string;
+  /** El archivo, para subirlo al guardar la marca. */
+  file: File;
 }
 
-export const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
+export const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 export const LOGO_MAX_BYTES = 5 * 1024 * 1024;
 
 /** `null` si la imagen sirve; si no, el motivo en español. */
 export function validateLogo(file: { type: string; size: number }): string | null {
-  if (!LOGO_TYPES.includes(file.type)) return 'Usa una imagen PNG, JPG, WebP o SVG.';
+  if (!LOGO_TYPES.includes(file.type)) return 'Usa una imagen PNG, JPG o WebP.';
   if (file.size > LOGO_MAX_BYTES) return 'La imagen pesa más de 5 MB. Usa una más ligera.';
   return null;
 }
@@ -22,8 +24,8 @@ export function formatBytes(bytes: number): string {
 }
 
 /**
- * La imagen que la persona eligió para su marca. Solo vive en esta pantalla (en el navegador): todavía
- * no se sube a ningún servidor. Libera la dirección temporal al cambiar de imagen y al salir.
+ * La imagen que la persona eligió para su marca. Vive en el navegador hasta que se guarda la marca (entonces se sube a
+ * Media-as-a-Service). Libera la dirección temporal al cambiar de imagen y al salir.
  */
 export function useLogoFile() {
   const [logo, setLogo] = useState<LogoFile | null>(null);
@@ -43,7 +45,7 @@ export function useLogoFile() {
       if (problem) return problem;
       release();
       currentUrl.current = URL.createObjectURL(file);
-      setLogo({ name: file.name, size: file.size, url: currentUrl.current });
+      setLogo({ name: file.name, size: file.size, url: currentUrl.current, file });
       return null;
     },
     [release],

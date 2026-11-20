@@ -132,6 +132,27 @@ describe.skipIf(!testDatabaseUrl)('generación con IA (esqueleto con motor simul
         expect(res.body.content.blocks.some((b: { type: string }) => b.type === 'imagen')).toBe(true);
       });
 
+      it('si el negocio tiene logo, se le pasa a la IA y puede mostrarlo; sin fotos, el logo es la única imagen permitida', async () => {
+        const f = await funnel();
+        const logo = await asset(f.workspace.id, 'https://maas.ejemplo.com/public/acme/app/image/logo.png');
+        await prisma.workspace.update({ where: { id: f.workspace.id }, data: { logoFileId: logo.id } });
+        fake.respondPage(conImagen('https://maas.ejemplo.com/public/acme/app/image/logo.png'));
+        const res = await generar(f.token, f.f.id);
+        expect(res.status).toBe(200);
+        expect((fake.calls[0]?.input as unknown as { logoUrl?: string }).logoUrl).toBe('https://maas.ejemplo.com/public/acme/app/image/logo.png');
+        fake.respondPage(conImagen(URL));
+        expect((await generar(f.token, f.f.id)).body.error.code).toBe('AI_BAD_RESPONSE');
+      });
+
+      it('el logo de otro negocio no se usa', async () => {
+        const f = await funnel();
+        const otro = await funnel();
+        const ajeno = await asset(otro.workspace.id, 'https://maas.ejemplo.com/public/otro/logo.png');
+        await prisma.workspace.update({ where: { id: f.workspace.id }, data: { logoFileId: ajeno.id } });
+        await generar(f.token, f.f.id);
+        expect((fake.calls[0]?.input as unknown as { logoUrl?: string }).logoUrl).toBeUndefined();
+      });
+
       it('una dirección que la persona NO subió (inventada) invalida la página: 503 AI_BAD_RESPONSE y no se guarda nada', async () => {
         const f = await funnel();
         const a = await asset(f.workspace.id);

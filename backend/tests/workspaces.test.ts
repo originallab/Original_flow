@@ -153,16 +153,18 @@ describe.skipIf(!testDatabaseUrl)('workspaces y equipo', () => {
   describe('PATCH /workspaces/:id', () => {
     it('el administrador cambia sus datos, el logo y la paleta, y queda auditado', async () => {
       const { token, workspace } = await negocio();
-      const res = await patch(token, `/workspaces/${workspace.id}`, { name: 'Nuevo nombre', logoFileId: 'file_123', brandPalette: PALETA });
+      const logo = await prisma.asset.create({ data: { workspaceId: workspace.id, mediaFileId: 1, s3Key: 'k', publicUrl: 'https://maas.ejemplo.com/public/logo.png', name: 'logo.png', mimeType: 'image/png', size: 10 } });
+      const res = await patch(token, `/workspaces/${workspace.id}`, { name: 'Nuevo nombre', logoFileId: logo.id, brandPalette: PALETA });
       expect(res.status).toBe(200);
-      expect(res.body).toMatchObject({ name: 'Nuevo nombre', logoFileId: 'file_123', brandPalette: PALETA });
+      expect(res.body).toMatchObject({ name: 'Nuevo nombre', logoFileId: logo.id, brandPalette: PALETA });
       const auditoria = await prisma.auditLog.findFirstOrThrow({ where: { action: 'workspace.update', workspaceId: workspace.id } });
       expect(auditoria.metadata).toEqual({ fields: ['name', 'logoFileId', 'brandPalette'] });
     });
 
     it('con null borra un campo', async () => {
       const { token, workspace } = await negocio();
-      await patch(token, `/workspaces/${workspace.id}`, { logoFileId: 'file_1', brandPalette: PALETA });
+      const logo = await prisma.asset.create({ data: { workspaceId: workspace.id, mediaFileId: 1, s3Key: 'k', publicUrl: 'https://maas.ejemplo.com/public/logo.png', name: 'logo.png', mimeType: 'image/png', size: 10 } });
+      await patch(token, `/workspaces/${workspace.id}`, { logoFileId: logo.id, brandPalette: PALETA });
       const res = await patch(token, `/workspaces/${workspace.id}`, { logoFileId: null, brandPalette: null });
       expect(res.body).toMatchObject({ logoFileId: null, brandPalette: null });
     });

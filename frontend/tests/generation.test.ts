@@ -25,6 +25,7 @@ const negocio = (extra: Partial<Workspace> = {}): Workspace => ({
   website: null,
   industry: null,
   logoFileId: null,
+  logoUrl: null,
   brandPalette: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   role: 'client_admin',

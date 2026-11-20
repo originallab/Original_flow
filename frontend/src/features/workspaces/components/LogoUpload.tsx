@@ -16,8 +16,8 @@ interface Props {
 
 /**
  * Sube una imagen de la marca (por ejemplo el logo) y ofrece pedirle a la IA una paleta a partir de ella.
- * CÁSCARA: la imagen solo se muestra aquí y la sugerencia es un ejemplo fijo; el almacenamiento de
- * archivos (Media-as-a-Service) y Original AI Engine se conectan más adelante.
+ * La imagen se sube al guardar la marca y queda como el logo del negocio (Media-as-a-Service). La sugerencia de paleta
+ * sigue siendo un ejemplo fijo: no analiza la imagen.
  */
 export function LogoUpload({ logo, onChoose, onClear, onSuggest, suggested }: Props) {
   const input = useRef<HTMLInputElement>(null);
@@ -65,7 +65,7 @@ export function LogoUpload({ logo, onChoose, onClear, onSuggest, suggested }: Pr
         >
           <ImagePlus size={22} className="text-violet-tint-text" aria-hidden />
           <span className="text-sm font-medium">Subir imagen</span>
-          <span className="text-xs text-muted">PNG, JPG, WebP o SVG · hasta 5 MB</span>
+          <span className="text-xs text-muted">PNG, JPG o WebP · hasta 5 MB</span>
         </button>
       )}
 

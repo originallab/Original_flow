@@ -1,3 +1,4 @@
+import { demoAssetUrl } from './demoAssetStore';
 import { asObject, fail, invalid, notFound, unauthorized, uuid, type DemoDb, type DemoWorkspace } from './demoCore';
 import { demoAnalyticsRoute } from './demoAnalytics';
 import { demoFunnelsRoute } from './demoFunnels';
@@ -83,7 +84,7 @@ function validateWorkspace(body: Record<string, unknown>, creating: boolean) {
   return errors;
 }
 
-const publicWorkspace = ({ ownerEmail: _owner, ...workspace }: DemoWorkspace): Workspace => workspace;
+const publicWorkspace = ({ ownerEmail: _owner, ...workspace }: DemoWorkspace): Workspace => ({ ...workspace, logoUrl: demoAssetUrl(workspace.logoFileId) });
 
 /** Responde una petición como lo haría el backend. Lanza `ApiError` con el mismo formato que el real. */
 export async function demoRequest<T>(path: string, { method, body, token, headers = {} }: DemoRequest): Promise<T> {
@@ -163,6 +164,7 @@ export async function demoRequest<T>(path: string, { method, body, token, header
       website: trimmed('website'),
       industry: trimmed('industry'),
       logoFileId: null,
+      logoUrl: null,
       brandPalette: null,
       createdAt: new Date().toISOString(),
       role: 'client_admin',

@@ -35,6 +35,7 @@ export function workspaceFixture(overrides: Partial<FakeWorkspace> = {}): FakeWo
     website: null,
     industry: 'educacion',
     logoFileId: null,
+  logoUrl: null,
     brandPalette: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     role: 'client_admin',
@@ -74,7 +75,8 @@ export function createFakeBackend() {
     const path = String(input).replace('/api/v1', '').split('?')[0]!;
     const method = init?.method ?? 'GET';
     const headers = new Headers(init?.headers);
-    const body = init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : null;
+    // Un archivo (Blob) no es JSON: se anota solo su nombre y su tipo.
+    const body = init?.body && !(init.body instanceof Blob) ? (JSON.parse(String(init.body)) as Record<string, unknown>) : null;
     calls.push({ method, path, authorization: headers.get('Authorization'), body });
 
     // `down`: ningún endpoint responde. `downPaths`: solo dejan de responder esas rutas.
@@ -146,7 +148,14 @@ export function createFakeBackend() {
       const errors = validateWorkspaceBody(body, false);
       if (errors.length > 0) return validation(errors);
       Object.assign(workspace, body);
+      if (body && 'logoFileId' in body) workspace.logoUrl = body.logoFileId ? 'https://maas.test/logo.png' : null;
       return json(200, workspace);
+    }
+
+    if (path === '/assets' && method === 'POST') {
+      if (!authed()) return noAuth();
+      const file = init?.body as Blob;
+      return json(201, { id: 'asset-logo-1', url: 'https://maas.test/logo.png', name: decodeURIComponent(headers.get('X-File-Name') ?? ''), mimeType: file.type, size: file.size, createdAt: new Date().toISOString() });
     }
 
     if (path.startsWith('/auth/session/') && method === 'DELETE') {

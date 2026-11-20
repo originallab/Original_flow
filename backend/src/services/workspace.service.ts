@@ -1,3 +1,4 @@
+import type { AssetModel } from '../models/asset.model.js';
 import type { MembershipRole } from '../generated/prisma/client.js';
 import { AppError } from '../lib/errors.js';
 import { pageToSkipTake, toPage, type Page, type PaginationQuery } from '../lib/pagination.js';
@@ -19,7 +20,8 @@ export const DEFAULT_LEAD_STAGES: StageSeed[] = [
   { name: 'Cliente', order: 5, isFinal: true, isWon: true },
 ];
 
-export type WorkspaceDto = WorkspaceRecord & { role: MembershipRole };
+/** `logoUrl`: la dirección pública del logo (la imagen que se eligió con `logoFileId`), o null. */
+export type WorkspaceDto = WorkspaceRecord & { role: MembershipRole; logoUrl: string | null };
 
 export interface MemberDto {
   id: string;
@@ -65,9 +67,23 @@ interface Deps {
   users: UserModel;
   access: AccessService;
   audit: AuditService;
+  assets: AssetModel;
 }
 
-export function createWorkspaceService({ workspaces, memberships, users, access, audit }: Deps) {
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function createWorkspaceService({ workspaces, memberships, users, access, audit, assets }: Deps) {
+  /** Pone la dirección pública del logo a cada negocio. Un logo que no sea una imagen de ese mismo negocio no se muestra. */
+  async function withLogos<T extends WorkspaceRecord & { role: MembershipRole }>(items: T[]): Promise<(T & { logoUrl: string | null })[]> {
+    const ids = [...new Set(items.map((w) => w.logoFileId).filter((id): id is string => !!id && UUID.test(id)))];
+    const found = ids.length > 0 ? await assets.findManyByIds(ids) : [];
+    const byId = new Map(found.map((a) => [a.id, a]));
+    return items.map((w) => {
+      const asset = w.logoFileId ? byId.get(w.logoFileId) : undefined;
+      return { ...w, logoUrl: asset && asset.workspaceId === w.id ? asset.publicUrl : null };
+    });
+  }
+
   /**
    * Carga el workspace y el rol con el que la persona accede a él. Si no existe o la
    * persona no tiene acceso, responde 404 (nunca 403) para no revelar que existe.
@@ -95,7 +111,7 @@ export function createWorkspaceService({ workspaces, memberships, users, access,
         const role = roleInWorkspace(mine, w);
         return role ? [{ ...w, role }] : [];
       });
-      return toPage(dtos, total, query);
+      return toPage(await withLogos(dtos), total, query);
     },
 
     /**
@@ -119,19 +135,26 @@ export function createWorkspaceService({ workspaces, memberships, users, access,
         userId,
         ip: ctx.ip,
       });
-      return { ...workspace, role: 'client_admin' };
+      return { ...workspace, role: 'client_admin', logoUrl: null };
     },
 
     /** GET /workspaces/:id */
     async get(userId: string, workspaceId: string): Promise<WorkspaceDto> {
       const { workspace, role } = await loadAccess(userId, workspaceId);
-      return { ...workspace, role };
+      return (await withLogos([{ ...workspace, role }]))[0] as WorkspaceDto;
     },
 
     /** PATCH /workspaces/:id */
     async update(userId: string, workspaceId: string, body: UpdateWorkspaceBody, ctx: RequestContext): Promise<WorkspaceDto> {
       const { role } = await loadAccess(userId, workspaceId);
       assertCan(role, 'workspace:manage');
+      // El logo debe ser una imagen subida a ESTE negocio (las de otro no se aceptan ni se revela que existen).
+      if (body.logoFileId) {
+        const [asset] = UUID.test(body.logoFileId) ? await assets.findManyByIds([body.logoFileId]) : [];
+        if (!asset || asset.workspaceId !== workspaceId) {
+          throw AppError.unprocessable('VALIDATION_ERROR', 'Los datos enviados no son válidos', [{ path: 'logoFileId', message: 'La imagen no existe en este negocio' }]);
+        }
+      }
       const updated = await workspaces.update(workspaceId, body);
       await audit.record({
         action: 'workspace.update',
@@ -142,7 +165,7 @@ export function createWorkspaceService({ workspaces, memberships, users, access,
         ip: ctx.ip,
         metadata: { fields: Object.keys(body) },
       });
-      return { ...updated, role };
+      return (await withLogos([{ ...updated, role }]))[0] as WorkspaceDto;
     },
 
     /** GET /workspaces/:id/members */

@@ -43,6 +43,8 @@ export interface GeneratePageInput {
   currency?: string;
   /** Lo que la persona escribió en el asistente: el motor no debe salirse de esto. */
   brandBrief?: AiBrandBrief;
+  /** El logo del negocio, si tiene: la página puede mostrarlo (con esta dirección exacta). */
+  logoUrl?: string;
   /** Las imágenes que la persona subió para esta página: la IA solo puede usar estas direcciones. */
   images?: { url: string; name: string }[];
   /** La paleta de la marca del negocio, si la tiene: la página debe usarla tal cual. */

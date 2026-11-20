@@ -1,5 +1,6 @@
 import { apiFetch } from './api';
 import { isDemoMode } from './demo';
+import { rememberDemoAsset } from './demoAssetStore';
 
 /** Una imagen que la persona subió (del producto, del logo…): su dirección pública sirve para mostrarla. */
 export interface Asset {
@@ -28,7 +29,9 @@ export function assetProblem(file: { type: string; size: number }): string | nul
  */
 export async function uploadAsset(token: string, workspaceId: string, file: File): Promise<Asset> {
   if (import.meta.env.DEV && isDemoMode()) {
-    return { id: crypto.randomUUID(), url: URL.createObjectURL(file), name: file.name, mimeType: file.type, size: file.size, createdAt: new Date().toISOString() };
+    const asset = { id: crypto.randomUUID(), url: URL.createObjectURL(file), name: file.name, mimeType: file.type, size: file.size, createdAt: new Date().toISOString() };
+    rememberDemoAsset(asset.id, asset.url);
+    return asset;
   }
   return apiFetch(`/assets?workspaceId=${encodeURIComponent(workspaceId)}`, { method: 'POST', body: file, token, headers: { 'X-File-Name': encodeURIComponent(file.name) } });
 }

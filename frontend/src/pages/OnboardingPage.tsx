@@ -9,6 +9,7 @@ import { LoadState } from '@/features/workspaces/LoadState';
 import { PaletteEditor } from '@/features/workspaces/components/PaletteEditor';
 import { AI_SAMPLE_PALETTE, SUGGESTED_PALETTE, valuesOf } from '@/features/workspaces/brand';
 import { useLogoFile } from '@/features/workspaces/useLogoFile';
+import { uploadAsset } from '@/services/assets';
 import { useWorkspaces } from '@/features/workspaces/WorkspaceProvider';
 import { ApiError } from '@/services/api';
 import { createWorkspace, updateWorkspace, type BrandPalette, type Workspace } from '@/services/workspaces';
@@ -67,7 +68,9 @@ function OnboardingSteps() {
     setBrandBusy(true);
     setBrandError(null);
     try {
-      const updated = await updateWorkspace(token, created.id, { brandPalette: palette });
+      // El logo elegido se sube al guardar la marca y queda como el logo del negocio.
+      const uploaded = logo ? await uploadAsset(token, created.id, logo.file) : null;
+      const updated = await updateWorkspace(token, created.id, { brandPalette: palette, ...(uploaded ? { logoFileId: uploaded.id } : {}) });
       upsert(updated, { activate: true });
       navigate('/', { replace: true });
     } catch (err) {

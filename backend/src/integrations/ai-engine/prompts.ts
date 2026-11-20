@@ -48,8 +48,11 @@ function paletteRule(input: GeneratePageInput): string {
 
 /** Las reglas de las imágenes que subió la persona: usarlas con su dirección exacta, y no inventar otras. */
 function imageRule(input: GeneratePageInput): string {
-  if (!input.images || input.images.length === 0) return '- No hay imágenes: no uses bloques "imagen".';
-  return `- La persona subió imágenes (en "imagenes"). Intégralas en la página con bloques "imagen" colocados donde mejor funcionen (por ejemplo, la del producto cerca del encabezado). Forma: ${IMAGE_SHAPE}. Usa cada dirección tal cual, sin cambiarla, y no inventes otras. No es obligatorio usarlas todas.`;
+  const logo = input.logoUrl ? ` El negocio tiene logo ("logo_url"): muéstralo al inicio con un bloque "imagen" (alt: "Logo de <nombre del negocio>") usando esa dirección exacta.` : '';
+  if (!input.images || input.images.length === 0) {
+    return input.logoUrl ? `- No hay fotos de producto.${logo} No uses otros bloques "imagen".` : '- No hay imágenes: no uses bloques "imagen".';
+  }
+  return `- La persona subió imágenes (en "imagenes"). Intégralas en la página con bloques "imagen" colocados donde mejor funcionen (por ejemplo, la del producto cerca del encabezado). Forma: ${IMAGE_SHAPE}. Usa cada dirección tal cual, sin cambiarla, y no inventes otras. No es obligatorio usarlas todas.${logo}`;
 }
 
 const COMMON_RULES = `Responde ÚNICAMENTE con un objeto JSON válido: sin texto antes ni después y sin bloques de código.
@@ -91,6 +94,7 @@ ${imageRule(input)}
     publico: input.targetAudience,
     precio: input.price,
     imagenes: input.images,
+    logo_url: input.logoUrl,
     divisa: input.currency,
     marca: input.brandBrief,
     detalles: input.details && {

@@ -75,7 +75,8 @@ export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClien
   const auth = createAuthService({ config, logger, sessions, users, memberships, audit });
   const me = createMeService(users, memberships);
   const access = createAccessService(workspaceModel, memberships);
-  const workspaces = createWorkspaceService({ workspaces: workspaceModel, memberships, users, access, audit });
+  const assetModel = createAssetModel(prisma);
+  const workspaces = createWorkspaceService({ workspaces: workspaceModel, memberships, users, access, audit, assets: assetModel });
   const payments = createPaymentsService({ workspaces: workspaceModel, access, audit });
   const funnelModel = createFunnelModel(prisma);
   const funnels = createFunnelService({ funnels: funnelModel, access, audit });
@@ -108,7 +109,6 @@ export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClien
     (mediaBaseUrl && mediaApiKey && mediaSecretKey
       ? createMediaAasClient({ baseUrl: mediaBaseUrl, apiKey: mediaApiKey, secretKey: mediaSecretKey, logger, operationLog: createOperationLogService(createOperationLogModel(prisma), logger), fetchFn: overrides.mediaFetchFn })
       : createUnavailableMediaStore());
-  const assetModel = createAssetModel(prisma);
   const assets = createAssetService({ assets: assetModel, media: mediaStore, access, audit, limiter: createWindowLimiter({ max: 60, windowMs: 60 * 60_000 }) });
   // El motor de IA: el cliente real de IA Engine si hay credenciales; si no, «no disponible» (503 AI_NOT_CONFIGURED).
   const { apiKey: aiApiKey, secretKey: aiSecretKey } = config.aiEngine;

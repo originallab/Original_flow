@@ -54,13 +54,13 @@ describe('paso «Configura tu marca»: subir una imagen', () => {
   it('ofrece subir una imagen y todavía no ofrece sugerir paleta', async () => {
     await llegarAMarca();
     expect(screen.getByRole('button', { name: /subir imagen/i })).toBeInTheDocument();
-    expect(screen.getByText(/png, jpg, webp o svg · hasta 5 mb/i)).toBeInTheDocument();
+    expect(screen.getByText(/png, jpg o webp · hasta 5 mb/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /sugerir paleta con ia/i })).not.toBeInTheDocument();
   });
 
   it('el campo de archivo solo acepta imágenes', async () => {
     await llegarAMarca();
-    expect(screen.getByLabelText('Archivo de imagen')).toHaveAttribute('accept', 'image/png,image/jpeg,image/webp,image/svg+xml');
+    expect(screen.getByLabelText('Archivo de imagen')).toHaveAttribute('accept', 'image/png,image/jpeg,image/webp');
   });
 
   it('al elegir una imagen la muestra con su nombre y su tamaño, y ofrece cambiarla, quitarla y sugerir paleta', async () => {
@@ -95,7 +95,7 @@ describe('paso «Configura tu marca»: subir una imagen', () => {
   ])('rechaza %s con un mensaje claro y no muestra nada', async (_nombre, archivo, tipo, bytes) => {
     await llegarAMarca();
     await subir(imagen(archivo, tipo, bytes));
-    expect(await screen.findByRole('alert')).toHaveTextContent(/png, jpg, webp o svg/i);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/png, jpg o webp/i);
     expect(screen.queryByAltText('Vista previa de tu imagen')).not.toBeInTheDocument();
     expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
@@ -180,17 +180,23 @@ describe('paso «Configura tu marca»: sugerir paleta con IA (maqueta)', () => {
     expect(screen.getByLabelText('Código de color: Primario')).toHaveValue(AI_SAMPLE_PALETTE.primary);
   });
 
-  it('la paleta sugerida se guarda con «Guardar y continuar»; la imagen NO se envía a ningún lado', async () => {
+  it('al guardar, la imagen elegida se sube (POST /assets) y queda como el logo del negocio junto con la paleta sugerida', async () => {
     await llegarAMarca();
     await subir(imagen('mi-logo.png'));
     await userEvent.click(await screen.findByRole('button', { name: /sugerir paleta con ia/i }));
     await userEvent.click(screen.getByRole('button', { name: /guardar y continuar/i }));
     await screen.findByRole('heading', { name: 'Hola, Ana' });
+    expect(backend.callsTo('/assets')).toHaveLength(1);
     expect(patches()).toHaveLength(1);
-    expect(patches()[0]?.body).toEqual({ brandPalette: AI_SAMPLE_PALETTE });
-    // Nada de la imagen sale de la pantalla: ni llamadas de archivos ni su nombre en ningún cuerpo.
-    expect(backend.calls.some((c) => /file|media|upload|logo/i.test(c.path))).toBe(false);
-    expect(JSON.stringify(backend.calls.map((c) => c.body))).not.toContain('mi-logo');
+    expect(patches()[0]?.body).toEqual({ brandPalette: AI_SAMPLE_PALETTE, logoFileId: 'asset-logo-1' });
+  });
+
+  it('sin imagen no se sube nada y el PATCH no lleva logo', async () => {
+    await llegarAMarca();
+    await userEvent.click(screen.getByRole('button', { name: /guardar y continuar/i }));
+    await screen.findByRole('heading', { name: 'Hola, Ana' });
+    expect(backend.callsTo('/assets')).toHaveLength(0);
+    expect(patches()[0]?.body).not.toHaveProperty('logoFileId');
   });
 
   it('subir otra imagen o quitarla borra el aviso de la sugerencia', async () => {
@@ -228,7 +234,7 @@ describe('reglas de la imagen', () => {
     ['image/png', true],
     ['image/jpeg', true],
     ['image/webp', true],
-    ['image/svg+xml', true],
+    ['image/svg+xml', false],
     ['image/gif', false],
     ['application/pdf', false],
     ['', false],

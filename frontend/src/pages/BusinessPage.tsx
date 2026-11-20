@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { BrandPreview } from '@/features/workspaces/components/BrandPreview';
 import { BusinessForm } from '@/features/workspaces/components/BusinessForm';
+import { LogoSection } from '@/features/workspaces/components/LogoSection';
 import { PaymentsSection } from '@/features/workspaces/components/PaymentsSection';
 import { PaletteEditor } from '@/features/workspaces/components/PaletteEditor';
 import { diffWorkspace, SUGGESTED_PALETTE, valuesOf, type BusinessValues } from '@/features/workspaces/brand';
@@ -57,6 +58,8 @@ function BusinessEditor({ workspace, token, onSaved }: { workspace: Workspace; t
           Solo el administrador del negocio puede editar estos datos.
         </p>
       )}
+
+      <LogoSection workspace={workspace} token={token} canEdit={canEdit} onSaved={onSaved} />
 
       <section className="mt-8 rounded-2xl border border-border bg-surface p-6">
         <h2 className="font-heading text-lg font-semibold">Datos</h2>

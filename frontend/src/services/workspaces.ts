@@ -16,6 +16,8 @@ export interface Workspace {
   website: string | null;
   industry: string | null;
   logoFileId: string | null;
+  /** La dirección pública del logo (la imagen elegida con `logoFileId`), o `null`. */
+  logoUrl: string | null;
   brandPalette: BrandPalette | null;
   createdAt: string;
   /** Rol de quien pregunta en este negocio. */
@@ -36,6 +38,8 @@ export interface WorkspaceChanges {
   website?: string | null;
   industry?: string | null;
   brandPalette?: BrandPalette | null;
+  /** El id de la imagen (de `POST /assets`) que es el logo; `null` lo quita. */
+  logoFileId?: string | null;
 }
 
 interface Page<T> {

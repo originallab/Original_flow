@@ -28,6 +28,11 @@ export function createAssetModel(prisma: PrismaClient) {
       return prisma.asset.findMany({ where: { workspaceId }, orderBy: { createdAt: 'desc' }, select: FIELDS });
     },
 
+    /** Las imágenes con esos ids (de cualquier negocio): quien las usa debe comprobar de quién son. */
+    findManyByIds(ids: string[]) {
+      return prisma.asset.findMany({ where: { id: { in: ids } }, select: FIELDS });
+    },
+
     /** Las imágenes con esos ids que SÍ son de ese negocio (las de otro negocio no salen). */
     findOwned(workspaceId: string, ids: string[]) {
       return prisma.asset.findMany({ where: { workspaceId, id: { in: ids } }, select: FIELDS });
