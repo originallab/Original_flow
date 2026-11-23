@@ -34,10 +34,16 @@ export const SURFACES = ['flat', 'outline', 'elevated', 'glass', 'glow'] as cons
 export const EFFECTS = ['none', 'gradient', 'glow', 'underline'] as const;
 /** Decoración detrás de toda la página: lisa, degradado suave, cuadrícula, puntos o resplandor. */
 export const BACKDROPS = ['plain', 'gradient', 'grid', 'dots', 'glow'] as const;
-/** Corte entre franjas de color: recto o en diagonal. */
-export const DIVIDERS = ['none', 'slant'] as const;
+/** Corte entre franjas de color: recto, en diagonal, ondulado o en zigzag. */
+export const DIVIDERS = ['none', 'slant', 'wave', 'zigzag'] as const;
 /** Botones: sólidos, con degradado o con brillo. */
 export const BUTTONS = ['solid', 'gradient', 'glow'] as const;
+/** Cómo se acomoda el patrón de fondo que sube la persona: en mosaico o cubriendo toda la página. */
+export const PATTERN_MODES = ['tile', 'cover'] as const;
+/** Tamaño de cada repetición del mosaico. */
+export const PATTERN_SCALES = ['sm', 'md', 'lg'] as const;
+/** Cuánto se atenúa el patrón con el color de fondo (en %), para que el texto se siga leyendo. */
+export const PATTERN_DIMS = [0, 25, 50, 75] as const;
 
 /** El aspecto general de la página (se suma a la plantilla). */
 export interface PageLook {
@@ -53,8 +59,16 @@ export interface PageLook {
   button?: (typeof BUTTONS)[number];
 }
 
-/** El fondo de la franja de un bloque: el de la página, uno suave, el color de la marca o uno oscuro. */
-export const BACKGROUNDS = ['base', 'alt', 'accent', 'dark'] as const;
+/** El fondo de la franja de un bloque: el de la página, uno suave, el color de la marca, uno oscuro, un degradado o una malla de color. */
+/** Íconos que puede llevar cada beneficio (nombres de la biblioteca de íconos del front). */
+export const ICONS = [
+  'zap', 'shield-check', 'star', 'heart', 'rocket', 'trophy', 'target', 'users', 'clock', 'circle-check', 'sparkles', 'globe',
+  'lock', 'gift', 'flame', 'gem', 'lightbulb', 'chart-line', 'award', 'headphones', 'gamepad-2', 'map-pin', 'calendar', 'book-open',
+  'camera', 'music', 'leaf', 'coffee', 'dumbbell', 'wallet', 'smile', 'handshake', 'truck', 'wrench', 'sun', 'brain', 'swords', 'crown', 'palette', 'code',
+] as const;
+export type IconName = (typeof ICONS)[number];
+
+export const BACKGROUNDS = ['base', 'alt', 'accent', 'dark', 'gradient', 'mesh'] as const;
 export type BlockBackground = (typeof BACKGROUNDS)[number];
 
 /** Las formas de dibujar cada tipo de bloque (`style.variant`). El primero es el que se usa si no se elige ninguna. */
@@ -125,4 +139,37 @@ export function cleanProposalDesign(proposal: unknown): unknown {
   const cleanFonts = sanitizeFonts(fonts);
   const cleanLook = sanitizeLook(look);
   return { ...(proposal as object), designSpec: { ...rest, ...(cleanFonts ? { fonts: cleanFonts } : {}), ...(cleanLook ? { look: cleanLook } : {}) } };
+}
+
+/** Íconos con los que se completan los beneficios que la IA dejó sin ícono (genéricos, valen para cualquier tema). */
+const ICON_POOL: readonly (typeof ICONS)[number][] = ['sparkles', 'circle-check', 'zap', 'target', 'star', 'shield-check', 'lightbulb', 'heart', 'rocket', 'award', 'users', 'clock'];
+
+/** Cada beneficio lleva un ícono: a los que no tienen se les da uno genérico (sin repetir dentro del mismo bloque mientras alcance). */
+export function fillIcons(type: BlockType, content: Record<string, unknown>, offset: number): Record<string, unknown> {
+  if (type !== 'beneficios' || !Array.isArray(content.items)) return content;
+  const used = new Set(content.items.map((i) => (i as { icon?: unknown } | null)?.icon).filter((i): i is string => typeof i === 'string'));
+  let next = offset;
+  const items = content.items.map((item) => {
+    if (item === null || typeof item !== 'object' || typeof (item as { icon?: unknown }).icon === 'string') return item;
+    let icon = ICON_POOL[next % ICON_POOL.length] as string;
+    for (let tries = 0; tries < ICON_POOL.length && used.has(icon); tries += 1) {
+      next += 1;
+      icon = ICON_POOL[next % ICON_POOL.length] as string;
+    }
+    next += 1;
+    used.add(icon);
+    return { ...(item as Record<string, unknown>), icon };
+  });
+  return { ...content, items };
+}
+
+/** En los beneficios, el ícono de cada elemento solo vale si es del catálogo; si no, se quita (el resto del bloque no cambia). */
+export function cleanIcons(type: BlockType, content: Record<string, unknown>): Record<string, unknown> {
+  if (type !== 'beneficios' || !Array.isArray(content.items)) return content;
+  const items = content.items.map((item) => {
+    if (item === null || typeof item !== 'object') return item;
+    const { icon, ...rest } = item as Record<string, unknown>;
+    return typeof icon === 'string' && (ICONS as readonly string[]).includes(icon) ? { ...rest, icon } : rest;
+  });
+  return { ...content, items };
 }

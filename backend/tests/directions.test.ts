@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { creativeBrief, describeDesign, qualityExamples } from '../src/funnel-types/creative.js';
-import { BACKGROUNDS, BLOCK_VARIANTS, BODY_FONTS, HEADING_FONTS, SINGLE_WEIGHT_FONTS, sanitizeLook } from '../src/funnel-types/design.js';
+import { BACKGROUNDS, BLOCK_VARIANTS, BODY_FONTS, DIVIDERS, HEADING_FONTS, ICONS, SINGLE_WEIGHT_FONTS, cleanIcons, sanitizeBlockStyle, sanitizeLook, fillIcons } from '../src/funnel-types/design.js';
 import { DIRECTIONS, hash } from '../src/funnel-types/directions.js';
-import { contrast, diversifyHeading, fallbackDesign, guardLook, paletteReads, pickPalette, polishBlocks, randomHints, repairPalette } from '../src/funnel-types/polish.js';
+import { contrast, diversifyHeading, enrichLook, fallbackDesign, guardLook, paletteReads, pickPalette, polishBlocks, randomHints, repairPalette } from '../src/funnel-types/polish.js';
 import { TEMPLATES } from '../src/funnel-types/templates.js';
 import { generatePageMessages } from '../src/integrations/ai-engine/prompts.js';
 
@@ -101,7 +101,7 @@ describe('recursos visuales por tema', () => {
 
   it('el aspecto acepta superficie, efecto, fondo, corte y botones del catálogo y descarta lo demás', () => {
     expect(sanitizeLook({ surface: 'glow', effect: 'gradient', backdrop: 'grid', divider: 'slant', button: 'glow' })).toEqual({ surface: 'glow', effect: 'gradient', backdrop: 'grid', divider: 'slant', button: 'glow' });
-    expect(sanitizeLook({ surface: 'neon', effect: 'rainbow', backdrop: 'x', divider: 'wave', button: 'laser', radius: 'sm' })).toEqual({ radius: 'sm' });
+    expect(sanitizeLook({ surface: 'neon', effect: 'rainbow', backdrop: 'x', divider: 'spiral', button: 'laser', radius: 'sm' })).toEqual({ radius: 'sm' });
   });
 
   it('sobre fondo claro, el brillo de neón en títulos y botones y el vidrio sin nada detrás se suavizan', () => {
@@ -118,6 +118,108 @@ describe('recursos visuales por tema', () => {
   it('las instrucciones traen la guía por tema (profesional, videojuegos, lujo...) y los nuevos recursos', () => {
     const texto = generatePageMessages({ objective: 'venta', language: 'es', name: 'Pixel', blockTypes: ['encabezado'] as never, baseBlocks: ['encabezado'] as never })[0]!.content;
     for (const frase of ['Profesional, corporativo', 'Videojuegos, esports', 'Lujo, joyería', 'Infantil', 'Bienestar', 'Orbitron', '"surface": flat|outline|elevated|glass|glow', '"backdrop": plain|gradient|grid|dots|glow', 'reflejar el TEMA y el TONO']) expect(texto).toContain(frase);
+  });
+});
+
+describe('que ninguna página quede plana', () => {
+  const pistas = randomHints('plana');
+  const bloque = (key: string, type: string, style: Record<string, unknown> = {}, order = 0) => ({ key, type: type as never, order, content: {}, style });
+  const FUERTES = ['accent', 'dark', 'gradient', 'mesh'];
+  const STRONG_BG = FUERTES;
+
+  it('el catálogo tiene fondos de degradado y malla, cortes ondulados y en zigzag y íconos', () => {
+    expect(BACKGROUNDS).toEqual(expect.arrayContaining(['gradient', 'mesh']));
+    expect(DIVIDERS).toEqual(expect.arrayContaining(['wave', 'zigzag']));
+    expect(sanitizeBlockStyle('texto', { background: 'mesh' })).toEqual({ background: 'mesh' });
+    expect(ICONS.length).toBeGreaterThanOrEqual(30);
+    expect(new Set(ICONS).size).toBe(ICONS.length);
+  });
+
+  it('si la IA no puso ninguna franja de color, el encabezado toma una', () => {
+    for (let i = 0; i < 20; i += 1) {
+      const salida = polishBlocks([bloque('h', 'encabezado', { background: 'base' }, 1), bloque('t', 'texto', { background: 'alt' }, 2), bloque('b', 'beneficios', { background: 'base' }, 3), bloque('c', 'boton', {}, 4)], randomHints(`s${i}`));
+      // un botón en banda es una franja de color por sí mismo
+      expect(salida.some((b) => FUERTES.includes(b.style.background as string) || b.style.variant === 'banda'), `semilla s${i}`).toBe(true);
+    }
+  });
+
+  it('si ya hay una franja de color, no agrega otra; un botón en banda también cuenta', () => {
+    const una = polishBlocks([bloque('h', 'encabezado', { background: 'mesh' }, 1), bloque('t', 'texto', { background: 'base' }, 2)], pistas);
+    expect(una.filter((b) => FUERTES.includes(b.style.background as string))).toHaveLength(1);
+    const banda = polishBlocks([bloque('h', 'encabezado', { background: 'base' }, 1), bloque('c', 'boton', { variant: 'banda' }, 2)], pistas);
+    // el encabezado nunca queda plano: toma una franja de color aunque la IA le haya puesto «base»
+    expect(STRONG_BG).toContain(banda[0]?.style.background);
+  });
+
+  it('el degradado y la malla también cuentan como franjas fuertes: no van seguidas', () => {
+    const salida = polishBlocks([bloque('a', 'texto', { background: 'gradient' }, 1), bloque('b', 'texto', { background: 'mesh' }, 2), bloque('c', 'texto', { background: 'gradient' }, 3)], pistas);
+    const fuertes = salida.map((b) => FUERTES.includes(b.style.background as string));
+    fuertes.forEach((f, i) => expect(f && fuertes[i - 1]).toBeFalsy());
+  });
+
+  it('el encabezado SIEMPRE lleva una franja de color, y las páginas de 4 bloques o más al menos dos', () => {
+    for (let i = 0; i < 40; i += 1) {
+      const fondo = ['base', 'alt', undefined][i % 3];
+      const salida = polishBlocks(
+        [bloque('h', 'encabezado', fondo ? { background: fondo } : {}, 1), bloque('t', 'texto', { background: 'base' }, 2), bloque('b', 'beneficios', { background: 'alt' }, 3), bloque('f', 'faq', { background: 'base' }, 4), bloque('c', 'boton', { variant: 'solido' }, 5)],
+        randomHints(`v${i}`),
+      );
+      expect(FUERTES, `encabezado v${i}`).toContain(salida[0]?.style.background);
+      expect(salida.filter((b) => FUERTES.includes(b.style.background as string) || b.style.variant === 'banda').length, `franjas v${i}`).toBeGreaterThanOrEqual(2);
+      const fuertes = salida.map((b) => FUERTES.includes(b.style.background as string));
+      fuertes.forEach((f, k) => expect(f && fuertes[k - 1], `seguidas v${i}`).toBeFalsy());
+    }
+  });
+
+  it('las páginas cortas (menos de 4 bloques) solo exigen la franja del encabezado', () => {
+    const salida = polishBlocks([bloque('h', 'encabezado', {}, 1), bloque('t', 'texto', {}, 2), bloque('c', 'boton', {}, 3)], randomHints('corta'));
+    expect(FUERTES).toContain(salida[0]?.style.background);
+  });
+
+  it('el aspecto mínimo de cualquier página: tarjetas con sombra, decoración de fondo y corte que no es recto', () => {
+    const clara = { primary: '#1E3A5F', secondary: '#3A4A5E', accent: '#B8893B', background: '#FFFFFF', text: '#14213D' };
+    const oscura = { primary: '#22D3EE', secondary: '#A78BFA', accent: '#F472B6', background: '#0A0A12', text: '#E6E6F0' };
+    const minimo = enrichLook(undefined, clara, 's');
+    expect(minimo).toMatchObject({ surface: 'elevated', backdrop: 'gradient' });
+    expect(['slant', 'wave']).toContain(minimo.divider);
+    expect(enrichLook({ surface: 'flat', backdrop: 'plain', divider: 'none' }, clara, 's')).toMatchObject({ surface: 'elevated', backdrop: 'gradient' });
+    expect(enrichLook({}, oscura, 's').backdrop).toBe('glow');
+    const dividers = new Set(Array.from({ length: 30 }, (_, i) => enrichLook({}, clara, `k${i}`).divider));
+    expect(dividers).toEqual(new Set(['slant', 'wave']));
+  });
+
+  it('lo que la IA eligió por encima del mínimo se respeta', () => {
+    const clara = { primary: '#1E3A5F', secondary: '#3A4A5E', accent: '#B8893B', background: '#FFFFFF', text: '#14213D' };
+    const look = { surface: 'glass', backdrop: 'grid', divider: 'zigzag', effect: 'underline', radius: 'pill' } as const;
+    expect(enrichLook(look, clara, 's')).toEqual(look);
+    expect(enrichLook({ surface: 'outline' }, clara, 's').surface).toBe('outline');
+  });
+
+  it('a los beneficios sin ícono se les da uno genérico, sin repetir dentro del bloque, y los que ya tienen no cambian', () => {
+    const lleno = fillIcons('beneficios', { items: [{ title: 'A', icon: 'rocket' }, { title: 'B' }, { title: 'C' }, { title: 'D' }, 'x'] }, 0) as { items: ({ icon?: string } | string)[] };
+    const iconos = lleno.items.filter((i): i is { icon?: string } => typeof i === 'object').map((i) => i.icon);
+    expect(iconos[0]).toBe('rocket');
+    expect(iconos.every((i) => i && ICONS.includes(i as never))).toBe(true);
+    expect(new Set(iconos).size).toBe(iconos.length);
+    expect(lleno.items[4]).toBe('x');
+    const doce = fillIcons('beneficios', { items: Array.from({ length: 12 }, (_, i) => ({ title: `T${i}` })) }, 3) as { items: { icon: string }[] };
+    expect(new Set(doce.items.map((i) => i.icon)).size).toBe(12);
+    const otro = { items: [{ title: 'A' }] };
+    expect(fillIcons('faq', otro, 0)).toBe(otro);
+    expect(fillIcons('beneficios', { title: 'sin items' }, 0)).toEqual({ title: 'sin items' });
+  });
+
+  it('los íconos de los beneficios solo valen si son del catálogo; lo demás no se toca', () => {
+    const limpio = cleanIcons('beneficios', { title: 'T', items: [{ title: 'A', icon: 'rocket' }, { title: 'B', icon: 'inventado' }, { title: 'C', icon: 5 }, { title: 'D' }, 'x'] });
+    expect(limpio).toEqual({ title: 'T', items: [{ title: 'A', icon: 'rocket' }, { title: 'B' }, { title: 'C' }, { title: 'D' }, 'x'] });
+    const otro = { items: [{ title: 'A', icon: 'inventado' }] };
+    expect(cleanIcons('faq', otro)).toBe(otro);
+    expect(cleanIcons('beneficios', { title: 'sin items' })).toEqual({ title: 'sin items' });
+  });
+
+  it('las instrucciones piden que la página no sea plana y ofrecen los íconos y los nuevos fondos', () => {
+    const texto = generatePageMessages({ objective: 'venta', language: 'es', name: 'X', blockTypes: ['encabezado'] as never, baseBlocks: ['encabezado'] as never })[0]!.content;
+    for (const frase of ['NO debe verse plana', '"gradient" un degradado', '"mesh" una malla', 'zigzag', 'rocket', 'gamepad-2', 'ícono']) expect(texto).toContain(frase);
   });
 });
 
@@ -227,6 +329,7 @@ describe('instrucciones a la IA', () => {
 
   it('sin paleta de marca le pide una propia y con paleta le exige usarla', () => {
     expect(sistema()).toContain('Diseña una paleta propia');
+    expect(sistema()).toContain('NO uses por defecto un fondo crema');
     expect(sistema({ brandPalette: { primary: '#112233', secondary: '#223344', accent: '#334455', background: '#F0F0F0', text: '#101010' } })).toContain('EXACTAMENTE');
   });
 });

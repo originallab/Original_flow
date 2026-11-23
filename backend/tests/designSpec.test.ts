@@ -102,4 +102,52 @@ describe.skipIf(!testDatabaseUrl)('PUT /funnels/:id/design-spec', () => {
     const { token } = await conFunnel();
     expect((await put(token, 'abc', DISENO)).status).toBe(422);
   });
+
+  describe('patrón de fondo', () => {
+    const URL_PROPIA = 'https://maas.ejemplo.com/public/acme/app/image/patron.png';
+    const asset = (workspaceId: string, url = URL_PROPIA) => prisma.asset.create({ data: { workspaceId, mediaFileId: 1, s3Key: 'k', publicUrl: url, name: 'patron.png', mimeType: 'image/png', size: 10 } });
+
+    it('guarda un patrón que es una imagen del propio negocio y pone su dirección el servidor, no el navegador', async () => {
+      const { token, funnel, workspace } = await conFunnel();
+      const a = await asset(workspace.id);
+      const res = await put(token, funnel.id, { ...DISENO, pattern: { assetId: a.id, url: 'https://sitio-malo.example/x.png', mode: 'cover', scale: 'lg', dim: 50 } });
+      expect(res.status).toBe(200);
+      expect(res.body.designSpec.pattern).toEqual({ assetId: a.id, url: URL_PROPIA, mode: 'cover', scale: 'lg', dim: 50 });
+      expect((await request(app).get(`/api/v1/funnels/${funnel.id}`).set(encabezados(token))).body.designSpec.pattern.url).toBe(URL_PROPIA);
+    });
+
+    it('los datos que faltan toman su valor por defecto (mosaico, mediano, sin atenuar)', async () => {
+      const { token, funnel, workspace } = await conFunnel();
+      const a = await asset(workspace.id);
+      const res = await put(token, funnel.id, { ...DISENO, pattern: { assetId: a.id } });
+      expect(res.body.designSpec.pattern).toEqual({ assetId: a.id, url: URL_PROPIA, mode: 'tile', scale: 'md', dim: 0 });
+    });
+
+    it('una imagen de otro negocio o que no existe responde 422 ASSET_NOT_FOUND y no cambia el diseño', async () => {
+      const { token, funnel } = await conFunnel();
+      const otro = await conFunnel();
+      const ajena = await asset(otro.workspace.id);
+      for (const assetId of [ajena.id, '3f2b8c1e-5d4a-4e9b-8a1c-7d6e5f4a3b2c']) {
+        const res = await put(token, funnel.id, { ...DISENO, pattern: { assetId } });
+        expect(res.status).toBe(422);
+        expect(res.body.error.code).toBe('ASSET_NOT_FOUND');
+      }
+      expect((await prisma.funnel.findUniqueOrThrow({ where: { id: funnel.id } })).designSpec).toBeNull();
+    });
+
+    it('valores fuera del catálogo se rechazan (422)', async () => {
+      const { token, funnel, workspace } = await conFunnel();
+      const a = await asset(workspace.id);
+      for (const pattern of [{ assetId: 'x' }, { assetId: a.id, mode: 'espejo' }, { assetId: a.id, scale: 'xl' }, { assetId: a.id, dim: 33 }]) {
+        expect((await put(token, funnel.id, { ...DISENO, pattern })).status).toBe(422);
+      }
+    });
+
+    it('guardar el diseño sin patrón lo quita', async () => {
+      const { token, funnel, workspace } = await conFunnel();
+      const a = await asset(workspace.id);
+      await put(token, funnel.id, { ...DISENO, pattern: { assetId: a.id } });
+      expect((await put(token, funnel.id, DISENO)).body.designSpec.pattern).toBeUndefined();
+    });
+  });
 });

@@ -45,7 +45,8 @@ describe('diseño del bloque', () => {
     const grupo = within(screen.getByRole('region', { name: 'Propiedades: Encabezado' })).getByRole('group', { name: 'Diseño del bloque' });
     await user().selectOptions(within(grupo).getByLabelText('Fondo'), 'accent');
     await user().selectOptions(within(grupo).getByLabelText('Fondo'), 'base');
-    await waitFor(async () => expect((await persistido()).content.blocks.find((b) => b.key === 'encabezado')?.style).toEqual({}));
+    // el encabezado de la página generada nace con forma «grande»: quitar el fondo deja solo la forma
+    await waitFor(async () => expect((await persistido()).content.blocks.find((b) => b.key === 'encabezado')?.style).toEqual({ variant: 'grande' }));
   });
 
   it('un bloque sin variantes (formulario) solo ofrece el fondo', async () => {
@@ -75,11 +76,12 @@ describe('diseño de la página (Ajustes)', () => {
     await irAAjustes();
     await user().selectOptions(screen.getByLabelText('Espacio entre secciones'), 'airy');
     await user().selectOptions(screen.getByLabelText('Títulos'), 'upper');
-    await waitFor(async () => expect((await persistido()).designSpec?.look).toEqual({ density: 'airy', headingCase: 'upper' }));
+    await waitFor(async () => expect((await persistido()).designSpec?.look).toMatchObject({ density: 'airy', headingCase: 'upper' }));
     expect(within(lienzo()).getByRole('heading', { level: 1 })).toHaveStyle({ textTransform: 'uppercase' });
     await user().selectOptions(screen.getByLabelText('Títulos'), '');
     await user().selectOptions(screen.getByLabelText('Espacio entre secciones'), '');
-    await waitFor(async () => expect((await persistido()).designSpec?.look).toBeUndefined());
+    // quitar lo elegido vuelve al aspecto con el que nació la página
+    await waitFor(async () => expect((await persistido()).designSpec?.look).toEqual({ surface: 'elevated', backdrop: 'gradient', divider: 'slant' }));
   });
 
   it('los recursos visuales (tarjetas, efecto, fondo, corte y botones) se eligen y se guardan', async () => {
@@ -92,5 +94,59 @@ describe('diseño de la página (Ajustes)', () => {
     await user().selectOptions(screen.getByLabelText('Botones'), 'glow');
     await waitFor(async () => expect((await persistido()).designSpec?.look).toEqual({ surface: 'glow', effect: 'gradient', backdrop: 'grid', divider: 'slant', button: 'glow' }));
     expect(lienzo().style.backgroundImage).toContain('linear-gradient');
+  });
+
+  describe('patrón de fondo', () => {
+    const imagen = (nombre = 'patron.png', tipo = 'image/png') => new File([new Uint8Array(20)], nombre, { type: tipo });
+
+    it('se sube un patrón, se acomoda y se atenúa, y se guarda en el diseño; también se puede quitar', async () => {
+      vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:patron-1', revokeObjectURL: () => undefined }));
+      await abrir();
+      await irAAjustes();
+      expect(screen.queryByLabelText('Cómo se acomoda')).toBeNull();
+      await user().upload(screen.getByLabelText('Subir patrón de fondo'), imagen());
+      await waitFor(async () => expect((await persistido()).designSpec?.pattern).toMatchObject({ mode: 'tile', scale: 'md', dim: 0 }));
+
+      await user().selectOptions(await screen.findByLabelText('Cómo se acomoda'), 'cover');
+      await user().selectOptions(screen.getByLabelText('Atenuar con el color de fondo'), '50');
+      await waitFor(async () => expect((await persistido()).designSpec?.pattern).toMatchObject({ mode: 'cover', dim: 50 }));
+      // en «cubrir» ya no se elige el tamaño del mosaico
+      expect(screen.queryByLabelText('Tamaño del mosaico')).toBeNull();
+
+      await user().click(screen.getByRole('button', { name: 'Quitar' }));
+      await waitFor(async () => expect((await persistido()).designSpec?.pattern).toBeUndefined());
+      expect(screen.getByRole('button', { name: /Subir un patrón/ })).toBeInTheDocument();
+    });
+
+    it('un archivo que no es una imagen PNG, JPG o WebP se rechaza con un aviso y no cambia el diseño', async () => {
+      await abrir();
+      await irAAjustes();
+      await userEvent.setup({ delay: null, applyAccept: false }).upload(screen.getByLabelText('Subir patrón de fondo'), imagen('logo.svg', 'image/svg+xml'));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Solo se aceptan imágenes PNG, JPG o WebP.');
+      expect((await persistido()).designSpec?.pattern).toBeUndefined();
+    });
+  });
+
+  it('el ícono de un beneficio se elige en el editor y se guarda; sin ícono no hay error', async () => {
+    await abrir();
+    await user().click(within(lista()).getByRole('button', { name: /^Beneficios/ }));
+    const panel = screen.getByRole('region', { name: 'Propiedades: Beneficios' });
+    const iconos = within(panel).getAllByLabelText('Ícono');
+    // la página de respaldo ya trae íconos en sus beneficios
+    expect(iconos[0]).toHaveValue('target');
+    expect(within(panel).queryByText('Elige una opción de la lista.')).toBeNull();
+    await user().selectOptions(iconos[0]!, 'rocket');
+    await waitFor(async () => expect(((await persistido()).content.blocks.find((b) => b.type === 'beneficios')?.content.items as { icon?: string }[])[0]?.icon).toBe('rocket'));
+    expect(lienzo().innerHTML).toContain('lucide-rocket');
+  });
+
+  it('los nuevos fondos de franja (degradado y malla) y los cortes se ofrecen y se guardan', async () => {
+    await abrir();
+    const grupo = within(screen.getByRole('region', { name: 'Propiedades: Encabezado' })).getByRole('group', { name: 'Diseño del bloque' });
+    await user().selectOptions(within(grupo).getByLabelText('Fondo'), 'mesh');
+    await waitFor(async () => expect((await persistido()).content.blocks.find((b) => b.key === 'encabezado')?.style).toMatchObject({ background: 'mesh' }));
+    await irAAjustes();
+    await user().selectOptions(screen.getByLabelText('Corte entre secciones'), 'wave');
+    await waitFor(async () => expect((await persistido()).designSpec?.look).toMatchObject({ divider: 'wave' }));
   });
 });

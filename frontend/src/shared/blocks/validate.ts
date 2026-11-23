@@ -65,6 +65,7 @@ function checkField(def: FieldDef, value: unknown, path: (string | number)[], is
       return;
     }
     case 'select': {
+      if (def.optional && (value === undefined || value === null || value === '')) return;
       if (typeof value !== 'string' || !def.options.some((option) => option.value === value)) add('Elige una opción de la lista.');
       return;
     }

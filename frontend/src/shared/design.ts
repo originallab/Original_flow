@@ -32,10 +32,19 @@ export const SURFACES = ['flat', 'outline', 'elevated', 'glass', 'glow'] as cons
 export const EFFECTS = ['none', 'gradient', 'glow', 'underline'] as const;
 /** Decoración detrás de toda la página: lisa, degradado suave, cuadrícula, puntos o resplandor. */
 export const BACKDROPS = ['plain', 'gradient', 'grid', 'dots', 'glow'] as const;
-/** Corte entre franjas de color: recto o en diagonal. */
-export const DIVIDERS = ['none', 'slant'] as const;
+/** Corte entre franjas de color: recto, en diagonal, ondulado o en zigzag. */
+export const DIVIDERS = ['none', 'slant', 'wave', 'zigzag'] as const;
 /** Botones: sólidos, con degradado o con brillo. */
 export const BUTTONS = ['solid', 'gradient', 'glow'] as const;
+/** Cómo se acomoda el patrón de fondo que sube la persona: en mosaico o cubriendo toda la página. */
+export const PATTERN_MODES = ['tile', 'cover'] as const;
+/** Tamaño de cada repetición del mosaico. */
+export const PATTERN_SCALES = ['sm', 'md', 'lg'] as const;
+/** Cuánto se atenúa el patrón con el color de fondo (en %), para que el texto se siga leyendo. */
+export const PATTERN_DIMS = [0, 25, 50, 75] as const;
+export type PatternMode = (typeof PATTERN_MODES)[number];
+export type PatternScale = (typeof PATTERN_SCALES)[number];
+export type PatternDim = (typeof PATTERN_DIMS)[number];
 
 export interface PageLook {
   radius?: (typeof RADII)[number];
@@ -50,10 +59,18 @@ export interface PageLook {
   button?: (typeof BUTTONS)[number];
 }
 
-export const BACKGROUNDS = ['base', 'alt', 'accent', 'dark'] as const;
+/** Íconos que puede llevar cada beneficio (nombres de la biblioteca de íconos del front). */
+export const ICONS = [
+  'zap', 'shield-check', 'star', 'heart', 'rocket', 'trophy', 'target', 'users', 'clock', 'circle-check', 'sparkles', 'globe',
+  'lock', 'gift', 'flame', 'gem', 'lightbulb', 'chart-line', 'award', 'headphones', 'gamepad-2', 'map-pin', 'calendar', 'book-open',
+  'camera', 'music', 'leaf', 'coffee', 'dumbbell', 'wallet', 'smile', 'handshake', 'truck', 'wrench', 'sun', 'brain', 'swords', 'crown', 'palette', 'code',
+] as const;
+export type IconName = (typeof ICONS)[number];
+
+export const BACKGROUNDS = ['base', 'alt', 'accent', 'dark', 'gradient', 'mesh'] as const;
 export type BlockBackground = (typeof BACKGROUNDS)[number];
 
-export const BACKGROUND_LABELS: Record<BlockBackground, string> = { base: 'El de la página', alt: 'Suave', accent: 'Color de la marca', dark: 'Oscuro' };
+export const BACKGROUND_LABELS: Record<BlockBackground, string> = { base: 'El de la página', alt: 'Suave', accent: 'Color de la marca', dark: 'Oscuro', gradient: 'Degradado', mesh: 'Malla de color' };
 
 /** Las formas de dibujar cada tipo de bloque. La primera es la que se usa si no se elige ninguna. */
 export const BLOCK_VARIANTS: Partial<Record<BlockType, readonly string[]>> = {

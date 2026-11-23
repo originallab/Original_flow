@@ -118,11 +118,11 @@ describe('generador con plantilla', () => {
     expect(buildPage(entrada('libre')).blocks).toEqual([]);
   });
 
-  it('numera los bloques desde 1, con claves distintas y sin estilo', () => {
+  it('numera los bloques desde 1, con claves distintas y solo con estilos del catálogo de diseño', () => {
     const { blocks } = buildPage(entrada('venta'));
     expect(blocks.map((b) => b.order)).toEqual([1, 2, 3, 4, 5, 6]);
     expect(new Set(blocks.map((b) => b.key)).size).toBe(blocks.length);
-    expect(blocks.every((b) => Object.keys(b.style).length === 0)).toBe(true);
+    expect(blocks.every((b) => Object.keys(b.style).every((k) => k === 'variant' || k === 'background'))).toBe(true);
   });
 
   it('usa lo que la persona escribió: el resultado como título, la oferta como subtítulo y el texto del botón', () => {
@@ -173,12 +173,28 @@ describe('generador con plantilla', () => {
 
   it('el diseño es la plantilla elegida con la paleta de la marca del negocio, si la tiene', () => {
     const marca: BrandPalette = { primary: '#111111', secondary: '#222222', accent: '#333333', background: '#444444', text: '#555555' };
-    expect(buildPage(entrada('leads', {}, { workspace: negocio({ brandPalette: marca }), templateId: 'impacto' })).designSpec).toEqual({ template: 'impacto', palette: marca });
+    expect(buildPage(entrada('leads', {}, { workspace: negocio({ brandPalette: marca }), templateId: 'impacto' })).designSpec).toMatchObject({ template: 'impacto', palette: marca });
   });
 
   it.each(TEMPLATES)('sin marca, usa la paleta propia de la plantilla «$id»', (plantilla) => {
     const diseno = buildPage(entrada('leads', {}, { templateId: plantilla.id })).designSpec;
-    expect(diseno).toEqual({ template: plantilla.id, palette: templateOf(plantilla.id).palette });
+    expect(diseno).toMatchObject({ template: plantilla.id, palette: templateOf(plantilla.id).palette });
+  });
+
+  it.each(['leads', 'venta', 'citas', 'magnet', 'webinar', 'aplicacion'] as const)('la página de respaldo de «%s» no sale plana: encabezado y otra franja de color, tarjetas con sombra, fondo decorado y cortes', (objetivo) => {
+    const { blocks, designSpec } = buildPage(entrada(objetivo));
+    const fuertes = ['accent', 'dark', 'gradient', 'mesh'];
+    expect(fuertes).toContain(blocks[0]?.style.background);
+    expect(blocks.filter((b) => fuertes.includes(b.style.background as string) || b.style.variant === 'banda').length).toBeGreaterThanOrEqual(2);
+    // nunca dos franjas de color seguidas
+    const colores = blocks.map((b) => fuertes.includes(b.style.background as string) || b.style.variant === 'banda');
+    colores.forEach((c, i) => expect(c && colores[i - 1]).toBeFalsy());
+    expect(designSpec.look).toMatchObject({ surface: 'elevated', backdrop: 'gradient', divider: 'slant' });
+  });
+
+  it('los beneficios de la página de respaldo llevan ícono', () => {
+    const items = buildPage(entrada('leads')).blocks.find((b) => b.type === 'beneficios')!.content.items as { icon?: string }[];
+    expect(items.every((i) => typeof i.icon === 'string')).toBe(true);
   });
 
   it('el tono y las instrucciones adicionales son para la IA: la plantilla no los usa', () => {

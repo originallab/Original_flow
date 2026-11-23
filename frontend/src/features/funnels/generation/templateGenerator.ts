@@ -57,9 +57,9 @@ function contentFor(type: BlockType, input: GenerationInput): Record<string, unk
       return {
         title: 'Lo que obtienes',
         items: [
-          { title: clip(first(brief.result, 'Resultados que se notan'), 200), description: clip(first(brief.offer, 'Explica en una frase cómo te ayuda tu producto.'), 600) },
-          { title: 'Pensado para ti', description: clip(first(brief.audience, 'Cuenta a quién va dirigido y qué problema resuelve.'), 600) },
-          { title: 'Sin complicaciones', description: 'Un proceso claro, paso a paso, para que empieces hoy.' },
+          { title: clip(first(brief.result, 'Resultados que se notan'), 200), description: clip(first(brief.offer, 'Explica en una frase cómo te ayuda tu producto.'), 600), icon: 'target' },
+          { title: 'Pensado para ti', description: clip(first(brief.audience, 'Cuenta a quién va dirigido y qué problema resuelve.'), 600), icon: 'sparkles' },
+          { title: 'Sin complicaciones', description: 'Un proceso claro, paso a paso, para que empieces hoy.', icon: 'zap' },
         ],
       };
     case 'testimonios':
@@ -103,6 +103,21 @@ function contentFor(type: BlockType, input: GenerationInput): Record<string, unk
 }
 
 /**
+ * Cómo se ve cada bloque de la página de respaldo: ninguna página sale plana, aunque no haya IA. El encabezado lleva una franja de
+ * degradado, el formulario una oscura y el botón una banda; las tarjetas llevan sombra y los cortes son en diagonal.
+ */
+const STYLES: Partial<Record<BlockType, Record<string, string>>> = {
+  encabezado: { variant: 'grande', background: 'gradient' },
+  beneficios: { variant: 'tarjetas', background: 'alt' },
+  precios: { background: 'alt' },
+  faq: { variant: 'tarjetas' },
+  formulario: { background: 'dark' },
+  boton: { variant: 'banda' },
+  agenda: { background: 'alt' },
+  requisitos: { background: 'alt' },
+};
+
+/**
  * Arma la página sin IA: la plantilla elegida, los bloques base del tipo de funnel, y los textos
  * tomados de lo que la persona escribió (lo que falte queda como texto de ejemplo para editar).
  * La paleta es la de la marca del negocio; si todavía no la definió, la de la plantilla.
@@ -115,9 +130,9 @@ export function buildPage(input: GenerationInput): GeneratedPage {
     type,
     order: index + 1,
     content: contentFor(type, input),
-    style: {},
+    style: { ...STYLES[type] },
   }));
-  return { designSpec: { template: template.id, palette: input.workspace.brandPalette ?? template.palette }, blocks };
+  return { designSpec: { template: template.id, palette: input.workspace.brandPalette ?? template.palette, look: { surface: 'elevated', backdrop: 'gradient', divider: 'slant' } }, blocks };
 }
 
 export const templateGenerator: PageGenerator = {

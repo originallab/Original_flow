@@ -4,6 +4,7 @@ import { saveDesignSpec, type Funnel } from '@/services/funnels';
 import type { DesignSpec } from '@/shared/blocks/types';
 import { ALIGNS, BACKDROPS, BODY_FONTS, BUTTONS, DENSITIES, DIVIDERS, EFFECTS, HEADING_CASES, HEADING_FONTS, HEADING_WEIGHTS, RADII, SURFACES, type PageLook } from '@/shared/design';
 import { SelectField } from '@/shared/ui/SelectField';
+import { PatternField } from './PatternField';
 
 interface Props {
   funnel: Funnel;
@@ -18,7 +19,7 @@ const CASE_LABELS: Record<(typeof HEADING_CASES)[number], string> = { normal: 'N
 const SURFACE_LABELS: Record<(typeof SURFACES)[number], string> = { flat: 'Planas', outline: 'Con borde', elevated: 'Con sombra', glass: 'De vidrio', glow: 'Con brillo' };
 const EFFECT_LABELS: Record<(typeof EFFECTS)[number], string> = { none: 'Sin efecto', gradient: 'Con degradado', glow: 'Con brillo', underline: 'Subrayados' };
 const BACKDROP_LABELS: Record<(typeof BACKDROPS)[number], string> = { plain: 'Liso', gradient: 'Degradado suave', grid: 'Cuadrícula', dots: 'Puntos', glow: 'Resplandor' };
-const DIVIDER_LABELS: Record<(typeof DIVIDERS)[number], string> = { none: 'Rectos', slant: 'En diagonal' };
+const DIVIDER_LABELS: Record<(typeof DIVIDERS)[number], string> = { none: 'Rectos', slant: 'En diagonal', wave: 'Ondulados', zigzag: 'En zigzag' };
 const BUTTON_LABELS: Record<(typeof BUTTONS)[number], string> = { solid: 'Sólidos', gradient: 'Con degradado', glow: 'Con brillo' };
 const WEIGHT_LABELS: Record<(typeof HEADING_WEIGHTS)[number], string> = { 500: 'Ligeros', 600: 'Medios', 700: 'Gruesos', 800: 'Muy gruesos' };
 
@@ -164,6 +165,17 @@ export function DesignForm({ funnel, token, onSaved }: Props) {
           </option>
         ))}
       </SelectField>
+      <PatternField
+        token={token}
+        workspaceId={funnel.workspaceId}
+        pattern={design.pattern}
+        disabled={busy}
+        onChange={(pattern) => {
+          const next: DesignSpec = { ...design, ...(pattern ? { pattern } : {}) };
+          if (!pattern) delete next.pattern;
+          void save(next);
+        }}
+      />
       {error && (
         <p role="alert" className="text-xs text-red-500">
           {error}

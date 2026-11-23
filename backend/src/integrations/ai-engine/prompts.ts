@@ -1,5 +1,5 @@
 import type { BlockType } from '../../funnel-types/blocks.js';
-import { ALIGNS, BACKDROPS, BACKGROUNDS, BLOCK_VARIANTS, BODY_FONTS, BUTTONS, DENSITIES, DIVIDERS, EFFECTS, HEADING_CASES, HEADING_FONTS, HEADING_WEIGHTS, RADII, SURFACES } from '../../funnel-types/design.js';
+import { ALIGNS, BACKDROPS, BACKGROUNDS, BLOCK_VARIANTS, BODY_FONTS, BUTTONS, DENSITIES, DIVIDERS, EFFECTS, HEADING_CASES, HEADING_FONTS, HEADING_WEIGHTS, ICONS, RADII, SURFACES } from '../../funnel-types/design.js';
 import { TEMPLATES } from '../../funnel-types/templates.js';
 import type { GeneratePageInput, RegenerateBlockInput } from './types.js';
 
@@ -16,7 +16,7 @@ export interface ChatMessage {
 const SHAPES: Partial<Record<BlockType, string>> = {
   encabezado: '{"title": "titular (máx. 200)", "subtitle": "subtítulo opcional (máx. 400)"}',
   texto: '{"title": "opcional", "body": "texto (máx. 5000)"}',
-  beneficios: '{"title": "opcional", "items": [{"title": "...", "description": "opcional"}]} (de 1 a 12 items)',
+  beneficios: `{"title": "opcional", "items": [{"title": "...", "description": "opcional", "icon": "opcional: uno de [${ICONS.join(', ')}]"}]} (de 1 a 12 items; elige para cada uno el ícono que mejor lo represente)`,
   faq: '{"items": [{"question": "...", "answer": "..."}]} (de 1 a 30 items)',
   precios: '{"plans": [{"name": "...", "price": numero, "features": ["..."]}]} (de 1 a 6 planes; solo con el precio que se te dio)',
   formulario: '{"title": "opcional", "fields": [{"name": "email", "label": "Correo", "type": "email", "required": true}], "submitLabel": "texto del botón"} (type: text, email, tel, textarea o select; name con letras, números y guion bajo)',
@@ -44,7 +44,7 @@ function paletteRule(input: GeneratePageInput): string {
   if (input.brandPalette) {
     return `- La marca ya tiene paleta: usa EXACTAMENTE estos colores en "palette", sin cambiarlos: ${JSON.stringify(input.brandPalette)}.`;
   }
-  return '- Diseña una paleta propia, coherente con el rubro y el tono, en "palette" (colores #RRGGBB): evita el morado y el azul genéricos, parte del mundo del negocio. "background" y "text" deben contrastar mucho (texto legible), y "primary" debe distinguirse bien del fondo.';
+  return '- Diseña una paleta propia, coherente con el rubro y el tono, en "palette" (colores #RRGGBB): evita el morado y el azul genéricos, parte del mundo del negocio. NO uses por defecto un fondo crema o beige con café o naranja (solo si el tema lo pide, como panadería, artesanal o lujo cálido): varía de verdad el color de fondo (blanco puro, gris azulado, verde muy claro, rosa pálido, casi negro...) y el color de marca (verdes, azules profundos, rojos, turquesas, magentas, dorados, etc.) según el tema. "background" y "text" deben contrastar mucho (texto legible), y "primary" debe distinguirse bien del fondo.';
 }
 
 /** Las reglas de las imágenes que subió la persona: usarlas con su dirección exacta, y no inventar otras. */
@@ -57,12 +57,12 @@ function imageRule(input: GeneratePageInput): string {
 }
 
 /** Qué recursos de diseño corresponden a cada tema o tono: la IA los toma como guía, no como plantillas. */
-const THEME_GUIDE = `Guía de ejemplos (adáptalos y mezcla con criterio):
-    * Profesional, corporativo, legal, finanzas, consultoría: sobrio y de confianza. Colores contenidos (azul marino, gris, un acento discreto), fondo claro, "surface": outline o flat, "effect": none, "backdrop": plain, "button": solid, esquinas sm o none, títulos serif (Lora, Libre Baskerville, Merriweather) o sans neutra; nada de brillos ni degradados.
+const THEME_GUIDE = `Guía de ejemplos (adáptalos y mezcla con criterio; en todos, la página es vistosa):
+    * Profesional, corporativo, legal, finanzas, consultoría: elegante y de confianza, sin neón. Colores contenidos pero con presencia (azul marino profundo, grafito, un acento dorado o cobre), "surface": elevated u outline, "effect": none o underline, "backdrop": gradient o dots, "divider": slant, "button": solid o gradient, esquinas sm o none, títulos serif (Lora, Libre Baskerville, Merriweather, Playfair Display) o sans neutra; encabezado y una franja más en dark, accent o gradient sobrio para dar profundidad.
     * Videojuegos, esports, streaming, tecnología futurista: fondo OSCURO (background casi negro), acentos de neón (cian, magenta, verde lima), "surface": glow o glass, "effect": glow o gradient, "backdrop": grid o glow, "button": glow o gradient, "divider": slant, esquinas none o sm, títulos en mayúsculas con Orbitron, Rajdhani, Chakra Petch, Exo 2, Audiowide, Russo One o Press Start 2P.
     * Lujo, joyería, moda, belleza premium: elegante y pausado, fondo marfil o negro, un solo acento dorado, "density": airy, "surface": outline, "effect": underline o none, títulos serif (Playfair Display, Cormorant Garamond, Cinzel, Prata, Marcellus), "align": center.
-    * Infantil, juegos, comunidad, diversión: colores vivos y alegres, esquinas pill o lg, "surface": elevated, "button": gradient, títulos redondeados (Fredoka, Baloo 2, Bungee, Righteous), "backdrop": dots.
-    * Bienestar, salud, naturaleza, terapia: suave y orgánico, verdes, tierras y pasteles, esquinas lg o pill, "surface": glass o flat, "backdrop": gradient, títulos serif suaves (Fraunces, Lora, Spectral) o Nunito y Quicksand.
+    * Infantil, juegos, comunidad, diversión: colores vivos y alegres, esquinas pill o lg, "surface": elevated, "button": gradient, "divider": wave o zigzag, títulos redondeados (Fredoka, Baloo 2, Bungee, Righteous), "backdrop": dots.
+    * Bienestar, salud, naturaleza, terapia: suave y orgánico, verdes, tierras y pasteles, esquinas lg o pill, "surface": glass o flat, "backdrop": gradient, "divider": wave, títulos serif suaves (Fraunces, Lora, Spectral) o Nunito y Quicksand.
     * Tecnología, software, startups: limpio y moderno, un color de marca potente sobre blanco o gris, "surface": elevated, "backdrop": grid o dots, "effect": gradient (opcional), títulos Space Grotesk, Sora, Manrope, Outfit.
     * Deportes y fitness, ofertas, impacto: contraste alto, mayúsculas gruesas (Anton, Bebas Neue, Oswald, Archivo Black), "divider": slant, esquinas none, colores energéticos.
     * Creativo, arte, marketing, música: atrevido y con personalidad, combinaciones inesperadas, "effect": gradient, "surface": elevated o outline, tipografías con carácter (Syne, Unbounded, Bricolage Grotesque, Dancing Script, Caveat).
@@ -83,13 +83,14 @@ function artDirection(input: GeneratePageInput): string {
   - Ejemplos de diseños bien resueltos, solo para que tengas el nivel de calidad (NO los copies): ${JSON.stringify(input.examples)}.` : '';
   return `Diseño: tú diseñas esta página desde cero, como un director de arte. No hay plantillas fijas: cada página debe verse y estructurarse distinta a cualquier otra, según el rubro, el público y el tono.${creative}${avoid}${examples}
   - "designSpec.fonts": {"heading": una de [${HEADING_FONTS.join(', ')}], "body": una de [${BODY_FONTS.join(', ')}]}. Combina con intención (por ejemplo una serif expresiva con una sans neutra, o una display potente con una de lectura cómoda) y no repitas siempre las mismas.
-  - "designSpec.look": {"radius": ${RADII.join('|')}, "density": ${DENSITIES.join('|')}, "align": ${ALIGNS.join('|')}, "headingCase": ${HEADING_CASES.join('|')}, "headingWeight": ${HEADING_WEIGHTS.join('|')}, "surface": ${SURFACES.join('|')} (tarjetas), "effect": ${EFFECTS.join('|')} (títulos), "backdrop": ${BACKDROPS.join('|')} (fondo de la página), "divider": ${DIVIDERS.join('|')} (corte entre franjas de color), "button": ${BUTTONS.join('|')}}. Decide con criterio: esquinas rectas y mayúsculas para algo contundente; redondeadas y aire para algo cercano; "airy" para marcas premium; "compact" para mucha información.
+  - "designSpec.look": {"radius": ${RADII.join('|')}, "density": ${DENSITIES.join('|')}, "align": ${ALIGNS.join('|')}, "headingCase": ${HEADING_CASES.join('|')}, "headingWeight": ${HEADING_WEIGHTS.join('|')}, "surface": ${SURFACES.join('|')} (tarjetas), "effect": ${EFFECTS.join('|')} (títulos), "backdrop": ${BACKDROPS.join('|')} (fondo de la página), "divider": ${DIVIDERS.join('|')} (corte del borde de abajo de las franjas de color: slant diagonal, wave ondulado, zigzag), "button": ${BUTTONS.join('|')}}. Decide con criterio: esquinas rectas y mayúsculas para algo contundente; redondeadas y aire para algo cercano; "airy" para marcas premium; "compact" para mucha información.
+  - TODAS las páginas deben ser vistosas y bonitas, sea cual sea el tema: un tema sobrio o profesional se ve elegante, no plano (franjas de color con profundidad, tarjetas con sombra o borde, íconos, un corte distinto de lo recto entre franjas). Nunca entregues una página de fondo blanco liso con texto negro.
   - El diseño debe reflejar el TEMA y el TONO del negocio, no solo el rubro. ${THEME_GUIDE}
   - Estructura: parte de la secuencia sugerida arriba; puedes repetir tipos (por ejemplo dos textos) y ajustar el orden, de 4 a 10 bloques. Nunca uses la misma secuencia ni las mismas formas que las otras páginas.
   - ${STYLE_RULES}`;
 }
 
-const STYLE_RULES = `Por bloque, en "style": {"variant": ..., "background": ${BACKGROUNDS.join('|')}}. Variantes por tipo: ${Object.entries(BLOCK_VARIANTS).map(([t, v]) => `${t}: ${v?.join('|')}`).join('; ')}. "background": "base" es el fondo de la página, "alt" uno suave, "accent" el color de la marca y "dark" uno oscuro. Crea ritmo visual: alterna fondos, no pongas dos franjas "accent" o "dark" seguidas, deja el encabezado y el llamado a la acción como lo más llamativo y usa formas distintas entre bloques parecidos.`;
+const STYLE_RULES = `Por bloque, en "style": {"variant": ..., "background": ${BACKGROUNDS.join('|')}}. Variantes por tipo: ${Object.entries(BLOCK_VARIANTS).map(([t, v]) => `${t}: ${v?.join('|')}`).join('; ')}. "background": "base" es el fondo de la página, "alt" uno suave, "accent" el color de la marca, "dark" uno oscuro con brillo, "gradient" un degradado de la marca y "mesh" una malla oscura con manchas de color. La página NO debe verse plana: usa al menos dos franjas con color propio (accent, dark, gradient o mesh), el encabezado casi siempre con una de ellas, e íconos en los beneficios. Crea ritmo visual: alterna fondos, no pongas dos franjas de color seguidas y usa formas distintas entre bloques parecidos.`;
 
 const COMMON_RULES = `Responde ÚNICAMENTE con un objeto JSON válido: sin texto antes ni después y sin bloques de código.
 No inventes datos: ni precios, cifras, resultados, garantías, nombres de clientes ni testimonios. Si no hay información sobre algo, no lo menciones (no incluyas preguntas ni frases sobre eso).

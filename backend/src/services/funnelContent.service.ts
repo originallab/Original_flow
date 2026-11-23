@@ -8,6 +8,7 @@ import {
 } from '../funnel-types/blocks.js';
 import { getFunnelType } from '../funnel-types/index.js';
 import { AppError } from '../lib/errors.js';
+import type { AssetModel } from '../models/asset.model.js';
 import type { CtaModel } from '../models/cta.model.js';
 import type { DesiredCta, FunnelModel, FunnelRecord } from '../models/funnel.model.js';
 import type { Block, DesignSpecBody, PatchBlockBody, PatchCtaBody } from '../schemas/funnel.schemas.js';
@@ -20,6 +21,7 @@ interface Deps {
   ctas: CtaModel;
   funnelService: FunnelService;
   audit: AuditService;
+  assets: AssetModel;
 }
 
 /** El texto del CTA sale del bloque: la etiqueta del botón o el texto de envío del formulario. */
@@ -46,7 +48,7 @@ export function desiredCtas(funnel: FunnelRecord, blocks: StoredBlock[]): Desire
     }));
 }
 
-export function createFunnelContentService({ funnels, ctas, funnelService, audit }: Deps) {
+export function createFunnelContentService({ funnels, ctas, funnelService, audit, assets }: Deps) {
   async function persist(funnel: FunnelRecord, blocks: StoredBlock[]) {
     const saved = await funnels.saveContent(funnel.id, { blocks } as unknown as Prisma.InputJsonValue, desiredCtas(funnel, blocks));
     return { blocks: readBlocks(saved.content), updatedAt: saved.updatedAt };
@@ -88,7 +90,14 @@ export function createFunnelContentService({ funnels, ctas, funnelService, audit
     /** PUT /funnels/:id/design-spec: guarda la plantilla, la paleta y las tipografías de la página. */
     async putDesignSpec(userId: string, funnelId: string, body: DesignSpecBody, ctx: RequestContext) {
       const { funnel } = await funnelService.load(userId, funnelId, 'funnel:edit');
-      const saved = await funnels.setDesignSpec(funnel.id, body as Prisma.InputJsonValue);
+      // El patrón de fondo debe ser una imagen de este negocio; su dirección la pone el servidor (la del navegador se ignora).
+      let design: DesignSpecBody = body;
+      if (body.pattern) {
+        const [asset] = await assets.findOwned(funnel.workspaceId, [body.pattern.assetId]);
+        if (!asset) throw AppError.unprocessable('ASSET_NOT_FOUND', 'La imagen del patrón no existe en este negocio');
+        design = { ...body, pattern: { ...body.pattern, url: asset.publicUrl } };
+      }
+      const saved = await funnels.setDesignSpec(funnel.id, design as Prisma.InputJsonValue);
       await audit.record({
         action: 'funnel.design_update',
         resourceType: 'funnel',

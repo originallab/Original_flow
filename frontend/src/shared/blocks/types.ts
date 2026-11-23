@@ -1,5 +1,5 @@
 import type { BrandPalette } from '@/services/workspaces';
-import type { PageLook } from '@/shared/design';
+import type { PageLook, PatternDim, PatternMode, PatternScale } from '@/shared/design';
 
 /**
  * El modelo de una página, con la misma forma que el backend (docs/API_MVP.md → Funnels):
@@ -45,6 +45,8 @@ export interface DesignSpec {
   fonts?: { heading: string; body: string };
   /** El aspecto de la página (esquinas, aire, alineación, títulos); lo que falte lo pone la plantilla. */
   look?: PageLook;
+  /** Un patrón de fondo que subió la persona (una imagen de su negocio). */
+  pattern?: { assetId: string; url?: string; mode: PatternMode; scale: PatternScale; dim: PatternDim };
 }
 
 /** Un problema de validación: dónde está (`['items', 0, 'title']`) y qué pasa. */

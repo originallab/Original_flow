@@ -1,3 +1,5 @@
+import { ICON_LABELS } from '@/features/pageRenderer/icons';
+import { ICONS } from '@/shared/design';
 import type { BlockType, Issue } from './types';
 
 /**
@@ -14,7 +16,7 @@ export type FieldDef =
   /** Varios campos que viven juntos dentro de un objeto (por ejemplo `thankYou.message`). */
   | { kind: 'group'; key: string; label: string; fields: FieldDef[]; required?: boolean }
   | { kind: 'boolean'; key: string; label: string }
-  | { kind: 'select'; key: string; label: string; options: { value: string; label: string }[] }
+  | { kind: 'select'; key: string; label: string; options: { value: string; label: string }[]; /** Si es `true`, puede quedar sin elegir. */ optional?: boolean }
   | {
       kind: 'list';
       key: string;
@@ -248,7 +250,11 @@ export const BLOCKS: Record<BlockType, BlockDef> = {
         itemLabel: 'Beneficio',
         min: 1,
         max: 12,
-        of: { kind: 'object', create: () => ({ title: 'Nuevo beneficio', description: 'Explica cómo ayuda.' }), fields: [text('title', 'Título', 200, { required: true }), text('description', 'Descripción', 600, { multiline: true })] },
+        of: {
+          kind: 'object',
+          create: () => ({ title: 'Nuevo beneficio', description: 'Explica cómo ayuda.' }),
+          fields: [text('title', 'Título', 200, { required: true }), text('description', 'Descripción', 600, { multiline: true }), { kind: 'select', key: 'icon', label: 'Ícono', optional: true, options: [{ value: '', label: 'Sin ícono' }, ...ICONS.map((icon) => ({ value: icon, label: ICON_LABELS[icon] }))] }],
+        },
       },
     ],
     create: () => ({ title: 'Lo que obtienes', items: [{ title: 'Beneficio', description: 'Descripción.' }] }),

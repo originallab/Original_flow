@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { BLOCK_TYPES, validateBlockContent } from '../funnel-types/blocks.js';
-import { ALIGNS, BACKDROPS, BUTTONS, DENSITIES, DIVIDERS, EFFECTS, HEADING_CASES, RADII, SURFACES } from '../funnel-types/design.js';
+import { ALIGNS, BACKDROPS, BUTTONS, DENSITIES, DIVIDERS, EFFECTS, HEADING_CASES, PATTERN_DIMS, PATTERN_MODES, PATTERN_SCALES, RADII, SURFACES } from '../funnel-types/design.js';
 import { TEMPLATES } from '../funnel-types/templates.js';
 import { paginationQuerySchema } from '../lib/pagination.js';
 import { SLUG_PATTERN } from '../lib/slug.js';
@@ -126,9 +126,22 @@ const lookSchema = z.object({
   button: z.enum(BUTTONS).optional(),
 });
 
+/**
+ * El patrón de fondo que sube la persona: una imagen de su negocio (`assetId`). La dirección (`url`) la pone el servidor
+ * al guardar a partir de esa imagen; lo que mande el navegador en `url` se ignora, así nadie puede poner una dirección ajena.
+ */
+export const patternSchema = z.object({
+  assetId: z.uuid(),
+  url: z.string().max(2000).optional(),
+  mode: z.enum(PATTERN_MODES).default('tile'),
+  scale: z.enum(PATTERN_SCALES).default('md'),
+  dim: z.union(PATTERN_DIMS.map((d) => z.literal(d)) as [z.ZodLiteral<0>, z.ZodLiteral<25>, z.ZodLiteral<50>, z.ZodLiteral<75>]).default(0),
+});
+
 export const designSpecBodySchema = z.object({
   template: z.enum(TEMPLATES),
   look: lookSchema.optional(),
+  pattern: patternSchema.optional(),
   palette: z
     .object({ primary: hexColor, secondary: hexColor, accent: hexColor, background: hexColor, text: hexColor })
     .optional(),

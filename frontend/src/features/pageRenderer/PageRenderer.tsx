@@ -6,7 +6,7 @@ import { BLOCKS } from '@/shared/blocks/catalog';
 import { cn } from '@/shared/utils/cn';
 import { BlockView } from './blocks';
 import { fontStyle, PAGE_FONTS_CLASS, useGoogleFonts } from './fonts';
-import { backdropStyle, resolveTheme, toneOf } from './theme';
+import { backdropStyle, dividerClip, resolveTheme, toneOf } from './theme';
 
 interface Props {
   blocks: Block[];
@@ -29,23 +29,18 @@ export function PageRenderer({ blocks, design, currency = 'MXN', mode = 'preview
   useGoogleFonts(theme.fonts);
   const editing = mode === 'edit';
   const ordered = [...blocks].sort((a, b) => a.order - b.order);
-
   return (
     <article aria-label="Página" data-template={theme.template} className={cn('font-sans', PAGE_FONTS_CLASS, mode !== 'public' && 'overflow-hidden')} style={{ backgroundColor: theme.palette.background, color: theme.palette.text, ...backdropStyle(theme), ...fontStyle(theme) }}>
       {ordered.length === 0 && <p className="px-8 py-16 text-center text-sm opacity-60">Esta página todavía no tiene bloques.</p>}
       {ordered.map((block, position) => {
         const selected = editing && block.key === selectedKey;
         const tone = toneOf(theme, backgroundOf(block.style));
-        // La franja de color de un bloque: en la página publicada llena todo el ancho de la pantalla.
-        // Con el corte «en diagonal», el borde inferior de cada franja de color baja hacia un lado (menos la última).
-        const slanted = theme.look.divider === 'slant' && position < ordered.length - 1;
-        const cut = '2.5rem';
+        // La franja de color de un bloque: en la página publicada llena todo el ancho de la pantalla. Con un corte (diagonal,
+        // ondulado o zigzag), el borde de abajo de cada franja de color se recorta (menos la última).
         const wide = mode === 'public';
-        const slant = slanted ? { paddingBottom: cut, clipPath: wide ? `polygon(-100vmax 0, calc(100% + 100vmax) 0, calc(100% + 100vmax) calc(100% - ${cut}), -100vmax 100%)` : `polygon(0 0, 100% 0, 100% calc(100% - ${cut}), 0 100%)` } : null;
+        const cut = tone.background && position < ordered.length - 1 ? dividerClip(theme.look.divider, wide) : null;
         const strip: CSSProperties | undefined = tone.background
-          ? wide
-            ? { background: tone.background, color: tone.color ?? undefined, boxShadow: `0 0 0 100vmax ${tone.background}`, clipPath: 'inset(0 -100vmax)', ...slant }
-            : { background: tone.background, color: tone.color ?? undefined, ...slant }
+          ? { background: tone.background, color: tone.color ?? undefined, ...(wide ? { boxShadow: tone.bleed ?? undefined, clipPath: 'inset(0 -100vmax)' } : null), ...cut }
           : undefined;
         return (
           <div

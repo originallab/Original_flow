@@ -1,7 +1,8 @@
 import { validateBlockContent, BLOCK_TYPES, type BlockType } from '../funnel-types/blocks.js';
-import { cleanProposalDesign } from '../funnel-types/design.js';
+import { cleanIcons, cleanProposalDesign, fillIcons } from '../funnel-types/design.js';
+import { hash } from '../funnel-types/directions.js';
 import { creativeBrief, describeDesign, qualityExamples } from '../funnel-types/creative.js';
-import { diversifyHeading, fallbackDesign, guardLook, pickPalette, polishBlocks, randomHints } from '../funnel-types/polish.js';
+import { diversifyHeading, enrichLook, fallbackDesign, guardLook, pickPalette, polishBlocks, randomHints } from '../funnel-types/polish.js';
 import { randomUUID } from 'node:crypto';
 import { getFunnelType } from '../funnel-types/index.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -99,7 +100,7 @@ export function createAiService({ funnels, funnelService, workspaces, assets, en
       // distinta en cada generación y un resumen de lo que ya usan las otras páginas del negocio, para que no se le parezca.
       const brief = briefOf(funnel.brandBrief);
       const seed = randomUUID();
-      const existing = funnel.designSpec as { template?: string; fonts?: { heading: string; body: string }; look?: unknown; palette?: unknown } | null;
+      const existing = funnel.designSpec as { template?: string; fonts?: { heading: string; body: string }; look?: unknown; palette?: unknown; pattern?: unknown } | null;
       const keepDesign = existing?.fonts ? existing : undefined;
       const recent = keepDesign ? [] : await funnels.recentDesigns(funnel.workspaceId, funnel.id, 6);
       const avoid = keepDesign ? undefined : recent.map((r) => describeDesign(r.designSpec, r.content)).filter((d): d is string => d !== null);
@@ -130,7 +131,7 @@ export function createAiService({ funnels, funnelService, workspaces, assets, en
       if (!parsed.success || !content?.success || content.data.blocks.length === 0) throw badResponse();
 
       // El estilo de cada bloque: lo que propuso la IA (solo variantes y fondos del catálogo) completado y corregido con la dirección.
-      const blocks = polishBlocks(content.data.blocks, randomHints(seed));
+      const blocks = polishBlocks(content.data.blocks, randomHints(seed)).map((b, i) => ({ ...b, content: fillIcons(b.type, cleanIcons(b.type, b.content as Record<string, unknown>), hash(`i:${seed}:${i}`)) }));
       // La IA solo puede usar las imágenes que la persona subió: una dirección inventada o ajena invalida la página.
       const allowedUrls = new Set([...images.map((i) => i.url), ...(logoUrl ? [logoUrl] : [])]);
       for (const b of blocks) {
@@ -142,14 +143,15 @@ export function createAiService({ funnels, funnelService, workspaces, assets, en
       const proposed = parsed.data.designSpec;
       const backup = fallbackDesign(seed);
       const palette = pickPalette(backup.palette, brandPalette, proposed?.palette);
-      const look = guardLook(proposed?.look ?? (proposed?.fonts ? undefined : backup.look), palette);
+      const look = guardLook(enrichLook(proposed?.look ?? (proposed?.fonts ? undefined : backup.look), palette, seed), palette);
       const designSpec: DesignSpecBody = keepDesign
         ? { ...(keepDesign as DesignSpecBody), template: (keepDesign.template ?? backup.template) as DesignSpecBody['template'], ...(brandPalette ? { palette: brandPalette } : {}) }
         : {
             template: proposed?.template ?? backup.template,
             fonts: { ...(proposed?.fonts ?? backup.fonts), heading: diversifyHeading((proposed?.fonts ?? backup.fonts).heading, usedHeadings, seed) },
-            ...(look ? { look } : {}),
+            look,
             palette,
+            ...(existing?.pattern ? { pattern: existing.pattern as DesignSpecBody['pattern'] } : {}),
           };
       await funnels.applyGenerated(
         funnel.id,

@@ -307,7 +307,7 @@ describe('«Generar funnel»: crea el funnel, arma la página con la plantilla y
     const id = router.state.location.pathname.split('/')[2]!;
     const funnel = await getFunnel(ctx.token, id);
     expect(funnel).toMatchObject({ name: 'Curso de Excel', objective: 'leads', status: 'draft', productName: 'Un curso en línea', targetAudience: 'Administrativos', workspaceId: ctx.workspace.id });
-    expect(funnel.designSpec).toEqual({ template: 'impacto', palette: templateOf('impacto').palette });
+    expect(funnel.designSpec).toMatchObject({ template: 'impacto', palette: templateOf('impacto').palette });
     expect(funnel.content.blocks.map((b) => b.type)).toEqual(['encabezado', 'beneficios', 'testimonios', 'formulario', 'faq']);
     expect(funnel.content.blocks[0]?.content).toMatchObject({ title: 'Ahorra 5 horas a la semana', subtitle: 'Un curso en línea' });
     expect(funnel.content.blocks[3]?.content).toMatchObject({ submitLabel: 'Quiero inscribirme' });

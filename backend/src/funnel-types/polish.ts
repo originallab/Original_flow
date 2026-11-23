@@ -15,7 +15,8 @@ export interface PolishBlock {
   style: Record<string, unknown>;
 }
 
-const STRONG: readonly BlockBackground[] = ['accent', 'dark'];
+/** Las franjas con color propio (llamativas): no van dos seguidas ni más de una de cada tres. */
+const STRONG: readonly BlockBackground[] = ['accent', 'dark', 'gradient', 'mesh'];
 const isBackground = (value: unknown): value is BlockBackground => typeof value === 'string' && (BACKGROUNDS as readonly string[]).includes(value);
 
 /** El brillo relativo de un color `#RRGGBB` (0 a 1), como lo define WCAG. */
@@ -84,7 +85,7 @@ export function randomHints(seed: string): StyleHints {
   const choose = <T>(list: readonly T[], salt: string): T => list[hash(`${salt}:${seed}`) % list.length] as T;
   const variants: Partial<Record<BlockType, string>> = {};
   for (const [type, options] of Object.entries(BLOCK_VARIANTS)) if (options) variants[type as BlockType] = choose(options, type);
-  const strong = choose<BlockBackground>(['accent', 'dark'], 'strong');
+  const strong = choose<BlockBackground>(['accent', 'dark', 'gradient', 'mesh'], 'strong');
   const cycles: BlockBackground[][] = [
     ['base', 'alt', 'base', strong],
     ['alt', 'base', strong, 'base'],
@@ -92,7 +93,7 @@ export function randomHints(seed: string): StyleHints {
     ['base', 'alt', strong, 'base', 'alt'],
   ];
   return {
-    hero: { variant: choose(BLOCK_VARIANTS.encabezado ?? ['centrado'], 'hero'), background: choose<BlockBackground>(['base', 'alt', 'dark', 'accent', 'base'], 'herobg') },
+    hero: { variant: choose(BLOCK_VARIANTS.encabezado ?? ['centrado'], 'hero'), background: choose<BlockBackground>(['dark', 'gradient', 'mesh', 'accent', 'gradient', 'mesh'], 'herobg') },
     variants,
     bands: choose(cycles, 'bands'),
   };
@@ -109,6 +110,20 @@ export function guardLook(look: PageLook | undefined, palette: Palette): PageLoo
   if (!dark && next.effect === 'glow') next.effect = 'underline';
   if (!dark && next.surface === 'glass' && (!next.backdrop || next.backdrop === 'plain')) next.surface = 'elevated';
   if (!dark && next.button === 'glow') next.button = 'gradient';
+  return next;
+}
+
+/**
+ * El mínimo de riqueza visual de cualquier página, sea cual sea su tema: tarjetas con sombra (no planas), algo de decoración
+ * detrás de todo (degradado suave, o resplandor si el fondo es oscuro) y un corte distinto de lo recto entre franjas. Lo que la
+ * IA eligió por encima de ese mínimo se respeta.
+ */
+export function enrichLook(look: PageLook | undefined, palette: Palette, seed: string): PageLook {
+  const dark = luminance(palette.background) < 0.18;
+  const next: PageLook = { ...look };
+  if (!next.surface || next.surface === 'flat') next.surface = 'elevated';
+  if (!next.backdrop || next.backdrop === 'plain') next.backdrop = dark ? 'glow' : 'gradient';
+  if (!next.divider || next.divider === 'none') next.divider = hash(`d:${seed}`) % 2 === 0 ? 'slant' : 'wave';
   return next;
 }
 
@@ -165,8 +180,11 @@ export function polishBlocks<T extends PolishBlock>(blocks: T[], direction: Styl
 
     if (block.type === 'imagen' || block.type === 'boton') {
       delete style.background;
-    } else if (index === heroIndex && !isBackground(style.background) && direction.hero.background) {
-      style.background = direction.hero.background;
+    } else if (index === heroIndex) {
+      // El encabezado siempre lleva una franja de color propio (nunca plano): el que eligió la IA si es de color, y si no, el de las pistas.
+      const wanted = style.background as BlockBackground | undefined;
+      const hint = direction.hero.background as BlockBackground | undefined;
+      style.background = wanted && STRONG.includes(wanted) ? wanted : hint && STRONG.includes(hint) ? hint : 'gradient';
     } else if (!isBackground(style.background)) {
       style.background = direction.bands[band % direction.bands.length] ?? 'base';
       band += 1;
@@ -191,6 +209,26 @@ export function polishBlocks<T extends PolishBlock>(blocks: T[], direction: Styl
     // Una banda de botón es una franja fuerte por sí misma.
     const bandButton = block.type === 'boton' && block.style.variant === 'banda';
     previous = bandButton ? 'accent' : (bg ?? 'base');
+  }
+
+  // Una página nunca queda plana: si ninguna franja tiene color propio, el encabezado (o el primer bloque) toma uno.
+  if (styled.length >= 2 && !styled.some((b) => STRONG.includes(b.style.background as BlockBackground) || (b.type === 'boton' && b.style.variant === 'banda'))) {
+    const target = styled.find((b) => b.type !== 'imagen' && b.type !== 'boton') ?? styled[0];
+    if (target) target.style.background = STRONG.includes(direction.hero.background as BlockBackground) ? (direction.hero.background as BlockBackground) : 'gradient';
+  }
+
+  // Toda página con 4 bloques o más lleva al menos dos franjas de color (el encabezado y otra más abajo), para que nunca quede plana.
+  const colored = (b: { type: BlockType; style: Record<string, unknown> }) => STRONG.includes(b.style.background as BlockBackground) || (b.type === 'boton' && b.style.variant === 'banda');
+  if (styled.length >= 4 && styled.filter(colored).length < 2) {
+    const heroBg = styled[heroIndex >= 0 ? heroIndex : 0]?.style.background;
+    const pick = direction.bands.find((b) => STRONG.includes(b) && b !== heroBg) ?? (heroBg === 'dark' ? 'gradient' : 'dark');
+    for (let i = styled.length - 2; i > 0; i -= 1) {
+      const candidate = styled[i];
+      if (!candidate || ['imagen', 'boton', 'encabezado'].includes(candidate.type)) continue;
+      if ([styled[i - 1], styled[i + 1]].some((n) => n && colored(n))) continue;
+      candidate.style.background = pick;
+      break;
+    }
   }
 
   // Un botón en banda pegado a otra franja de color se pierde: se vuelve sólido.

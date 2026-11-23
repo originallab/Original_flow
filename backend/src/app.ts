@@ -81,7 +81,7 @@ export function createApp(config: AppConfig, logger: Logger, prisma: PrismaClien
   const funnelModel = createFunnelModel(prisma);
   const funnels = createFunnelService({ funnels: funnelModel, access, audit });
   const ctaModel = createCtaModel(prisma);
-  const funnelContent = createFunnelContentService({ funnels: funnelModel, ctas: ctaModel, funnelService: funnels, audit });
+  const funnelContent = createFunnelContentService({ funnels: funnelModel, ctas: ctaModel, funnelService: funnels, audit, assets: assetModel });
   const funnelPublish = createFunnelPublishService({ funnels: funnelModel, ctas: ctaModel, workspaces: workspaceModel, funnelService: funnels, audit });
   const funnelHistory = createFunnelHistoryService({ funnels: funnelModel, history: createFunnelHistoryModel(prisma), funnelService: funnels, audit });
   const analytics = createAnalyticsService({ analytics: createAnalyticsModel(prisma), funnels: funnelModel, access });

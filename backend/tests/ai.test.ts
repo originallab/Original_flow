@@ -180,6 +180,33 @@ describe.skipIf(!testDatabaseUrl)('generación con IA (esqueleto con motor simul
       expect((await disenoGuardado(g.f.id)).look).toEqual({ surface: 'glow', effect: 'glow', backdrop: 'grid', divider: 'slant', button: 'glow' });
     });
 
+    it('toda página generada sale vistosa: encabezado y otra franja de color, tarjetas con sombra, decoración de fondo, corte y íconos', async () => {
+      const f = await funnel();
+      // una IA «aburrida»: todo plano, sin aspecto y sin íconos
+      fake.respondPage({
+        ...VALID_PAGE,
+        designSpec: { template: 'claridad', fonts: { heading: 'Lora', body: 'Inter' }, palette: VALID_PAGE.designSpec.palette },
+        blocks: [
+          { key: 'hero', type: 'encabezado', order: 1, content: { title: 'Hola' }, style: { background: 'base' } },
+          { key: 'ben', type: 'beneficios', order: 2, content: { items: [{ title: 'Uno' }, { title: 'Dos' }, { title: 'Tres' }] }, style: { background: 'base' } },
+          { key: 'faq', type: 'faq', order: 3, content: { items: [{ question: '¿Q?', answer: 'R' }] }, style: { background: 'base' } },
+          { key: 'cta', type: 'boton', order: 4, content: { label: 'Entrar' }, style: {} },
+        ],
+      });
+      expect((await generar(f.token, f.f.id)).status).toBe(200);
+      const fila = await guardado(f.f.id);
+      const d = fila.designSpec as { look: Record<string, string> };
+      expect(d.look).toMatchObject({ surface: 'elevated', backdrop: 'gradient' });
+      expect(['slant', 'wave']).toContain(d.look.divider);
+      const bloques = (fila.content as { blocks: { key: string; style: Record<string, string>; content: { items?: { icon?: string }[] } }[] }).blocks;
+      const fuertes = ['accent', 'dark', 'gradient', 'mesh'];
+      expect(fuertes).toContain(bloques[0]?.style.background);
+      expect(bloques.filter((b) => fuertes.includes(b.style.background as string) || b.style.variant === 'banda').length).toBeGreaterThanOrEqual(2);
+      const iconos = bloques.find((b) => b.key === 'ben')!.content.items!.map((i) => i.icon);
+      expect(iconos.every(Boolean)).toBe(true);
+      expect(new Set(iconos).size).toBe(3);
+    });
+
     it('el estilo de cada bloque se completa y se corrige: fondos con ritmo, sin dos franjas fuertes seguidas', async () => {
       const f = await funnel();
       fake.respondPage({

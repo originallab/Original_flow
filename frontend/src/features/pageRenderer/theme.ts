@@ -2,7 +2,8 @@ import type { CSSProperties } from 'react';
 import { templateOf } from '@/features/funnels/catalog';
 import type { BrandPalette } from '@/services/workspaces';
 import type { DesignSpec, TemplateId } from '@/shared/blocks/types';
-import { isBodyFont, isHeadingFont, SINGLE_WEIGHT_FONTS, type BlockBackground, type PageLook } from '@/shared/design';
+import { safeHttpUrl } from '@/shared/utils/safeUrl';
+import { isBodyFont, isHeadingFont, SINGLE_WEIGHT_FONTS, type BlockBackground, type PageLook, type PatternDim, type PatternMode, type PatternScale } from '@/shared/design';
 
 /**
  * Cómo se ve cada plantilla además de sus colores: esquinas, alineación, títulos y tipografías de partida.
@@ -56,6 +57,8 @@ export interface PageTheme {
     divider: NonNullable<PageLook['divider']>;
     button: NonNullable<PageLook['button']>;
   };
+  /** El patrón de fondo de la página, si lo tiene y su dirección es válida. */
+  pattern?: { url: string; mode: PatternMode; scale: PatternScale; dim: PatternDim };
   fonts: { heading: string; body: string };
   template: TemplateId;
   /** El fondo de las tarjetas y su borde, según el estilo elegido y el fondo del bloque donde están. */
@@ -105,8 +108,16 @@ export function resolveTheme(design: DesignSpec | null | undefined): PageTheme {
       divider: own.divider ?? 'none',
       button: own.button ?? 'solid',
     },
+    pattern: patternOf(design),
     surface: surfaceFor(own.surface, palette.text, palette.primary, brightness(palette.background) < 110, palette.secondary),
   };
+}
+
+/** El patrón de fondo del diseño, solo si su dirección es una http(s) válida. */
+function patternOf(design: DesignSpec | null | undefined): PageTheme['pattern'] {
+  const p = design?.pattern;
+  const url = safeHttpUrl(p?.url);
+  return p && url ? { url, mode: p.mode, scale: p.scale, dim: p.dim } : undefined;
 }
 
 /** El brillo de un color `#RRGGBB` (0 a 255). */
@@ -130,21 +141,53 @@ export function headingStyle(theme: PageTheme): CSSProperties {
   return base;
 }
 
-/** La decoración detrás de toda la página (cuadrícula, puntos, degradado o resplandor). */
+const PATTERN_PX: Record<PatternScale, number> = { sm: 120, md: 200, lg: 320 };
+
+/** La decoración detrás de toda la página: el patrón que subió la persona (atenuado) y, encima, cuadrícula, puntos, degradado o resplandor. */
 export function backdropStyle(theme: PageTheme): CSSProperties {
-  const { palette, look } = theme;
+  const { palette, look, pattern } = theme;
+  // Capas de arriba hacia abajo: decoración, velo del color de fondo y patrón.
+  const images: string[] = [];
+  const sizes: string[] = [];
+  const repeats: string[] = [];
+  const attachments: string[] = [];
+  const layer = (image: string, size = 'auto', repeat = 'repeat', attachment = 'scroll') => {
+    images.push(image);
+    sizes.push(size);
+    repeats.push(repeat);
+    attachments.push(attachment);
+  };
   switch (look.backdrop) {
     case 'grid':
-      return { backgroundImage: `linear-gradient(${palette.text}14 1px, transparent 1px), linear-gradient(90deg, ${palette.text}14 1px, transparent 1px)`, backgroundSize: '36px 36px' };
+      layer(`linear-gradient(${palette.text}14 1px, transparent 1px)`, '36px 36px');
+      layer(`linear-gradient(90deg, ${palette.text}14 1px, transparent 1px)`, '36px 36px');
+      break;
     case 'dots':
-      return { backgroundImage: `radial-gradient(${palette.text}26 1.2px, transparent 1.2px)`, backgroundSize: '22px 22px' };
+      layer(`radial-gradient(${palette.text}26 1.2px, transparent 1.2px)`, '22px 22px');
+      break;
     case 'gradient':
-      return { backgroundImage: `linear-gradient(165deg, ${palette.background} 0%, ${palette.primary}26 100%)` };
+      layer(`linear-gradient(165deg, ${palette.background} 0%, ${palette.primary}26 100%)`);
+      break;
     case 'glow':
-      return { backgroundImage: `radial-gradient(ellipse 70% 40% at 15% 0%, ${palette.primary}44, transparent 70%), radial-gradient(ellipse 60% 35% at 92% 30%, ${secondStop(palette)}33, transparent 70%)` };
+      layer(`radial-gradient(ellipse 70% 40% at 15% 0%, ${palette.primary}44, transparent 70%)`);
+      layer(`radial-gradient(ellipse 60% 35% at 92% 30%, ${secondStop(palette)}33, transparent 70%)`);
+      break;
     default:
-      return {};
+      break;
   }
+  if (pattern) {
+    if (pattern.dim > 0) {
+      const veil = `${palette.background}${Math.round((pattern.dim / 100) * 255).toString(16).padStart(2, '0')}`;
+      layer(`linear-gradient(${veil}, ${veil})`);
+    }
+    // La dirección ya viene normalizada: solo se escapa lo que podría cerrar el `url()`.
+    const href = `url("${pattern.url.replace(/["\\\n\r]/g, (c) => encodeURIComponent(c))}")`;
+    // «Cubrir» estira la imagen para llenar la página; «mosaico» la repite.
+    if (pattern.mode === 'cover') layer(href, 'cover', 'no-repeat', 'scroll');
+    else layer(href, `${PATTERN_PX[pattern.scale]}px auto`);
+  }
+  if (images.length === 0) return {};
+  return { backgroundImage: images.join(', '), backgroundSize: sizes.join(', '), backgroundRepeat: repeats.join(', '), backgroundAttachment: attachments.join(', '), backgroundPosition: pattern?.mode === 'cover' ? 'center' : '0 0' };
 }
 
 /** El relleno de los botones principales según el estilo de la página (sólido, degradado o con brillo). */
@@ -164,30 +207,92 @@ export function readableOn(background: string, palette: BrandPalette): string {
 }
 
 export interface Tone {
-  /** El fondo de la franja (`null`: el de la página). */
+  /** El fondo de la franja, como valor de `background` (puede tener varias capas); `null`: el de la página. */
   background: string | null;
+  /** Sombras de color a los lados para que la franja llene todo el ancho en la página publicada (`null` si no tiene color). */
+  bleed: string | null;
   /** El tema con el que se dibujan los bloques sobre ese fondo (colores de texto, acentos y tarjetas ajustados). */
   theme: PageTheme;
   /** El color del texto sobre ese fondo (`null`: el de la página). */
   color: string | null;
 }
 
+/** Mezcla dos colores `#RRGGBB` (`t` de 0 a 1). */
+function mix(a: string, b: string, t: number): string {
+  const [x, y] = [Number.parseInt(a.slice(1), 16), Number.parseInt(b.slice(1), 16)];
+  const ch = (shift: number) => Math.round(((x >> shift) & 255) * (1 - t) + ((y >> shift) & 255) * t);
+  return `#${[16, 8, 0].map((s) => ch(s).toString(16).padStart(2, '0')).join('').toUpperCase()}`;
+}
+
+const solidBleed = (color: string) => `0 0 0 100vmax ${color}`;
+
 /** El fondo de la franja de un bloque y el tema con el que se ve bien encima. */
 export function toneOf(theme: PageTheme, background: BlockBackground): Tone {
   const { palette } = theme;
-  if (background === 'base') return { background: null, theme, color: null };
-  if (background === 'alt') return { background: `${palette.secondary}14`, theme, color: null };
+  if (background === 'base') return { background: null, bleed: null, theme, color: null };
+  if (background === 'alt') return { background: `${palette.secondary}14`, bleed: solidBleed(`${palette.secondary}14`), theme, color: null };
 
-  const bg = background === 'accent' ? palette.primary : brightness(palette.text) < 90 ? palette.text : '#17161C';
+  const darkBase = brightness(palette.text) < 90 ? palette.text : '#17161C';
+  const lightMark = brightness(palette.primary) > 110 ? palette.primary : brightness(palette.accent) > 110 ? palette.accent : '#FFFFFF';
+  const stop2 = secondStop(palette);
+  // El degradado va de la marca a un segundo color; si son muy distintos en brillo, se acerca para que el texto se lea en toda la franja.
+  const end = Math.abs(brightness(palette.primary) - brightness(stop2)) > 90 ? mix(palette.primary, stop2, 0.5) : stop2;
+
+  let bg: string;
+  let fill: string;
+  let bleed: string;
+  let mark: string;
+  if (background === 'accent') {
+    bg = palette.primary;
+    fill = `linear-gradient(135deg, #FFFFFF26 0%, transparent 55%), ${bg}`;
+    bleed = solidBleed(bg);
+    mark = readableOn(bg, palette);
+  } else if (background === 'gradient') {
+    bg = mix(palette.primary, end, 0.5);
+    fill = `radial-gradient(circle at 88% 0%, #FFFFFF2E, transparent 50%), linear-gradient(90deg, ${palette.primary}, ${end})`;
+    // Dos sombras (una por lado) con el color de cada extremo del degradado, para que la franja siga hasta los bordes de la pantalla.
+    bleed = `50vmax 0 0 50vmax ${end}, -50vmax 0 0 50vmax ${palette.primary}`;
+    mark = readableOn(bg, palette);
+  } else if (background === 'mesh') {
+    bg = darkBase;
+    fill = `radial-gradient(circle at 14% 18%, ${palette.primary}66, transparent 46%), radial-gradient(circle at 86% 82%, ${stop2}55, transparent 46%), radial-gradient(circle at 72% 8%, ${palette.accent}3D, transparent 40%), ${bg}`;
+    bleed = solidBleed(bg);
+    mark = lightMark;
+  } else {
+    bg = darkBase;
+    fill = `radial-gradient(ellipse 55% 90% at 86% 0%, ${lightMark}33, transparent 70%), ${bg}`;
+    bleed = solidBleed(bg);
+    mark = lightMark;
+  }
   const fg = readableOn(bg, palette);
-  // Los acentos (botones, números, íconos) deben distinguirse del fondo: sobre una franja de color, el texto; sobre oscuro, la marca si es clara.
-  const mark = background === 'accent' ? fg : brightness(palette.primary) > 110 ? palette.primary : brightness(palette.accent) > 110 ? palette.accent : '#FFFFFF';
+  const accentMark = background === 'accent' || background === 'gradient' ? fg : mark;
   const toned: PageTheme = {
     ...theme,
-    palette: { ...palette, background: bg, text: fg, primary: mark, accent: mark, secondary: fg },
-    surface: theme.look.surfaceKind ? surfaceFor(theme.look.surfaceKind, fg, mark, fg === '#FFFFFF', fg) : { background: fg === '#FFFFFF' ? '#FFFFFF1F' : '#FFFFFF99', border: `${fg}33` },
+    palette: { ...palette, background: bg, text: fg, primary: accentMark, accent: accentMark, secondary: fg },
+    surface: theme.look.surfaceKind ? surfaceFor(theme.look.surfaceKind, fg, accentMark, fg === '#FFFFFF', fg) : { background: fg === '#FFFFFF' ? '#FFFFFF1F' : '#FFFFFF99', border: `${fg}33` },
   };
-  return { background: bg, theme: toned, color: fg };
+  return { background: fill, bleed, theme: toned, color: fg };
+}
+
+const CUT_REM = 2.5;
+
+/**
+ * El recorte del borde de abajo de una franja de color: en diagonal, ondulado o en zigzag. En la página publicada la franja
+ * sigue hasta los bordes de la pantalla (`wide`). Devuelve el recorte y el relleno extra de abajo para que el contenido no se corte.
+ */
+export function dividerClip(kind: PageLook['divider'] | undefined, wide: boolean): { clipPath: string; paddingBottom: string } | null {
+  if (!kind || kind === 'none') return null;
+  // Puntos de abajo, de izquierda a derecha: [posición horizontal en %, profundidad de 0 a 1].
+  const bottom: [number, number][] = [];
+  if (kind === 'slant') bottom.push([0, 0], [100, 1]);
+  else if (kind === 'wave') for (let i = 0; i <= 60; i += 1) bottom.push([(i / 60) * 100, 0.5 + 0.5 * Math.sin((i / 60) * Math.PI * 6)]);
+  else for (let i = 0; i <= 16; i += 1) bottom.push([(i / 16) * 100, i % 2]);
+  const left = wide ? '-100vmax' : '0';
+  const right = wide ? 'calc(100% + 100vmax)' : '100%';
+  const y = (depth: number) => `calc(100% - ${(CUT_REM * depth).toFixed(3)}rem)`;
+  const x = (pct: number, first: boolean, last: boolean) => (first ? left : last ? right : `${pct.toFixed(2)}%`);
+  const points = [`${left} 0`, `${right} 0`, ...[...bottom].reverse().map(([pct, depth], i, all) => `${x(pct, i === all.length - 1, i === 0)} ${y(depth)}`)];
+  return { clipPath: `polygon(${points.join(', ')})`, paddingBottom: `${CUT_REM}rem` };
 }
 
 /** La dirección de Google Fonts de las dos tipografías de una página (solo nombres del catálogo, ya validados). */

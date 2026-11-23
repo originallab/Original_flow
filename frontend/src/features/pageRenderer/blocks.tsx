@@ -4,6 +4,7 @@ import type { Block } from '@/shared/blocks/types';
 import { variantOf } from '@/shared/design';
 import { safeHttpUrl } from '@/shared/utils/safeUrl';
 import { buttonStyle, CtaButton, LiveCountdown, PublicButtonLink, PublicForm, type PublicContext } from './public';
+import { iconOf } from './icons';
 import { headingStyle, readableOn, type PageTheme } from './theme';
 
 /**
@@ -61,6 +62,12 @@ const card = (theme: PageTheme): CSSProperties => ({
   ...(theme.surface.shadow ? { boxShadow: theme.surface.shadow } : {}),
   ...(theme.surface.blur ? { backdropFilter: `blur(${theme.surface.blur})`, WebkitBackdropFilter: `blur(${theme.surface.blur})` } : {}),
 });
+
+/** El ícono de un beneficio, o lo que se pase en `fallback` si no tiene. */
+function ItemIcon({ name, size = 16, fallback }: { name: unknown; size?: number; fallback: ReactNode }) {
+  const Icon = iconOf(name);
+  return Icon ? <Icon size={size} aria-hidden /> : <>{fallback}</>;
+}
 
 function Countdown({ endsAt }: { endsAt: string }) {
   const remaining = Math.max(0, Date.parse(endsAt) - Date.now());
@@ -347,7 +354,9 @@ export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
                       {String(index + 1).padStart(2, '0')}
                     </span>
                   ) : (
-                    <Check size={20} className="mt-0.5 shrink-0" style={{ color: palette.primary }} aria-hidden />
+                    <span className="mt-0.5 shrink-0" style={{ color: palette.primary }}>
+                      <ItemIcon name={item.icon} size={20} fallback={<Check size={20} aria-hidden />} />
+                    </span>
                   )}
                   <span>
                     <span className="block font-semibold">{str(item.title)}</span>
@@ -366,6 +375,11 @@ export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
             <div className="mx-auto mt-8 grid max-w-4xl gap-8 text-left sm:grid-cols-3">
               {items.map((item, index) => (
                 <div key={`${str(item.title)}-${index}`} className="border-t-4 pt-4" style={{ borderColor: palette.primary }}>
+                  {iconOf(item.icon) && (
+                    <span className="mb-3 block" style={{ color: palette.primary }}>
+                      <ItemIcon name={item.icon} size={26} fallback={null} />
+                    </span>
+                  )}
                   <p className="font-semibold font-heading">{str(item.title)}</p>
                   {str(item.description) && <p className="mt-2 text-sm opacity-80">{str(item.description)}</p>}
                 </div>
@@ -381,7 +395,7 @@ export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
             {list(c.items).map((item, index) => (
               <div key={`${str(item.title)}-${index}`} className="p-5" style={card(theme)}>
                 <span className="mb-3 grid size-8 place-items-center rounded-full text-sm font-bold" style={{ background: palette.accent, color: readableOn(palette.accent, palette) }}>
-                  {index + 1}
+                  <ItemIcon name={item.icon} fallback={index + 1} />
                 </span>
                 <p className="font-semibold">{str(item.title)}</p>
                 {str(item.description) && <p className="mt-1 text-sm opacity-80">{str(item.description)}</p>}

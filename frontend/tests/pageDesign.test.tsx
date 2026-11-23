@@ -1,10 +1,11 @@
 import { render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { PageRenderer } from '@/features/pageRenderer/PageRenderer';
-import { backdropStyle, buttonFill, fontsHref, headingStyle, readableOn, resolveTheme, toneOf } from '@/features/pageRenderer/theme';
+import { iconOf } from '@/features/pageRenderer/icons';
+import { backdropStyle, buttonFill, dividerClip, fontsHref, headingStyle, readableOn, resolveTheme, toneOf } from '@/features/pageRenderer/theme';
 import type { Block, DesignSpec } from '@/shared/blocks/types';
 import * as back from '../../backend/src/funnel-types/design';
-import { BACKDROPS, BACKGROUNDS, BLOCK_VARIANTS, BODY_FONTS, BUTTONS, DIVIDERS, EFFECTS, SURFACES, HEADING_FONTS, SINGLE_WEIGHT_FONTS, backgroundOf, variantOf } from '@/shared/design';
+import { ICONS, BACKDROPS, BACKGROUNDS, BLOCK_VARIANTS, BODY_FONTS, BUTTONS, DIVIDERS, EFFECTS, SURFACES, HEADING_FONTS, SINGLE_WEIGHT_FONTS, backgroundOf, variantOf } from '@/shared/design';
 
 const PALETA = { primary: '#7725BE', secondary: '#4A3B63', accent: '#F59E0B', background: '#FFFFFF', text: '#1F1A2B' };
 const DISENO: DesignSpec = { template: 'claridad', palette: PALETA };
@@ -46,12 +47,13 @@ describe('el tema de una página', () => {
     expect(toneOf(base, 'base').background).toBeNull();
     expect(toneOf(base, 'alt').theme).toBe(base);
     const marca = toneOf(base, 'accent');
-    expect(marca.background).toBe(PALETA.primary);
+    expect(marca.background).toContain(PALETA.primary);
+    expect(marca.bleed).toBe(`0 0 0 100vmax ${PALETA.primary}`);
     expect(marca.color).toBe('#FFFFFF');
     expect(marca.theme.palette.primary).toBe('#FFFFFF');
     const oscuro = toneOf(base, 'dark');
     expect(oscuro.color).toBe('#FFFFFF');
-    expect(oscuro.background).toBe(PALETA.text);
+    expect(oscuro.background).toContain(PALETA.text);
     expect(oscuro.theme.surface.background).not.toBe(base.surface.background);
   });
 });
@@ -63,6 +65,7 @@ describe('tipografías', () => {
     expect([...SINGLE_WEIGHT_FONTS]).toEqual([...back.SINGLE_WEIGHT_FONTS]);
     expect(BLOCK_VARIANTS).toEqual(back.BLOCK_VARIANTS);
     expect([...BACKGROUNDS]).toEqual([...back.BACKGROUNDS]);
+    expect([...ICONS]).toEqual([...back.ICONS]);
     expect([[...SURFACES], [...EFFECTS], [...BACKDROPS], [...DIVIDERS], [...BUTTONS]]).toEqual([[...back.SURFACES], [...back.EFFECTS], [...back.BACKDROPS], [...back.DIVIDERS], [...back.BUTTONS]]);
   });
 
@@ -97,7 +100,7 @@ describe('recursos visuales por tema', () => {
   });
 
   it('el fondo de la página: cuadrícula, puntos, degradado y resplandor; liso por defecto', () => {
-    expect(backdropStyle(tema({ backdrop: 'grid' })).backgroundSize).toBe('36px 36px');
+    expect(backdropStyle(tema({ backdrop: 'grid' })).backgroundSize).toBe('36px 36px, 36px 36px');
     expect(backdropStyle(tema({ backdrop: 'dots' })).backgroundImage).toContain('radial-gradient');
     expect(backdropStyle(tema({ backdrop: 'gradient' })).backgroundImage).toContain('linear-gradient');
     expect(backdropStyle(tema({ backdrop: 'glow' }, OSCURA)).backgroundImage).toContain('ellipse');
@@ -133,6 +136,106 @@ describe('recursos visuales por tema', () => {
   });
 });
 
+describe('profundidad: franjas con degradado y malla, cortes, íconos y patrón', () => {
+  const tema = (look: object = {}, pattern?: object) => resolveTheme({ template: 'claridad', palette: PALETA, look, pattern } as DesignSpec);
+
+  it('la franja de degradado va de la marca a un segundo color y llena la pantalla con una sombra por lado', () => {
+    const t = toneOf(tema(), 'gradient');
+    expect(t.background).toContain('linear-gradient(90deg');
+    expect(t.bleed).toMatch(/^50vmax 0 0 50vmax #[0-9A-F]{6}, -50vmax 0 0 50vmax #7725BE$/);
+    expect(['#FFFFFF', PALETA.text]).toContain(t.color);
+  });
+
+  it('la franja de malla es oscura con manchas de color y las franjas oscuras y de color llevan un brillo para no verse planas', () => {
+    expect(toneOf(tema(), 'mesh').background).toContain('radial-gradient');
+    expect(toneOf(tema(), 'mesh').color).toBe('#FFFFFF');
+    expect(toneOf(tema(), 'dark').background).toContain('radial-gradient');
+    expect(toneOf(tema(), 'accent').background).toContain('linear-gradient(135deg');
+    expect(toneOf(tema(), 'alt').bleed).toContain('100vmax');
+    expect(toneOf(tema(), 'base').bleed).toBeNull();
+  });
+
+  it('el corte de las franjas: diagonal, ondulado y zigzag, y más ancho que la pantalla en la página publicada', () => {
+    expect(dividerClip('none', false)).toBeNull();
+    expect(dividerClip(undefined, true)).toBeNull();
+    for (const kind of ['slant', 'wave', 'zigzag'] as const) {
+      const normal = dividerClip(kind, false)!;
+      expect(normal.clipPath).toMatch(/^polygon\(/);
+      expect(normal.paddingBottom).toBe('2.5rem');
+      expect(normal.clipPath).not.toContain('vmax');
+      expect(dividerClip(kind, true)!.clipPath).toContain('-100vmax 0, calc(100% + 100vmax) 0');
+    }
+    expect(dividerClip('wave', false)!.clipPath.split(',').length).toBeGreaterThan(40);
+    expect(dividerClip('zigzag', false)!.clipPath.split(',').length).toBe(17 + 2);
+    expect(new Set(['slant', 'wave', 'zigzag'].map((k) => dividerClip(k as never, false)!.clipPath)).size).toBe(3);
+  });
+
+  it('la página aplica el corte ondulado a las franjas de color (menos la última)', () => {
+    const { container } = render(<PageRenderer blocks={[bloque('a', 'texto', { body: 'a' }, { background: 'dark' }, 1), bloque('b', 'texto', { body: 'b' }, { background: 'mesh' }, 2)]} design={{ ...DISENO, look: { divider: 'wave' } }} />);
+    expect(container.querySelector<HTMLElement>('[data-block-key="a"]')!.style.clipPath).toContain('polygon');
+    expect(container.querySelector<HTMLElement>('[data-block-key="b"]')!.style.clipPath).toBe('');
+  });
+
+  it('los íconos de los beneficios: solo los del catálogo se dibujan', () => {
+    expect(iconOf('rocket')).toBeDefined();
+    for (const name of ICONS) expect(iconOf(name), name).toBeDefined();
+    expect(iconOf('inventado')).toBeUndefined();
+    expect(iconOf(5)).toBeUndefined();
+  });
+
+  it('un beneficio con ícono lo muestra en lugar del número, en tarjetas, columnas y lista', () => {
+    const items = [{ title: 'Rápido', icon: 'rocket' }, { title: 'Sin ícono' }];
+    const dibujo = (variant?: string) => {
+      const { container, unmount } = render(<PageRenderer blocks={[bloque('b', 'beneficios', { items }, variant ? { variant } : {})]} design={DISENO} />);
+      const html = container.innerHTML;
+      unmount();
+      return html;
+    };
+    const tarjetas = dibujo();
+    expect(tarjetas).toContain('lucide-rocket');
+    expect(tarjetas).toContain('>2<');
+    expect(dibujo('columnas')).toContain('lucide-rocket');
+    const lista = dibujo('lista');
+    expect(lista).toContain('lucide-rocket');
+    expect(lista).toContain('lucide-check');
+    expect(dibujo('numerados')).toContain('01');
+  });
+
+  it('el patrón de fondo: mosaico del tamaño elegido, cubrir toda la página y velo del color de fondo', () => {
+    const url = 'https://maas.ejemplo.com/public/acme/patron.png';
+    const mosaico = backdropStyle(tema({}, { assetId: 'a', url, mode: 'tile', scale: 'lg', dim: 0 }));
+    expect(mosaico.backgroundImage).toBe(`url("${url}")`);
+    expect(mosaico.backgroundSize).toBe('320px auto');
+    expect(mosaico.backgroundRepeat).toBe('repeat');
+    const cubrir = backdropStyle(tema({}, { assetId: 'a', url, mode: 'cover', scale: 'md', dim: 50 }));
+    expect(cubrir.backgroundImage).toMatch(/^linear-gradient\(#FFFFFF80, #FFFFFF80\), url\(/);
+    expect(cubrir.backgroundSize).toBe('auto, cover');
+    expect(cubrir.backgroundRepeat).toBe('repeat, no-repeat');
+    expect(cubrir.backgroundPosition).toBe('center');
+  });
+
+  it('el patrón va debajo de la decoración (cuadrícula) y solo se usa si su dirección es http(s)', () => {
+    const url = 'https://maas.ejemplo.com/patron.png';
+    const ambos = backdropStyle(tema({ backdrop: 'dots' }, { assetId: 'a', url, mode: 'tile', scale: 'sm', dim: 25 }));
+    expect(ambos.backgroundImage!.indexOf('radial-gradient')).toBeLessThan(ambos.backgroundImage!.indexOf('url('));
+    expect(ambos.backgroundSize).toContain('120px auto');
+    for (const malo of ['javascript:alert(1)', 'data:image/svg+xml;base64,AAAA', '', undefined]) {
+      expect(backdropStyle(tema({}, { assetId: 'a', url: malo, mode: 'tile', scale: 'md', dim: 0 }))).toEqual({});
+    }
+  });
+
+  it('un patrón con comillas en la dirección no puede salirse del url()', () => {
+    const style = backdropStyle(tema({}, { assetId: 'a', url: 'https://x.test/a"b.png', mode: 'tile', scale: 'md', dim: 0 }));
+    expect(style.backgroundImage).not.toContain('a"b');
+    expect(style.backgroundImage).toContain('%22');
+  });
+
+  it('la página muestra el patrón de fondo', () => {
+    render(<PageRenderer blocks={[bloque('a', 'texto', { body: 'a' })]} design={{ ...DISENO, pattern: { assetId: 'a', url: 'https://maas.ejemplo.com/p.png', mode: 'tile', scale: 'md', dim: 0 } }} />);
+    expect(screen.getByRole('article', { name: 'Página' }).style.backgroundImage).toContain('https://maas.ejemplo.com/p.png');
+  });
+});
+
 describe('el catálogo de diseño', () => {
   it('solo reconoce variantes y fondos de su lista', () => {
     expect(variantOf('beneficios', { variant: 'lista' })).toBe('lista');
@@ -141,7 +244,7 @@ describe('el catálogo de diseño', () => {
     expect(backgroundOf({ background: 'dark' })).toBe('dark');
     expect(backgroundOf({ background: 'neon' })).toBe('base');
     expect(backgroundOf(undefined)).toBe('base');
-    expect(BACKGROUNDS).toHaveLength(4);
+    expect(BACKGROUNDS).toHaveLength(6);
     for (const variantes of Object.values(BLOCK_VARIANTS)) expect(variantes?.length).toBeGreaterThan(1);
   });
 });
@@ -162,7 +265,7 @@ describe('PageRenderer con diseño propio', () => {
   it('un bloque con fondo de la marca se pinta con ese color y con texto legible', () => {
     const { container } = render(<PageRenderer blocks={[bloque('a', 'texto', { body: 'Hola' }, { background: 'accent' })]} design={DISENO} />);
     const franja = container.querySelector<HTMLElement>('[data-block-key="a"]')!;
-    expect(franja.style.background).toBe('rgb(119, 37, 190)');
+    expect(franja.getAttribute('style')).toContain('rgb(119, 37, 190)');
     expect(franja.style.color).toBe('rgb(255, 255, 255)');
   });
 
