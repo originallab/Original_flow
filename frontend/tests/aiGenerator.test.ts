@@ -97,6 +97,12 @@ describe('generador con IA', () => {
   it('conserva las tipografías que propuso la IA', async () => {
     generar.mockResolvedValue(respuesta({ designSpec: { template: 'claridad', fonts: { heading: 'Poppins', body: 'Inter' } } }));
     expect((await createAiGenerator(templateGenerator).generate(entrada(), contexto)).designSpec.fonts).toEqual({ heading: 'Poppins', body: 'Inter' });
+    // el aspecto que armó el servidor (esquinas, espacio, títulos) tampoco se pierde al volver a guardar el diseño
+    const look = { radius: 'pill', density: 'airy', align: 'center', headingCase: 'upper', headingWeight: 800 } as const;
+    generar.mockResolvedValue(respuesta({ designSpec: { template: 'claridad', fonts: { heading: 'Poppins', body: 'Inter' }, look } }));
+    const generado = await createAiGenerator(templateGenerator).generate(entrada(), contexto);
+    expect(generado.designSpec.look).toEqual(look);
+    expect(generado.designSpec.fonts).toEqual({ heading: 'Poppins', body: 'Inter' });
   });
 
   it.each([503, 429])('si el servidor responde %s (sin IA o sin cuota), la persona sigue con la plantilla en lugar de quedarse sin página', async (status) => {

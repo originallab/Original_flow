@@ -38,10 +38,11 @@ export function createAiGenerator(fallback: PageGenerator): PageGenerator {
       // Si la persona no eligió plantilla, la elige la IA; si eligió una, se respeta.
       const template = templateOf(input.templateId ?? funnel.designSpec?.template ?? 'claridad');
       return {
+        // Todo el diseño que armó el servidor (tipografías y aspecto incluidos) se conserva: este paso lo vuelve a guardar.
         designSpec: {
+          ...(funnel.designSpec ?? {}),
           template: template.id,
           palette: funnel.designSpec?.palette ?? input.workspace.brandPalette ?? template.palette,
-          ...(funnel.designSpec?.fonts ? { fonts: funnel.designSpec.fonts } : {}),
         },
         blocks: funnel.content.blocks,
       };
