@@ -151,6 +151,12 @@ export function createFunnelModel(prisma: PrismaClient) {
       return prisma.funnel.findUnique({ where: { id }, select: FULL_FIELDS });
     },
 
+    /** El diseño de las páginas más recientes de un negocio (para no repetir las mismas tipografías en la siguiente). */
+    async recentDesigns(workspaceId: string, excludeId: string, take: number): Promise<Prisma.JsonValue[]> {
+      const rows = await prisma.funnel.findMany({ where: { workspaceId, id: { not: excludeId } }, select: { designSpec: true }, orderBy: { createdAt: 'desc' }, take });
+      return rows.map((r) => r.designSpec).filter((d): d is Prisma.JsonValue => d !== null);
+    },
+
     async slugExists(slug: string): Promise<boolean> {
       return (await prisma.funnel.count({ where: { slug } })) > 0;
     },

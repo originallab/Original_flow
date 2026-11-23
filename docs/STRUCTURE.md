@@ -34,7 +34,7 @@ original_flow/
 │   │   ├── generated/       cliente de Prisma generado (no se versiona; `pnpm db:generate`)
 │   │   ├── middleware/      requestId, requestLogger, errorHandler (+ notFound), requireAuth y rateLimit
 │   │   ├── jobs/            tareas programadas (reconciliación de pagos cada 5 min)
-│   │   ├── funnel-types/    registro de los 8 tipos de funnel (index.ts) catálogo de bloques con su validación (blocks.ts), plantillas (templates.ts), el catálogo de diseño que puede elegir la IA (design.ts: tipografías, aspecto, variantes por bloque y fondos) y qué ve el visitante tras registrarse (afterSubmit.ts)
+│   │   ├── funnel-types/    registro de los 8 tipos de funnel (index.ts) catálogo de bloques con su validación (blocks.ts), plantillas (templates.ts), el catálogo de diseño (design.ts: tipografías, aspecto, variantes por bloque y fondos), las 14 direcciones de diseño curadas con su elección según el negocio (directions.ts) y la pasada de calidad de las páginas generadas (polish.ts: ritmo de fondos, formas distintas y paleta que se lee) y qué ve el visitante tras registrarse (afterSubmit.ts)
 │   │   └── integrations/    un cliente por servicio de The Original Lab
 │   │       ├── original-auth/
 │   │       ├── original-pay/

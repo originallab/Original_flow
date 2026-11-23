@@ -1,5 +1,6 @@
 import type { BlockType } from '../../funnel-types/blocks.js';
 import { ALIGNS, BACKGROUNDS, BLOCK_VARIANTS, BODY_FONTS, DENSITIES, HEADING_CASES, HEADING_FONTS, HEADING_WEIGHTS, RADII } from '../../funnel-types/design.js';
+import type { Direction } from '../../funnel-types/directions.js';
 import { TEMPLATES } from '../../funnel-types/templates.js';
 import type { GeneratePageInput, RegenerateBlockInput } from './types.js';
 
@@ -63,6 +64,15 @@ const DESIGN_GUIDE = `Diseño (cada página debe verse distinta a las demás: va
   - Por bloque, en "style": {"variant": ..., "background": ${BACKGROUNDS.join('|')}}. Variantes por tipo: ${Object.entries(BLOCK_VARIANTS).map(([t, v]) => `${t}: ${v?.join('|')}`).join('; ')}. "background": "base" es el fondo de la página, "alt" uno suave, "accent" el color de la marca y "dark" uno oscuro.
   - Crea ritmo visual: alterna fondos de un bloque a otro (por ejemplo base, alt, accent), no pongas dos franjas "accent" o "dark" seguidas, y deja el encabezado y el llamado a la acción como los más llamativos. Usa variantes distintas entre bloques parecidos.`;
 
+/** El diseño ya está decidido (dirección asignada por el servidor): la IA solo escribe y, si quiere, afina el estilo de cada bloque. */
+function directionRule(d: Direction): string {
+  return `Diseño: ya está decidido y no lo cambies. Esta página usa la dirección "${d.id}" (${d.mood}); escribe los textos con ese carácter.
+  - En "designSpec" pon exactamente: "template": "${d.template}", "fonts": ${JSON.stringify(d.fonts)}, "look": ${JSON.stringify(d.look)}.
+  - Estilo por bloque ("style": {"variant": ..., "background": ...}). Variantes posibles por tipo: ${Object.entries(BLOCK_VARIANTS).map(([t, v]) => `${t}: ${v?.join('|')}`).join('; ')}. Fondos: ${BACKGROUNDS.join('|')} ("base" el de la página, "alt" uno suave, "accent" el color de la marca, "dark" uno oscuro).
+  - Preferencias de esta dirección: encabezado ${JSON.stringify(d.hero)}; formas ${JSON.stringify(d.variants)}; ritmo de fondos de las franjas ${d.bands.join(', ')}.
+  - Alterna los fondos, no pongas dos franjas "accent" o "dark" seguidas y usa formas distintas entre bloques del mismo tipo.`;
+}
+
 const COMMON_RULES = `Responde ÚNICAMENTE con un objeto JSON válido: sin texto antes ni después y sin bloques de código.
 No inventes datos: ni precios, cifras, resultados, garantías, nombres de clientes ni testimonios. Si no hay información sobre algo, no lo menciones (no incluyas preguntas ni frases sobre eso).
 Los textos son para el público final de la página: nunca escribas notas dirigidas a quien edita («puedes agregar aquí...», «no se indicó...», «si aplica...»).
@@ -93,7 +103,7 @@ ${imageRule(input)}
 - Empieza con un bloque "encabezado" y termina con el llamado a la acción del objetivo (un "boton", o un "formulario" si el objetivo es captar datos).
 - Estructura sugerida para este objetivo (puedes ajustarla): ${suggested.length > 0 ? suggested.join(', ') : 'encabezado, beneficios, boton'}.
 - Entre 3 y 8 bloques.
-- ${DESIGN_GUIDE}`;
+- ${input.direction ? directionRule(input.direction) : DESIGN_GUIDE}`;
 
   const data = {
     objetivo: input.objective,

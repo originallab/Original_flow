@@ -1,5 +1,8 @@
 import { validateBlockContent, BLOCK_TYPES, type BlockType } from '../funnel-types/blocks.js';
-import { cleanProposalDesign, sanitizeBlockStyle } from '../funnel-types/design.js';
+import { cleanProposalDesign } from '../funnel-types/design.js';
+import { chooseDirection, directionOfDesign } from '../funnel-types/directions.js';
+import { pickPalette, polishBlocks } from '../funnel-types/polish.js';
+import { randomUUID } from 'node:crypto';
 import { getFunnelType } from '../funnel-types/index.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import type { AiBrandBrief, AiContext, AiEngine } from '../integrations/ai-engine/types.js';
@@ -92,6 +95,19 @@ export function createAiService({ funnels, funnelService, workspaces, assets, en
       // La paleta de la marca, si el negocio la tiene: la página la usa tal cual (se garantiza más abajo, aunque la IA la ignore).
       const brand = brandPaletteSchema.safeParse(workspace?.brandPalette);
       const brandPalette = brand.success ? brand.data : undefined;
+      // El diseño: si la página ya tiene el de una dirección (volver a generar), se conserva; si no, se elige una según el
+      // negocio y se evitan las tipografías de las otras páginas del mismo negocio.
+      const brief = briefOf(funnel.brandBrief);
+      const direction =
+        directionOfDesign(funnel.designSpec) ??
+        chooseDirection({
+          objective: funnel.objective,
+          seed: randomUUID(),
+          used: ((await funnels.recentDesigns(funnel.workspaceId, funnel.id, 8)) as { fonts?: { heading?: unknown; body?: unknown } }[]).map((d) => d?.fonts ?? {}),
+          text: [funnel.name, funnel.productName, funnel.targetAudience, brief?.name, brief?.industry, brief?.tone, brief?.description, body.brief?.result, body.brief?.tone, body.brief?.extra, body.instruction]
+            .filter((t): t is string => typeof t === 'string')
+            .join(' . '),
+        });
       const proposal = await ask(funnel, ctx.requestId, 'generate_page', (aiCtx) =>
         engine.generatePage(aiCtx, {
           objective: funnel.objective,
@@ -101,8 +117,9 @@ export function createAiService({ funnels, funnelService, workspaces, assets, en
           targetAudience: funnel.targetAudience ?? undefined,
           price: funnel.price === null ? undefined : Number(funnel.price),
           currency: funnel.price === null ? undefined : funnel.currency,
-          brandBrief: briefOf(funnel.brandBrief),
+          brandBrief: brief,
           details: body.brief,
+          direction,
           images: images.length > 0 ? images : undefined,
           logoUrl,
           brandPalette,
@@ -116,16 +133,21 @@ export function createAiService({ funnels, funnelService, workspaces, assets, en
       const content = parsed.success ? contentBodySchema.safeParse({ blocks: parsed.data.blocks }) : null;
       if (!parsed.success || !content?.success || content.data.blocks.length === 0) throw badResponse();
 
-      // El estilo de cada bloque: solo variantes y fondos del catálogo; lo demás se descarta.
-      const blocks = content.data.blocks.map((b) => ({ ...b, style: sanitizeBlockStyle(b.type, b.style) }));
+      // El estilo de cada bloque: lo que propuso la IA (solo variantes y fondos del catálogo) completado y corregido con la dirección.
+      const blocks = polishBlocks(content.data.blocks, direction);
       // La IA solo puede usar las imágenes que la persona subió: una dirección inventada o ajena invalida la página.
       const allowedUrls = new Set([...images.map((i) => i.url), ...(logoUrl ? [logoUrl] : [])]);
       for (const b of blocks) {
         const url = b.type === 'imagen' ? (b.content as { url?: unknown }).url : undefined;
         if (b.type === 'imagen' && (typeof url !== 'string' || !allowedUrls.has(url))) throw badResponse();
       }
-      const design = parsed.data.designSpec ?? (brandPalette ? { template: (funnel.designSpec as { template?: DesignSpecBody['template'] } | null)?.template ?? 'claridad' } : undefined);
-      const designSpec = design && brandPalette ? { ...design, palette: brandPalette } : design;
+      // El diseño sale de la dirección; la paleta, de la marca (si la tiene), de la IA (si se lee bien) o de la dirección.
+      const designSpec: DesignSpecBody = {
+        template: direction.template,
+        fonts: direction.fonts,
+        look: direction.look,
+        palette: pickPalette(direction, brandPalette, parsed.data.designSpec?.palette),
+      };
       await funnels.applyGenerated(
         funnel.id,
         {

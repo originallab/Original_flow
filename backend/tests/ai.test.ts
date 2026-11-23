@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { DIRECTIONS } from '../src/funnel-types/directions.js';
+import { paletteReads } from '../src/funnel-types/polish.js';
 import { testDatabaseUrl } from './helpers/db.js';
 import { createFakeAiEngine, VALID_PAGE } from './helpers/fakeAiEngine.js';
 import { agregarMiembro, crearNegocio, encabezados } from './helpers/negocio.js';
@@ -66,7 +68,7 @@ describe.skipIf(!testDatabaseUrl)('generación con IA (esqueleto con motor simul
 
       const fila = await guardado(f.f.id);
       expect(fila.status).toBe('draft');
-      expect(fila.designSpec).toMatchObject({ template: 'claridad' });
+      expect(fila.designSpec).toMatchObject({ template: expect.any(String), fonts: { heading: expect.any(String) }, palette: expect.any(Object) });
       expect(fila.seo).toEqual(VALID_PAGE.seo);
       const ctas = await prisma.cTA.findMany({ where: { funnelId: f.f.id } });
       expect(ctas.map((c) => c.blockKey)).toEqual(['cta']);
@@ -91,46 +93,74 @@ describe.skipIf(!testDatabaseUrl)('generación con IA (esqueleto con motor simul
       expect((await generar(f.token, f.f.id, { brief: { result: 'x'.repeat(501) } })).status).toBe(422);
     });
 
-    it('guarda el diseño que eligió la IA (tipografías, aspecto y estilo de cada bloque) y descarta lo que no está en el catálogo', async () => {
-      const f = await funnel();
-      fake.respondPage({
-        designSpec: { ...VALID_PAGE.designSpec, fonts: { heading: 'Playfair Display', body: 'Lato' }, look: { radius: 'pill', density: 'airy', headingWeight: 900 } },
-        blocks: [
-          { key: 'hero', type: 'encabezado', order: 1, content: { title: 'Hola' }, style: { variant: 'grande', background: 'dark', color: 'red' } },
-          { key: 'detalle', type: 'texto', order: 2, content: { body: 'Texto' }, style: { variant: 'inventada', background: 'alt' } },
-          { key: 'cta', type: 'boton', order: 3, content: { label: 'Entrar' }, style: { variant: 'banda', background: 'accent' } },
-        ],
-      });
-      const res = await generar(f.token, f.f.id);
-      expect(res.status).toBe(200);
-      const fila = await guardado(f.f.id);
-      expect(fila.designSpec).toMatchObject({ template: 'claridad', fonts: { heading: 'Playfair Display', body: 'Lato' }, look: { radius: 'pill', density: 'airy' } });
-      expect((fila.designSpec as { look: Record<string, unknown> }).look).not.toHaveProperty('headingWeight');
-      const estilos = (fila.content as { blocks: { key: string; style: unknown }[] }).blocks.map((b) => b.style);
-      expect(estilos).toEqual([{ variant: 'grande', background: 'dark' }, { background: 'alt' }, { variant: 'banda', background: 'accent' }]);
-    });
+    const disenoGuardado = async (id: string) => (await guardado(id)).designSpec as { template: string; fonts: { heading: string; body: string }; look: Record<string, unknown>; palette: Record<string, string> };
 
-    it('unas tipografías fuera del catálogo se descartan y la página igual se guarda', async () => {
+    it('el diseño sale de una dirección del catálogo (plantilla, tipografías y aspecto) y no de lo que proponga la IA', async () => {
       const f = await funnel();
-      fake.respondPage({ ...VALID_PAGE, designSpec: { ...VALID_PAGE.designSpec, fonts: { heading: 'Comic Sans MS', body: 'Inter' } } });
+      fake.respondPage({ ...VALID_PAGE, designSpec: { ...VALID_PAGE.designSpec, template: 'agenda', fonts: { heading: 'Comic Sans MS', body: 'Inter' }, look: { radius: 'pill', headingWeight: 900 } } });
       expect((await generar(f.token, f.f.id)).status).toBe(200);
-      expect(((await guardado(f.f.id)).designSpec as Record<string, unknown>).fonts).toBeUndefined();
+      const d = await disenoGuardado(f.f.id);
+      const direccion = DIRECTIONS.find((x) => x.fonts.heading === d.fonts.heading && x.fonts.body === d.fonts.body);
+      expect(direccion).toBeDefined();
+      expect(d.template).toBe(direccion?.template);
+      expect(d.look).toEqual(direccion?.look);
     });
 
-    it('sin marca, se queda con la plantilla y la paleta que eligió la IA', async () => {
+    it('le dice a la IA qué dirección de diseño se le asignó y la guarda igual', async () => {
       const f = await funnel();
       await generar(f.token, f.f.id);
-      expect((await guardado(f.f.id)).designSpec).toEqual(VALID_PAGE.designSpec);
-      expect((fake.calls[0]?.input as unknown as { brandPalette?: unknown }).brandPalette).toBeUndefined();
+      const asignada = (fake.calls[0]?.input as unknown as { direction: { id: string; fonts: unknown } }).direction;
+      expect(asignada.id).toBeTruthy();
+      expect((await disenoGuardado(f.f.id)).fonts).toEqual(asignada.fonts);
     });
 
-    it('con paleta de marca, se le pide a la IA y se garantiza aunque la IA elija otra: la plantilla es la de la IA, los colores los de la marca', async () => {
+    it('el estilo de cada bloque se completa y se corrige: fondos con ritmo, sin dos franjas fuertes seguidas', async () => {
+      const f = await funnel();
+      fake.respondPage({
+        ...VALID_PAGE,
+        blocks: [
+          { key: 'hero', type: 'encabezado', order: 1, content: { title: 'Hola' }, style: { variant: 'grande', background: 'dark', color: 'red' } },
+          { key: 'a', type: 'texto', order: 2, content: { body: 'Uno' }, style: { variant: 'inventada', background: 'dark' } },
+          { key: 'b', type: 'beneficios', order: 3, content: { items: [{ title: 'x' }] }, style: { background: 'accent' } },
+          { key: 'c', type: 'texto', order: 4, content: { body: 'Dos' }, style: {} },
+          { key: 'cta', type: 'boton', order: 5, content: { label: 'Entrar' }, style: { background: 'accent' } },
+        ],
+      });
+      expect((await generar(f.token, f.f.id)).status).toBe(200);
+      const bloques = ((await guardado(f.f.id)).content as { blocks: { key: string; type: string; style: Record<string, string> }[] }).blocks;
+      const fondos = bloques.map((b) => b.style.background);
+      const fuertes = (x?: string) => x === 'dark' || x === 'accent';
+      fondos.forEach((fondo, i) => expect(fuertes(fondo) && fuertes(fondos[i - 1]), `bloque ${i}`).toBeFalsy());
+      expect(bloques[0]?.style).toEqual({ variant: 'grande', background: 'dark' });
+      expect(bloques.find((b) => b.key === 'a')?.style.variant).not.toBe('inventada');
+      expect(bloques.find((b) => b.key === 'cta')?.style.background).toBeUndefined();
+      expect(bloques.every((b) => Object.keys(b.style).every((k) => k === 'variant' || k === 'background'))).toBe(true);
+      // dos textos seguidos no se dibujan igual
+      const textos = bloques.filter((b) => b.type === 'texto').map((b) => b.style.variant);
+      expect(new Set(textos).size).toBe(textos.length);
+    });
+
+    it('la paleta: la de la IA si se lee bien, y la de la dirección si no', async () => {
+      const f = await funnel();
+      await generar(f.token, f.f.id);
+      expect((await disenoGuardado(f.f.id)).palette).toEqual(VALID_PAGE.designSpec.palette);
+
+      const g = await funnel();
+      fake.respondPage({ ...VALID_PAGE, designSpec: { ...VALID_PAGE.designSpec, palette: { primary: '#FFFFFF', secondary: '#EEEEEE', accent: '#FAFAFA', background: '#FFFFFF', text: '#F5F5F5' } } });
+      await generar(g.token, g.f.id);
+      const d = await disenoGuardado(g.f.id);
+      const direccion = DIRECTIONS.find((x) => x.fonts.heading === d.fonts.heading && x.fonts.body === d.fonts.body);
+      expect(d.palette).toEqual(direccion?.palette);
+      expect(paletteReads(d.palette as never)).toBe(true);
+    });
+
+    it('con paleta de marca, se le pide a la IA y se guarda tal cual (no se retoca) aunque la IA elija otra', async () => {
       const f = await funnel();
       const marca = { primary: '#112233', secondary: '#223344', accent: '#334455', background: '#F0F0F0', text: '#101010' };
       await prisma.workspace.update({ where: { id: f.workspace.id }, data: { brandPalette: marca } });
       await generar(f.token, f.f.id);
       expect((fake.calls[0]?.input as unknown as { brandPalette: unknown }).brandPalette).toEqual(marca);
-      expect((await guardado(f.f.id)).designSpec).toEqual({ template: 'claridad', palette: marca });
+      expect((await disenoGuardado(f.f.id)).palette).toEqual(marca);
     });
 
     it('con paleta de marca y una IA que no manda diseño, igual se guarda la paleta de la marca', async () => {
@@ -139,7 +169,48 @@ describe.skipIf(!testDatabaseUrl)('generación con IA (esqueleto con motor simul
       await prisma.workspace.update({ where: { id: f.workspace.id }, data: { brandPalette: marca } });
       fake.respondPage({ blocks: VALID_PAGE.blocks });
       await generar(f.token, f.f.id);
-      expect(((await guardado(f.f.id)).designSpec as { palette: unknown }).palette).toEqual(marca);
+      expect((await disenoGuardado(f.f.id)).palette).toEqual(marca);
+    });
+
+    it('al volver a generar se conserva la dirección de diseño de la página', async () => {
+      const f = await funnel();
+      await generar(f.token, f.f.id);
+      const antes = (await disenoGuardado(f.f.id)).fonts;
+      for (let i = 0; i < 4; i += 1) {
+        await generar(f.token, f.f.id);
+        expect((await disenoGuardado(f.f.id)).fonts).toEqual(antes);
+      }
+    });
+
+    it('las páginas de un mismo negocio no repiten tipografías', async () => {
+      const f = await funnel();
+      const usadas = new Set<string>();
+      const crear = async () => {
+        const creado = await request(app).post('/api/v1/funnels').set(encabezados(f.token)).send({ workspaceId: f.workspace.id, name: 'Otro funnel', objective: 'leads' });
+        await request(app).put(`/api/v1/funnels/${creado.body.id}/content`).set(encabezados(f.token)).send({ blocks: [{ key: 'hero', type: 'encabezado', order: 1, content: { title: 'T' }, style: {} }] });
+        await generar(f.token, creado.body.id);
+        const d = await disenoGuardado(creado.body.id);
+        usadas.add(`${d.fonts.heading}|${d.fonts.body}`);
+      };
+      for (let i = 0; i < 5; i += 1) await crear();
+      expect(usadas.size).toBe(5);
+    });
+
+    it('negocios de rubros distintos reciben diseños distintos', async () => {
+      const rubros: [string, string][] = [
+        ['Terapia de pareja y bienestar emocional', 'citas'],
+        ['Software de facturación para pymes', 'leads'],
+        ['Tienda de ropa con ofertas', 'venta'],
+      ];
+      const fuentes = new Set<string>();
+      for (const [nombre, objetivo] of rubros) {
+        const n = await crearNegocio(app, config);
+        const creado = await request(app).post('/api/v1/funnels').set(encabezados(n.token)).send({ workspaceId: n.workspace.id, name: nombre, objective: objetivo });
+        await request(app).put(`/api/v1/funnels/${creado.body.id}/content`).set(encabezados(n.token)).send({ blocks: [{ key: 'hero', type: 'encabezado', order: 1, content: { title: 'T' }, style: {} }] });
+        await generar(n.token, creado.body.id);
+        fuentes.add((await disenoGuardado(creado.body.id)).fonts.heading);
+      }
+      expect(fuentes.size).toBe(3);
     });
 
     describe('con imágenes que subió la persona', () => {
@@ -215,14 +286,12 @@ describe.skipIf(!testDatabaseUrl)('generación con IA (esqueleto con motor simul
       });
     });
 
-    it('si el diseño o el SEO no vienen, conserva los que ya tenía', async () => {
+    it('si el SEO no viene, conserva el que ya tenía', async () => {
       const f = await funnel();
-      await prisma.funnel.update({ where: { id: f.f.id }, data: { seo: { title: 'Mi título' }, designSpec: { template: 'impacto' } } });
+      await prisma.funnel.update({ where: { id: f.f.id }, data: { seo: { title: 'Mi título' } } });
       fake.respondPage({ blocks: VALID_PAGE.blocks });
       expect((await generar(f.token, f.f.id)).status).toBe(200);
-      const fila = await guardado(f.f.id);
-      expect(fila.seo).toEqual({ title: 'Mi título' });
-      expect(fila.designSpec).toEqual({ template: 'impacto' });
+      expect((await guardado(f.f.id)).seo).toEqual({ title: 'Mi título' });
     });
 
     it('una propuesta inválida (bloque malo, claves repetidas, vacía o sin forma) responde 503 AI_BAD_RESPONSE y NO guarda nada', async () => {

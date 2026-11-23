@@ -46,7 +46,7 @@ describe.skipIf(!testDatabaseUrl)('generación con IA de punta a punta (cliente 
     expect(res.body.content.blocks.map((b: { key: string }) => b.key)).toEqual(['hero', 'beneficios', 'comprar']);
 
     const fila = await prisma.funnel.findUniqueOrThrow({ where: { id: f.id } });
-    expect(fila.designSpec).toMatchObject({ template: 'impacto' });
+    expect(fila.designSpec).toMatchObject({ template: expect.any(String), fonts: { heading: expect.any(String), body: expect.any(String) } });
     expect(fila.seo).toEqual(PAGINA_DEL_MODELO.seo);
     const ctas = await prisma.cTA.findMany({ where: { funnelId: f.id } });
     expect(ctas.map((c) => [c.blockKey, c.actionType])).toEqual([['comprar', 'checkout']]);

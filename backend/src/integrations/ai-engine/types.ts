@@ -1,4 +1,5 @@
 import type { BlockType } from '../../funnel-types/blocks.js';
+import type { Direction } from '../../funnel-types/directions.js';
 import type { FunnelObjective } from '../../generated/prisma/client.js';
 
 /**
@@ -49,6 +50,8 @@ export interface GeneratePageInput {
   images?: { url: string; name: string }[];
   /** La paleta de la marca del negocio, si la tiene: la página debe usarla tal cual. */
   brandPalette?: { primary: string; secondary: string; accent: string; background: string; text: string };
+  /** La dirección de diseño asignada a esta página (tipografías, aspecto y ritmo): la IA escribe en su tono y no elige el diseño. */
+  direction?: Direction;
   /** El resto de lo que escribió en el asistente. */
   details?: AiPageDetails;
   /** Todos los tipos de bloque que puede usar. */
