@@ -1,6 +1,5 @@
 import type { BlockType } from '../../funnel-types/blocks.js';
 import { ALIGNS, BACKGROUNDS, BLOCK_VARIANTS, BODY_FONTS, DENSITIES, HEADING_CASES, HEADING_FONTS, HEADING_WEIGHTS, RADII } from '../../funnel-types/design.js';
-import type { Direction } from '../../funnel-types/directions.js';
 import { TEMPLATES } from '../../funnel-types/templates.js';
 import type { GeneratePageInput, RegenerateBlockInput } from './types.js';
 
@@ -45,7 +44,7 @@ function paletteRule(input: GeneratePageInput): string {
   if (input.brandPalette) {
     return `- La marca ya tiene paleta: usa EXACTAMENTE estos colores en "palette", sin cambiarlos: ${JSON.stringify(input.brandPalette)}.`;
   }
-  return '- Propón una paleta coherente con el rubro y el tono (colores #RRGGBB), con buen contraste entre "background" y "text" (texto legible sobre el fondo).';
+  return '- Diseña una paleta propia, coherente con el rubro y el tono, en "palette" (colores #RRGGBB): evita el morado y el azul genéricos, parte del mundo del negocio. "background" y "text" deben contrastar mucho (texto legible), y "primary" debe distinguirse bien del fondo.';
 }
 
 /** Las reglas de las imágenes que subió la persona: usarlas con su dirección exacta, y no inventar otras. */
@@ -57,21 +56,26 @@ function imageRule(input: GeneratePageInput): string {
   return `- La persona subió imágenes (en "imagenes"). Intégralas en la página con bloques "imagen" colocados donde mejor funcionen (por ejemplo, la del producto cerca del encabezado). Forma: ${IMAGE_SHAPE}. Usa cada dirección tal cual, sin cambiarla, y no inventes otras. No es obligatorio usarlas todas.${logo}`;
 }
 
-/** El catálogo de diseño que la IA puede usar, para que cada página salga distinta a las demás. */
-const DESIGN_GUIDE = `Diseño (cada página debe verse distinta a las demás: varía de verdad según el rubro, el público y el tono; no repitas siempre lo mismo):
-  - "designSpec.fonts": {"heading": una de [${HEADING_FONTS.join(', ')}], "body": una de [${BODY_FONTS.join(', ')}]}. Combina con intención: serif elegante (Playfair Display, DM Serif Display, Lora, Fraunces) para cursos premium, servicios o editorial; geométricas (Poppins, Montserrat, Sora, Space Grotesk) para tecnología y modernidad; Oswald para impacto y ofertas.
-  - "designSpec.look": {"radius": ${RADII.join('|')}, "density": ${DENSITIES.join('|')}, "align": ${ALIGNS.join('|')}, "headingCase": ${HEADING_CASES.join('|')}, "headingWeight": ${HEADING_WEIGHTS.join('|')}}. Esquinas rectas y mayúsculas para impacto; redondeadas y aire para algo cercano; "airy" para marcas premium; "compact" para mucha información.
-  - Por bloque, en "style": {"variant": ..., "background": ${BACKGROUNDS.join('|')}}. Variantes por tipo: ${Object.entries(BLOCK_VARIANTS).map(([t, v]) => `${t}: ${v?.join('|')}`).join('; ')}. "background": "base" es el fondo de la página, "alt" uno suave, "accent" el color de la marca y "dark" uno oscuro.
-  - Crea ritmo visual: alterna fondos de un bloque a otro (por ejemplo base, alt, accent), no pongas dos franjas "accent" o "dark" seguidas, y deja el encabezado y el llamado a la acción como los más llamativos. Usa variantes distintas entre bloques parecidos.`;
-
-/** El diseño ya está decidido (dirección asignada por el servidor): la IA solo escribe y, si quiere, afina el estilo de cada bloque. */
-function directionRule(d: Direction): string {
-  return `Diseño: ya está decidido y no lo cambies. Esta página usa la dirección "${d.id}" (${d.mood}); escribe los textos con ese carácter.
-  - En "designSpec" pon exactamente: "template": "${d.template}", "fonts": ${JSON.stringify(d.fonts)}, "look": ${JSON.stringify(d.look)}.
-  - Estilo por bloque ("style": {"variant": ..., "background": ...}). Variantes posibles por tipo: ${Object.entries(BLOCK_VARIANTS).map(([t, v]) => `${t}: ${v?.join('|')}`).join('; ')}. Fondos: ${BACKGROUNDS.join('|')} ("base" el de la página, "alt" uno suave, "accent" el color de la marca, "dark" uno oscuro).
-  - Preferencias de esta dirección: encabezado ${JSON.stringify(d.hero)}; formas ${JSON.stringify(d.variants)}; ritmo de fondos de las franjas ${d.bands.join(', ')}.
-  - Alterna los fondos, no pongas dos franjas "accent" o "dark" seguidas y usa formas distintas entre bloques del mismo tipo.`;
+/** La IA hace de directora de arte: diseña la página (tipografías, aspecto, paleta, estructura y estilo de cada bloque). */
+function artDirection(input: GeneratePageInput): string {
+  if (input.keepDesign) {
+    return `Diseño: esta página ya tiene su diseño y NO debes cambiarlo: usa en "designSpec" exactamente ${JSON.stringify(input.keepDesign)}. Solo reescribe los bloques; puedes elegir su "style" (variant y background) con el mismo criterio de ritmo visual de abajo.
+  - ${STYLE_RULES}`;
+  }
+  const creative = input.creative ? `
+  - Punto de partida creativo de ESTA página (úsalo como inspiración, adáptalo al negocio, no lo copies al pie de la letra): estructura ${input.creative.estructura}; estética ${input.creative.estetica}; paleta ${input.creative.paleta}.` : '';
+  const avoid = input.avoid && input.avoid.length > 0 ? `
+  - Otras páginas del mismo negocio ya usan estos diseños: ${input.avoid.map((a) => `[${a}]`).join(' ')}. Esta debe verse y estructurarse claramente distinta (otras tipografías, otros colores, otro orden de bloques).` : '';
+  const examples = input.examples && input.examples.length > 0 ? `
+  - Ejemplos de diseños bien resueltos, solo para que tengas el nivel de calidad (NO los copies): ${JSON.stringify(input.examples)}.` : '';
+  return `Diseño: tú diseñas esta página desde cero, como un director de arte. No hay plantillas fijas: cada página debe verse y estructurarse distinta a cualquier otra, según el rubro, el público y el tono.${creative}${avoid}${examples}
+  - "designSpec.fonts": {"heading": una de [${HEADING_FONTS.join(', ')}], "body": una de [${BODY_FONTS.join(', ')}]}. Combina con intención (por ejemplo una serif expresiva con una sans neutra, o una display potente con una de lectura cómoda) y no repitas siempre las mismas.
+  - "designSpec.look": {"radius": ${RADII.join('|')}, "density": ${DENSITIES.join('|')}, "align": ${ALIGNS.join('|')}, "headingCase": ${HEADING_CASES.join('|')}, "headingWeight": ${HEADING_WEIGHTS.join('|')}}. Decide con criterio: esquinas rectas y mayúsculas para algo contundente; redondeadas y aire para algo cercano; "airy" para marcas premium; "compact" para mucha información.
+  - Estructura: tú eliges qué bloques lleva la página y en qué orden (puedes repetir tipos, por ejemplo dos textos, y mezclar el orden), de 4 a 10 bloques. No uses siempre la misma secuencia.
+  - ${STYLE_RULES}`;
 }
+
+const STYLE_RULES = `Por bloque, en "style": {"variant": ..., "background": ${BACKGROUNDS.join('|')}}. Variantes por tipo: ${Object.entries(BLOCK_VARIANTS).map(([t, v]) => `${t}: ${v?.join('|')}`).join('; ')}. "background": "base" es el fondo de la página, "alt" uno suave, "accent" el color de la marca y "dark" uno oscuro. Crea ritmo visual: alterna fondos, no pongas dos franjas "accent" o "dark" seguidas, deja el encabezado y el llamado a la acción como lo más llamativo y usa formas distintas entre bloques parecidos.`;
 
 const COMMON_RULES = `Responde ÚNICAMENTE con un objeto JSON válido: sin texto antes ni después y sin bloques de código.
 No inventes datos: ni precios, cifras, resultados, garantías, nombres de clientes ni testimonios. Si no hay información sobre algo, no lo menciones (no incluyas preguntas ni frases sobre eso).
@@ -100,10 +104,10 @@ ${paletteRule(input)}
 ${catalog(AI_BLOCK_TYPES)}
 ${imageRule(input)}
 - "key" único (minúsculas, números, guion o guion bajo); "order" consecutivo desde 1.
-- Empieza con un bloque "encabezado" y termina con el llamado a la acción del objetivo (un "boton", o un "formulario" si el objetivo es captar datos).
-- Estructura sugerida para este objetivo (puedes ajustarla): ${suggested.length > 0 ? suggested.join(', ') : 'encabezado, beneficios, boton'}.
-- Entre 3 y 8 bloques.
-- ${input.direction ? directionRule(input.direction) : DESIGN_GUIDE}`;
+- Empieza con un bloque "encabezado" y cierra con el llamado a la acción del objetivo (un "boton", o un "formulario" si el objetivo es captar datos); entre uno y otro la estructura es tuya.
+- Bloques habituales para este objetivo (solo como referencia, no estás obligada a usarlos todos ni en este orden): ${suggested.length > 0 ? suggested.join(', ') : 'encabezado, beneficios, boton'}.
+- Entre 4 y 10 bloques.
+- ${artDirection(input)}`;
 
   const data = {
     objetivo: input.objective,

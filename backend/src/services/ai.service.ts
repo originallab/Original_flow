@@ -1,7 +1,7 @@
 import { validateBlockContent, BLOCK_TYPES, type BlockType } from '../funnel-types/blocks.js';
 import { cleanProposalDesign } from '../funnel-types/design.js';
-import { chooseDirection, directionOfDesign } from '../funnel-types/directions.js';
-import { pickPalette, polishBlocks } from '../funnel-types/polish.js';
+import { creativeBrief, describeDesign, qualityExamples } from '../funnel-types/creative.js';
+import { fallbackDesign, pickPalette, polishBlocks, randomHints } from '../funnel-types/polish.js';
 import { randomUUID } from 'node:crypto';
 import { getFunnelType } from '../funnel-types/index.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -95,19 +95,15 @@ export function createAiService({ funnels, funnelService, workspaces, assets, en
       // La paleta de la marca, si el negocio la tiene: la página la usa tal cual (se garantiza más abajo, aunque la IA la ignore).
       const brand = brandPaletteSchema.safeParse(workspace?.brandPalette);
       const brandPalette = brand.success ? brand.data : undefined;
-      // El diseño: si la página ya tiene el de una dirección (volver a generar), se conserva; si no, se elige una según el
-      // negocio y se evitan las tipografías de las otras páginas del mismo negocio.
+      // La IA diseña la página. Si ya tiene un diseño (volver a generar), se conserva. Si no, se le da una semilla creativa
+      // distinta en cada generación y un resumen de lo que ya usan las otras páginas del negocio, para que no se le parezca.
       const brief = briefOf(funnel.brandBrief);
-      const direction =
-        directionOfDesign(funnel.designSpec) ??
-        chooseDirection({
-          objective: funnel.objective,
-          seed: randomUUID(),
-          used: ((await funnels.recentDesigns(funnel.workspaceId, funnel.id, 8)) as { fonts?: { heading?: unknown; body?: unknown } }[]).map((d) => d?.fonts ?? {}),
-          text: [funnel.name, funnel.productName, funnel.targetAudience, brief?.name, brief?.industry, brief?.tone, brief?.description, body.brief?.result, body.brief?.tone, body.brief?.extra, body.instruction]
-            .filter((t): t is string => typeof t === 'string')
-            .join(' . '),
-        });
+      const seed = randomUUID();
+      const existing = funnel.designSpec as { template?: string; fonts?: { heading: string; body: string }; look?: unknown; palette?: unknown } | null;
+      const keepDesign = existing?.fonts ? existing : undefined;
+      const avoid = keepDesign
+        ? undefined
+        : (await funnels.recentDesigns(funnel.workspaceId, funnel.id, 6)).map((r) => describeDesign(r.designSpec, r.content)).filter((d): d is string => d !== null);
       const proposal = await ask(funnel, ctx.requestId, 'generate_page', (aiCtx) =>
         engine.generatePage(aiCtx, {
           objective: funnel.objective,
@@ -119,7 +115,7 @@ export function createAiService({ funnels, funnelService, workspaces, assets, en
           currency: funnel.price === null ? undefined : funnel.currency,
           brandBrief: brief,
           details: body.brief,
-          direction,
+          ...(keepDesign ? { keepDesign } : { creative: creativeBrief(seed), examples: qualityExamples(seed, 2), ...(avoid && avoid.length > 0 ? { avoid } : {}) }),
           images: images.length > 0 ? images : undefined,
           logoUrl,
           brandPalette,
@@ -134,20 +130,25 @@ export function createAiService({ funnels, funnelService, workspaces, assets, en
       if (!parsed.success || !content?.success || content.data.blocks.length === 0) throw badResponse();
 
       // El estilo de cada bloque: lo que propuso la IA (solo variantes y fondos del catálogo) completado y corregido con la dirección.
-      const blocks = polishBlocks(content.data.blocks, direction);
+      const blocks = polishBlocks(content.data.blocks, randomHints(seed));
       // La IA solo puede usar las imágenes que la persona subió: una dirección inventada o ajena invalida la página.
       const allowedUrls = new Set([...images.map((i) => i.url), ...(logoUrl ? [logoUrl] : [])]);
       for (const b of blocks) {
         const url = b.type === 'imagen' ? (b.content as { url?: unknown }).url : undefined;
         if (b.type === 'imagen' && (typeof url !== 'string' || !allowedUrls.has(url))) throw badResponse();
       }
-      // El diseño sale de la dirección; la paleta, de la marca (si la tiene), de la IA (si se lee bien) o de la dirección.
-      const designSpec: DesignSpecBody = {
-        template: direction.template,
-        fonts: direction.fonts,
-        look: direction.look,
-        palette: pickPalette(direction, brandPalette, parsed.data.designSpec?.palette),
-      };
+      // El diseño lo propuso la IA (ya depurado: solo tipografías y aspecto del catálogo); lo que falte se completa con un respaldo.
+      // La paleta: la de la marca si la tiene, si no la de la IA (corregida si no se leía bien).
+      const proposed = parsed.data.designSpec;
+      const backup = fallbackDesign(seed);
+      const designSpec: DesignSpecBody = keepDesign
+        ? { ...(keepDesign as DesignSpecBody), template: (keepDesign.template ?? backup.template) as DesignSpecBody['template'], ...(brandPalette ? { palette: brandPalette } : {}) }
+        : {
+            template: proposed?.template ?? backup.template,
+            fonts: proposed?.fonts ?? backup.fonts,
+            ...(proposed?.look ? { look: proposed.look } : proposed?.fonts ? {} : { look: backup.look }),
+            palette: pickPalette(backup.palette, brandPalette, proposed?.palette),
+          };
       await funnels.applyGenerated(
         funnel.id,
         {

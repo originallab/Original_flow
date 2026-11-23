@@ -1,6 +1,6 @@
 import type { BlockType } from './blocks.js';
 import { BACKGROUNDS, BLOCK_VARIANTS, sanitizeBlockStyle, type BlockBackground } from './design.js';
-import type { Direction, Palette } from './directions.js';
+import { DIRECTIONS, hash, type Direction, type Palette } from './directions.js';
 
 /**
  * Pasada de calidad sobre una página generada: el diseño sale de la dirección elegida, y el estilo de cada bloque
@@ -39,18 +39,73 @@ export function paletteReads(p: Palette): boolean {
   return contrast(p.text, p.background) >= 4.5 && contrast(p.primary, p.background) >= 3;
 }
 
+const toRgb = (hex: string): [number, number, number] => {
+  const v = Number.parseInt(hex.slice(1), 16);
+  return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+};
+const toHex = (rgb: number[]) => `#${rgb.map((c) => Math.round(c).toString(16).padStart(2, '0')).join('').toUpperCase()}`;
+
+/** Acerca un color a negro o a blanco (según el fondo) hasta que se distinga lo necesario del fondo. */
+function pushAway(color: string, background: string, min: number): string {
+  const target = luminance(background) > 0.4 ? [0, 0, 0] : [255, 255, 255];
+  const from = toRgb(color);
+  for (let step = 0; step <= 20; step += 1) {
+    const t = step / 20;
+    const candidate = toHex(from.map((c, i) => c + ((target[i] as number) - c) * t));
+    if (contrast(candidate, background) >= min) return candidate;
+  }
+  return toHex(target);
+}
+
+/** Corrige una paleta que propuso la IA para que el texto se lea y el color principal se distinga del fondo (conserva su carácter). */
+export function repairPalette(p: Palette): Palette {
+  return { ...p, text: pushAway(p.text, p.background, 7), primary: pushAway(p.primary, p.background, 3), secondary: pushAway(p.secondary, p.background, 3) };
+}
+
 /**
- * La paleta de la página: la de la marca si la tiene (es suya y no se toca); si no, la que propuso la IA si se lee bien;
- * y si no, la de la dirección.
+ * La paleta de la página: la de la marca si la tiene (es suya y no se toca); si no, la que propuso la IA (corregida si no se
+ * leía bien); y si no propuso ninguna, una de respaldo.
  */
-export function pickPalette(direction: Direction, brand?: Palette, proposed?: Palette): Palette {
+export function pickPalette(fallback: Palette, brand?: Palette, proposed?: Palette): Palette {
   if (brand) return brand;
-  if (proposed && paletteReads(proposed)) return proposed;
-  return direction.palette;
+  if (proposed) return paletteReads(proposed) ? proposed : repairPalette(proposed);
+  return fallback;
+}
+
+/** Cómo se completa el estilo de los bloques en los que la IA no eligió forma o fondo. */
+export interface StyleHints {
+  hero: { variant?: string; background?: BlockBackground };
+  variants: Partial<Record<BlockType, string>>;
+  bands: BlockBackground[];
+}
+
+/** Pistas al azar (pero estables para una semilla): lo que no decide la IA tampoco sale siempre igual. */
+export function randomHints(seed: string): StyleHints {
+  const choose = <T>(list: readonly T[], salt: string): T => list[hash(`${salt}:${seed}`) % list.length] as T;
+  const variants: Partial<Record<BlockType, string>> = {};
+  for (const [type, options] of Object.entries(BLOCK_VARIANTS)) if (options) variants[type as BlockType] = choose(options, type);
+  const strong = choose<BlockBackground>(['accent', 'dark'], 'strong');
+  const cycles: BlockBackground[][] = [
+    ['base', 'alt', 'base', strong],
+    ['alt', 'base', strong, 'base'],
+    ['base', strong, 'base', 'alt'],
+    ['base', 'alt', strong, 'base', 'alt'],
+  ];
+  return {
+    hero: { variant: choose(BLOCK_VARIANTS.encabezado ?? ['centrado'], 'hero'), background: choose<BlockBackground>(['base', 'alt', 'dark', 'accent', 'base'], 'herobg') },
+    variants,
+    bands: choose(cycles, 'bands'),
+  };
+}
+
+/** Una paleta de respaldo (de una de las direcciones de ejemplo) para cuando la IA no propone ninguna. */
+export function fallbackDesign(seed: string): Pick<Direction, 'template' | 'fonts' | 'look' | 'palette'> {
+  const d = DIRECTIONS[hash(`f:${seed}`) % DIRECTIONS.length] as Direction;
+  return { template: d.template, fonts: d.fonts, look: d.look, palette: d.palette };
 }
 
 /** El estilo de cada bloque, completado con la dirección y corregido para que se vea bien. */
-export function polishBlocks<T extends PolishBlock>(blocks: T[], direction: Direction): T[] {
+export function polishBlocks<T extends PolishBlock>(blocks: T[], direction: StyleHints): T[] {
   const ordered = [...blocks].sort((a, b) => a.order - b.order);
   const heroIndex = ordered.findIndex((b) => b.type === 'encabezado');
   const usedVariants = new Map<BlockType, string[]>();

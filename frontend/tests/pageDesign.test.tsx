@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { PageRenderer } from '@/features/pageRenderer/PageRenderer';
 import { fontsHref, readableOn, resolveTheme, toneOf } from '@/features/pageRenderer/theme';
 import type { Block, DesignSpec } from '@/shared/blocks/types';
-import { BACKGROUNDS, BLOCK_VARIANTS, backgroundOf, variantOf } from '@/shared/design';
+import * as back from '../../backend/src/funnel-types/design';
+import { BACKGROUNDS, BLOCK_VARIANTS, BODY_FONTS, HEADING_FONTS, SINGLE_WEIGHT_FONTS, backgroundOf, variantOf } from '@/shared/design';
 
 const PALETA = { primary: '#7725BE', secondary: '#4A3B63', accent: '#F59E0B', background: '#FFFFFF', text: '#1F1A2B' };
 const DISENO: DesignSpec = { template: 'claridad', palette: PALETA };
@@ -52,6 +53,23 @@ describe('el tema de una página', () => {
     expect(oscuro.color).toBe('#FFFFFF');
     expect(oscuro.background).toBe(PALETA.text);
     expect(oscuro.theme.surface.background).not.toBe(base.surface.background);
+  });
+});
+
+describe('tipografías', () => {
+  it('el catálogo del front es el mismo que el del backend', () => {
+    expect([...HEADING_FONTS]).toEqual([...back.HEADING_FONTS]);
+    expect([...BODY_FONTS]).toEqual([...back.BODY_FONTS]);
+    expect([...SINGLE_WEIGHT_FONTS]).toEqual([...back.SINGLE_WEIGHT_FONTS]);
+    expect(BLOCK_VARIANTS).toEqual(back.BLOCK_VARIANTS);
+    expect([...BACKGROUNDS]).toEqual([...back.BACKGROUNDS]);
+  });
+
+  it('las de un solo grosor se piden sin pesos (Google Fonts rechazaría toda la petición) y no se engrosan', () => {
+    expect(fontsHref({ heading: 'DM Serif Display', body: 'Lato' })).toBe('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Lato:wght@400;600&display=swap');
+    expect(fontsHref({ heading: 'Syne', body: 'Open Sans' })).toBe('https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700;800&family=Open+Sans:wght@400;600&display=swap');
+    expect(resolveTheme({ template: 'impacto', fonts: { heading: 'Bebas Neue', body: 'Inter' } }).look.headingWeight).toBe(400);
+    expect(resolveTheme({ template: 'impacto', fonts: { heading: 'Syne', body: 'Inter' } }).look.headingWeight).toBe(800);
   });
 });
 

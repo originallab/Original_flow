@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react';
 import { templateOf } from '@/features/funnels/catalog';
 import type { BrandPalette } from '@/services/workspaces';
 import type { DesignSpec, TemplateId } from '@/shared/blocks/types';
-import { isBodyFont, isHeadingFont, type BlockBackground, type PageLook } from '@/shared/design';
+import { isBodyFont, isHeadingFont, SINGLE_WEIGHT_FONTS, type BlockBackground, type PageLook } from '@/shared/design';
 
 /**
  * Cómo se ve cada plantilla además de sus colores: esquinas, alineación, títulos y tipografías de partida.
@@ -61,7 +61,8 @@ export function resolveTheme(design: DesignSpec | null | undefined): PageTheme {
     look: {
       radius: RADIUS_PX[own.radius ?? base.radius] ?? RADIUS_PX[base.radius],
       align: own.align ?? base.align,
-      headingWeight: own.headingWeight ?? base.headingWeight,
+      // Las tipografías de un solo grosor no se «engrosan» (se verían falsas).
+      headingWeight: SINGLE_WEIGHT_FONTS.includes(fonts.heading) ? 400 : (own.headingWeight ?? base.headingWeight),
       headingTransform: (own.headingCase ?? base.headingCase) === 'upper' ? 'uppercase' : 'none',
       spacing: DENSITY_FACTOR[own.density ?? base.density] ?? 1,
     },
@@ -111,6 +112,8 @@ export function toneOf(theme: PageTheme, background: BlockBackground): Tone {
 
 /** La dirección de Google Fonts de las dos tipografías de una página (solo nombres del catálogo, ya validados). */
 export function fontsHref(fonts: { heading: string; body: string }): string {
-  const family = (name: string, weights: string) => `family=${name.replace(/ /g, '+')}:wght@${weights}`;
-  return `https://fonts.googleapis.com/css2?${family(fonts.heading, '500;600;700;800')}&${family(fonts.body, '400;600')}&display=swap`;
+  const name = (font: string) => font.replace(/ /g, '+');
+  // Google Fonts rechaza toda la petición si se pide un peso que la tipografía no tiene: las de un solo grosor van sin pesos.
+  const heading = SINGLE_WEIGHT_FONTS.includes(fonts.heading) ? name(fonts.heading) : `${name(fonts.heading)}:wght@500;600;700;800`;
+  return `https://fonts.googleapis.com/css2?family=${heading}&family=${name(fonts.body)}:wght@400;600&display=swap`;
 }

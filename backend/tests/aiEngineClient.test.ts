@@ -219,7 +219,7 @@ describe('instrucciones al modelo', () => {
 
   it('la estructura sugerida solo incluye bloques permitidos (sin testimonios)', () => {
     const texto = sistema(generatePageMessages(PAGE));
-    expect(texto).toContain('Estructura sugerida para este objetivo (puedes ajustarla): encabezado, beneficios, precios, faq, boton');
+    expect(texto).toContain('Bloques habituales para este objetivo (solo como referencia, no estás obligada a usarlos todos ni en este orden): encabezado, beneficios, precios, faq, boton');
   });
 
   it('los datos de la persona van dentro de <datos> como JSON, con el precio real, y una indicación maliciosa queda como dato', () => {
@@ -236,7 +236,7 @@ describe('instrucciones al modelo', () => {
     const texto = sistema(generatePageMessages(PAGE));
     for (const id of ['claridad', 'impacto', 'minimal', 'encuentro', 'recurso', 'agenda']) expect(texto).toContain(`- ${id}:`);
     expect(texto).toContain('Tú decides el diseño');
-    expect(texto).toContain('Propón una paleta coherente');
+    expect(texto).toContain('Diseña una paleta propia');
   });
 
   it('le da a la IA el catálogo de diseño completo (tipografías, aspecto, variantes por bloque y fondos) y le pide que cada página sea distinta', () => {
@@ -246,7 +246,7 @@ describe('instrucciones al modelo', () => {
     expect(texto).toContain('encabezado: centrado|izquierda|dividido|grande');
     expect(texto).toContain('beneficios: tarjetas|lista|numerados|columnas');
     expect(texto).toContain('"background": base|alt|accent|dark');
-    expect(texto).toContain('cada página debe verse distinta');
+    expect(texto).toContain('cada página debe verse y estructurarse distinta');
     expect(texto).toContain('no pongas dos franjas');
   });
 

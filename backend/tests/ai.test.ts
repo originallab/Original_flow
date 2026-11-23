@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { DIRECTIONS } from '../src/funnel-types/directions.js';
+import { BODY_FONTS, HEADING_FONTS } from '../src/funnel-types/design.js';
 import { paletteReads } from '../src/funnel-types/polish.js';
 import { testDatabaseUrl } from './helpers/db.js';
 import { createFakeAiEngine, VALID_PAGE } from './helpers/fakeAiEngine.js';
@@ -95,23 +95,62 @@ describe.skipIf(!testDatabaseUrl)('generación con IA (esqueleto con motor simul
 
     const disenoGuardado = async (id: string) => (await guardado(id)).designSpec as { template: string; fonts: { heading: string; body: string }; look: Record<string, unknown>; palette: Record<string, string> };
 
-    it('el diseño sale de una dirección del catálogo (plantilla, tipografías y aspecto) y no de lo que proponga la IA', async () => {
+    it('el diseño lo propone la IA: se guardan sus tipografías, su aspecto y su paleta, y solo lo que es del catálogo', async () => {
       const f = await funnel();
-      fake.respondPage({ ...VALID_PAGE, designSpec: { ...VALID_PAGE.designSpec, template: 'agenda', fonts: { heading: 'Comic Sans MS', body: 'Inter' }, look: { radius: 'pill', headingWeight: 900 } } });
+      fake.respondPage({
+        ...VALID_PAGE,
+        designSpec: { template: 'agenda', fonts: { heading: 'Bebas Neue', body: 'Karla' }, look: { radius: 'pill', density: 'airy', headingWeight: 900 }, palette: VALID_PAGE.designSpec.palette },
+      });
       expect((await generar(f.token, f.f.id)).status).toBe(200);
       const d = await disenoGuardado(f.f.id);
-      const direccion = DIRECTIONS.find((x) => x.fonts.heading === d.fonts.heading && x.fonts.body === d.fonts.body);
-      expect(direccion).toBeDefined();
-      expect(d.template).toBe(direccion?.template);
-      expect(d.look).toEqual(direccion?.look);
+      expect(d).toMatchObject({ template: 'agenda', fonts: { heading: 'Bebas Neue', body: 'Karla' }, look: { radius: 'pill', density: 'airy' }, palette: VALID_PAGE.designSpec.palette });
+      expect(d.look).not.toHaveProperty('headingWeight');
     });
 
-    it('le dice a la IA qué dirección de diseño se le asignó y la guarda igual', async () => {
+    it('si la IA propone tipografías que no son del catálogo o no propone diseño, se completa con un respaldo y la página se guarda', async () => {
+      const f = await funnel();
+      fake.respondPage({ ...VALID_PAGE, designSpec: { ...VALID_PAGE.designSpec, fonts: { heading: 'Comic Sans MS', body: 'Inter' } } });
+      expect((await generar(f.token, f.f.id)).status).toBe(200);
+      const d = await disenoGuardado(f.f.id);
+      expect(HEADING_FONTS).toContain(d.fonts.heading);
+      expect(BODY_FONTS).toContain(d.fonts.body);
+      const g = await funnel();
+      fake.respondPage({ blocks: VALID_PAGE.blocks });
+      expect((await generar(g.token, g.f.id)).status).toBe(200);
+      const e = await disenoGuardado(g.f.id);
+      expect(HEADING_FONTS).toContain(e.fonts.heading);
+      expect(paletteReads(e.palette as never)).toBe(true);
+    });
+
+    it('en cada generación se le da a la IA un punto de partida creativo distinto, y ejemplos de calidad', async () => {
+      const f = await funnel();
+      const puntos = new Set<string>();
+      for (let i = 0; i < 6; i += 1) {
+        const g = await funnel();
+        await generar(g.token, g.f.id);
+        const input = fake.calls.at(-1)?.input as unknown as { creative: Record<string, string>; examples: unknown[]; keepDesign?: unknown };
+        expect(input.keepDesign).toBeUndefined();
+        expect(input.examples).toHaveLength(2);
+        puntos.add(JSON.stringify(input.creative));
+      }
+      expect(puntos.size).toBeGreaterThanOrEqual(4);
+      expect(f.f.id).toBeTruthy();
+    });
+
+    it('se le dice a la IA cómo se ven las otras páginas del mismo negocio para que no se parezca', async () => {
       const f = await funnel();
       await generar(f.token, f.f.id);
-      const asignada = (fake.calls[0]?.input as unknown as { direction: { id: string; fonts: unknown } }).direction;
-      expect(asignada.id).toBeTruthy();
-      expect((await disenoGuardado(f.f.id)).fonts).toEqual(asignada.fonts);
+      const creado = await request(app).post('/api/v1/funnels').set(encabezados(f.token)).send({ workspaceId: f.workspace.id, name: 'Otro funnel', objective: 'leads' });
+      await request(app).put(`/api/v1/funnels/${creado.body.id}/content`).set(encabezados(f.token)).send({ blocks: [{ key: 'hero', type: 'encabezado', order: 1, content: { title: 'T' }, style: {} }] });
+      await generar(f.token, creado.body.id);
+      const avoid = (fake.calls.at(-1)?.input as unknown as { avoid?: string[] }).avoid;
+      expect(avoid).toHaveLength(1);
+      expect(avoid?.[0]).toMatch(/títulos .+, color #[0-9A-F]{6}/i);
+      expect(avoid?.[0]).toContain('encabezado>texto>boton');
+      // y una página de otro negocio no entra en la lista
+      const otro = await funnel();
+      await generar(otro.token, otro.f.id);
+      expect((fake.calls.at(-1)?.input as unknown as { avoid?: string[] }).avoid).toBeUndefined();
     });
 
     it('el estilo de cada bloque se completa y se corrige: fondos con ritmo, sin dos franjas fuertes seguidas', async () => {
@@ -140,18 +179,18 @@ describe.skipIf(!testDatabaseUrl)('generación con IA (esqueleto con motor simul
       expect(new Set(textos).size).toBe(textos.length);
     });
 
-    it('la paleta: la de la IA si se lee bien, y la de la dirección si no', async () => {
+    it('la paleta: la de la IA si se lee bien, y si no se lee se corrige conservando su carácter', async () => {
       const f = await funnel();
       await generar(f.token, f.f.id);
       expect((await disenoGuardado(f.f.id)).palette).toEqual(VALID_PAGE.designSpec.palette);
 
       const g = await funnel();
-      fake.respondPage({ ...VALID_PAGE, designSpec: { ...VALID_PAGE.designSpec, palette: { primary: '#FFFFFF', secondary: '#EEEEEE', accent: '#FAFAFA', background: '#FFFFFF', text: '#F5F5F5' } } });
+      fake.respondPage({ ...VALID_PAGE, designSpec: { ...VALID_PAGE.designSpec, palette: { primary: '#F2E9D8', secondary: '#EEEEEE', accent: '#FAFAFA', background: '#FFFFFF', text: '#E8E8E8' } } });
       await generar(g.token, g.f.id);
       const d = await disenoGuardado(g.f.id);
-      const direccion = DIRECTIONS.find((x) => x.fonts.heading === d.fonts.heading && x.fonts.body === d.fonts.body);
-      expect(d.palette).toEqual(direccion?.palette);
       expect(paletteReads(d.palette as never)).toBe(true);
+      expect(d.palette.background).toBe('#FFFFFF');
+      expect(d.palette.accent).toBe('#FAFAFA');
     });
 
     it('con paleta de marca, se le pide a la IA y se guarda tal cual (no se retoca) aunque la IA elija otra', async () => {
@@ -172,45 +211,17 @@ describe.skipIf(!testDatabaseUrl)('generación con IA (esqueleto con motor simul
       expect((await disenoGuardado(f.f.id)).palette).toEqual(marca);
     });
 
-    it('al volver a generar se conserva la dirección de diseño de la página', async () => {
+    it('al volver a generar se conserva el diseño de la página y se le dice a la IA que no lo cambie', async () => {
       const f = await funnel();
+      fake.respondPage({ ...VALID_PAGE, designSpec: { ...VALID_PAGE.designSpec, fonts: { heading: 'Syne', body: 'Work Sans' }, look: { radius: 'lg' } } });
       await generar(f.token, f.f.id);
-      const antes = (await disenoGuardado(f.f.id)).fonts;
-      for (let i = 0; i < 4; i += 1) {
-        await generar(f.token, f.f.id);
-        expect((await disenoGuardado(f.f.id)).fonts).toEqual(antes);
-      }
-    });
-
-    it('las páginas de un mismo negocio no repiten tipografías', async () => {
-      const f = await funnel();
-      const usadas = new Set<string>();
-      const crear = async () => {
-        const creado = await request(app).post('/api/v1/funnels').set(encabezados(f.token)).send({ workspaceId: f.workspace.id, name: 'Otro funnel', objective: 'leads' });
-        await request(app).put(`/api/v1/funnels/${creado.body.id}/content`).set(encabezados(f.token)).send({ blocks: [{ key: 'hero', type: 'encabezado', order: 1, content: { title: 'T' }, style: {} }] });
-        await generar(f.token, creado.body.id);
-        const d = await disenoGuardado(creado.body.id);
-        usadas.add(`${d.fonts.heading}|${d.fonts.body}`);
-      };
-      for (let i = 0; i < 5; i += 1) await crear();
-      expect(usadas.size).toBe(5);
-    });
-
-    it('negocios de rubros distintos reciben diseños distintos', async () => {
-      const rubros: [string, string][] = [
-        ['Terapia de pareja y bienestar emocional', 'citas'],
-        ['Software de facturación para pymes', 'leads'],
-        ['Tienda de ropa con ofertas', 'venta'],
-      ];
-      const fuentes = new Set<string>();
-      for (const [nombre, objetivo] of rubros) {
-        const n = await crearNegocio(app, config);
-        const creado = await request(app).post('/api/v1/funnels').set(encabezados(n.token)).send({ workspaceId: n.workspace.id, name: nombre, objective: objetivo });
-        await request(app).put(`/api/v1/funnels/${creado.body.id}/content`).set(encabezados(n.token)).send({ blocks: [{ key: 'hero', type: 'encabezado', order: 1, content: { title: 'T' }, style: {} }] });
-        await generar(n.token, creado.body.id);
-        fuentes.add((await disenoGuardado(creado.body.id)).fonts.heading);
-      }
-      expect(fuentes.size).toBe(3);
+      const antes = await disenoGuardado(f.f.id);
+      fake.respondPage({ ...VALID_PAGE, designSpec: { ...VALID_PAGE.designSpec, fonts: { heading: 'Anton', body: 'Lato' } } });
+      await generar(f.token, f.f.id);
+      expect(await disenoGuardado(f.f.id)).toEqual(antes);
+      const input = fake.calls.at(-1)?.input as unknown as { keepDesign?: { fonts: unknown }; creative?: unknown };
+      expect(input.keepDesign?.fonts).toEqual({ heading: 'Syne', body: 'Work Sans' });
+      expect(input.creative).toBeUndefined();
     });
 
     describe('con imágenes que subió la persona', () => {

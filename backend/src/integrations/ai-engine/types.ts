@@ -1,5 +1,5 @@
 import type { BlockType } from '../../funnel-types/blocks.js';
-import type { Direction } from '../../funnel-types/directions.js';
+import type { CreativeBrief } from '../../funnel-types/creative.js';
 import type { FunnelObjective } from '../../generated/prisma/client.js';
 
 /**
@@ -50,8 +50,14 @@ export interface GeneratePageInput {
   images?: { url: string; name: string }[];
   /** La paleta de la marca del negocio, si la tiene: la página debe usarla tal cual. */
   brandPalette?: { primary: string; secondary: string; accent: string; background: string; text: string };
-  /** La dirección de diseño asignada a esta página (tipografías, aspecto y ritmo): la IA escribe en su tono y no elige el diseño. */
-  direction?: Direction;
+  /** El punto de partida creativo de esta página (estructura, estética y color), distinto en cada generación. */
+  creative?: CreativeBrief;
+  /** Resumen del diseño de otras páginas del negocio: la nueva no debe parecerse. */
+  avoid?: string[];
+  /** Ejemplos de diseños bien resueltos, solo para fijar el nivel de calidad. */
+  examples?: { fonts: { heading: string; body: string }; look: unknown; palette: unknown }[];
+  /** El diseño que la página ya tiene (al volver a generar): se conserva, la IA solo reescribe los bloques. */
+  keepDesign?: { template?: string; fonts?: { heading: string; body: string }; look?: unknown; palette?: unknown };
   /** El resto de lo que escribió en el asistente. */
   details?: AiPageDetails;
   /** Todos los tipos de bloque que puede usar. */
