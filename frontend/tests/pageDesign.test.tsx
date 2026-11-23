@@ -191,6 +191,17 @@ describe('PageRenderer con diseño propio', () => {
     expect(boton('solido').franja).toBe('');
   });
 
+  it('el bloque de imagen toma el tamaño de la imagen: sin recortarla, estirarla ni fijarle altura', () => {
+    render(<PageRenderer blocks={[bloque('i', 'imagen', { url: 'https://x.test/foto.png', alt: 'Foto' })]} design={DISENO} />);
+    const img = screen.getByRole('img', { name: 'Foto' });
+    expect(img.className).toContain('h-auto');
+    expect(img.className).toContain('w-auto');
+    expect(img.className).toContain('max-w-full');
+    expect(img.className).toContain('object-contain');
+    expect(img.className).not.toContain('object-cover');
+    expect(img.className).not.toContain('max-h-96');
+  });
+
   it('el texto destacado lleva una barra de color a la izquierda', () => {
     const { container } = render(<PageRenderer blocks={[bloque('t', 'texto', { body: 'Importante' }, { variant: 'destacado' })]} design={DISENO} />);
     expect(container.querySelector('.border-l-4')).not.toBeNull();

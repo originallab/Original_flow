@@ -134,7 +134,8 @@ export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
       return (
         <Section theme={theme}>
           {str(c.url) ? (
-            <img src={str(c.url)} alt={str(c.alt)} className="mx-auto max-h-96 w-full object-cover" style={{ borderRadius: theme.look.radius === '999px' ? '24px' : theme.look.radius }} />
+            // El bloque toma el tamaño de la propia imagen (sin recortarla ni estirarla): ancho y alto naturales, sin pasar del ancho de la página ni de la altura de la pantalla.
+            <img src={str(c.url)} alt={str(c.alt)} className="mx-auto block h-auto max-h-[85vh] w-auto max-w-full object-contain" style={{ borderRadius: theme.look.radius === '999px' ? '24px' : theme.look.radius }} />
           ) : (
             <div className="grid h-56 place-items-center rounded-xl" style={{ background: '#00000012' }}>
               <ImageIcon size={32} aria-hidden />
