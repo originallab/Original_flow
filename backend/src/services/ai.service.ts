@@ -1,7 +1,7 @@
 import { validateBlockContent, BLOCK_TYPES, type BlockType } from '../funnel-types/blocks.js';
 import { cleanProposalDesign } from '../funnel-types/design.js';
 import { creativeBrief, describeDesign, qualityExamples } from '../funnel-types/creative.js';
-import { fallbackDesign, pickPalette, polishBlocks, randomHints } from '../funnel-types/polish.js';
+import { diversifyHeading, fallbackDesign, pickPalette, polishBlocks, randomHints } from '../funnel-types/polish.js';
 import { randomUUID } from 'node:crypto';
 import { getFunnelType } from '../funnel-types/index.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -101,9 +101,9 @@ export function createAiService({ funnels, funnelService, workspaces, assets, en
       const seed = randomUUID();
       const existing = funnel.designSpec as { template?: string; fonts?: { heading: string; body: string }; look?: unknown; palette?: unknown } | null;
       const keepDesign = existing?.fonts ? existing : undefined;
-      const avoid = keepDesign
-        ? undefined
-        : (await funnels.recentDesigns(funnel.workspaceId, funnel.id, 6)).map((r) => describeDesign(r.designSpec, r.content)).filter((d): d is string => d !== null);
+      const recent = keepDesign ? [] : await funnels.recentDesigns(funnel.workspaceId, funnel.id, 6);
+      const avoid = keepDesign ? undefined : recent.map((r) => describeDesign(r.designSpec, r.content)).filter((d): d is string => d !== null);
+      const usedHeadings = recent.map((r) => (r.designSpec as { fonts?: { heading?: unknown } } | null)?.fonts?.heading).filter((h): h is string => typeof h === 'string');
       const proposal = await ask(funnel, ctx.requestId, 'generate_page', (aiCtx) =>
         engine.generatePage(aiCtx, {
           objective: funnel.objective,
@@ -145,7 +145,7 @@ export function createAiService({ funnels, funnelService, workspaces, assets, en
         ? { ...(keepDesign as DesignSpecBody), template: (keepDesign.template ?? backup.template) as DesignSpecBody['template'], ...(brandPalette ? { palette: brandPalette } : {}) }
         : {
             template: proposed?.template ?? backup.template,
-            fonts: proposed?.fonts ?? backup.fonts,
+            fonts: { ...(proposed?.fonts ?? backup.fonts), heading: diversifyHeading((proposed?.fonts ?? backup.fonts).heading, usedHeadings, seed) },
             ...(proposed?.look ? { look: proposed.look } : proposed?.fonts ? {} : { look: backup.look }),
             palette: pickPalette(backup.palette, brandPalette, proposed?.palette),
           };

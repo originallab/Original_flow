@@ -137,6 +137,19 @@ describe.skipIf(!testDatabaseUrl)('generación con IA (esqueleto con motor simul
       expect(f.f.id).toBeTruthy();
     });
 
+    it('si la IA repite la tipografía de títulos de otra página del mismo negocio, se cambia por otra del mismo estilo', async () => {
+      const f = await funnel();
+      fake.respondPage({ ...VALID_PAGE, designSpec: { ...VALID_PAGE.designSpec, fonts: { heading: 'Anton', body: 'Lato' } } });
+      await generar(f.token, f.f.id);
+      const creado = await request(app).post('/api/v1/funnels').set(encabezados(f.token)).send({ workspaceId: f.workspace.id, name: 'Otro funnel', objective: 'leads' });
+      await request(app).put(`/api/v1/funnels/${creado.body.id}/content`).set(encabezados(f.token)).send({ blocks: [{ key: 'hero', type: 'encabezado', order: 1, content: { title: 'T' }, style: {} }] });
+      await generar(f.token, creado.body.id);
+      const d = await disenoGuardado(creado.body.id);
+      expect(d.fonts.heading).not.toBe('Anton');
+      expect(['Oswald', 'Bebas Neue', 'Archivo Black']).toContain(d.fonts.heading);
+      expect(d.fonts.body).toBe('Lato');
+    });
+
     it('se le dice a la IA cómo se ven las otras páginas del mismo negocio para que no se parezca', async () => {
       const f = await funnel();
       await generar(f.token, f.f.id);

@@ -1,4 +1,5 @@
 import { DIRECTIONS, hash, type Direction } from './directions.js';
+import { randomHints } from './polish.js';
 
 /**
  * Lo que hace distinta una página de otra cuando la IA diseña: en cada generación se le da una «semilla creativa»
@@ -6,17 +7,18 @@ import { DIRECTIONS, hash, type Direction } from './directions.js';
  * páginas del negocio para que no se le parezca. La IA decide todo el diseño; esto solo la empuja a explorar.
  */
 
-const STRUCTURES = [
-  'corta y directa: encabezado, un solo beneficio fuerte y el llamado a la acción (4 bloques como máximo)',
-  'historia primero: encabezado, un texto que cuente el problema y cómo se resuelve, beneficios y llamado a la acción',
-  'prueba primero: encabezado y enseguida lo que demuestra que funciona (testimonios o cifras que la persona dio), luego beneficios',
-  'paso a paso: encabezado, una sección que explique cómo funciona en pasos (beneficios numerados) y cierre con la acción',
-  'pregunta y respuesta: encabezado con una pregunta provocadora, preguntas frecuentes arriba y los beneficios después',
-  'oferta apilada: encabezado, precios o lo que incluye, beneficios que justifican el precio y garantía en texto destacado si la persona la dio',
-  'larga y persuasiva: 8 a 10 bloques con textos de apoyo, beneficios, preguntas y dos llamados a la acción',
-  'formulario temprano: encabezado, formulario casi de inmediato y los argumentos debajo para quien necesita más convencimiento',
-  'editorial: mucho texto destacado, pocos bloques y mucho aire; se lee como un artículo',
-  'visual: apóyate en las imágenes de la persona (si las hay) y deja los textos breves',
+/** Secuencias de bloques de partida (la IA las adapta al negocio: puede quitar o agregar hasta dos bloques). */
+const STRUCTURES: { nombre: string; secuencia: string[] }[] = [
+  { nombre: 'corta y directa', secuencia: ['encabezado', 'beneficios', 'boton'] },
+  { nombre: 'historia primero', secuencia: ['encabezado', 'texto', 'beneficios', 'texto', 'boton'] },
+  { nombre: 'paso a paso', secuencia: ['encabezado', 'beneficios', 'requisitos', 'faq', 'boton'] },
+  { nombre: 'pregunta primero', secuencia: ['encabezado', 'faq', 'beneficios', 'boton'] },
+  { nombre: 'oferta apilada', secuencia: ['encabezado', 'precios', 'beneficios', 'faq', 'boton'] },
+  { nombre: 'larga y persuasiva', secuencia: ['encabezado', 'texto', 'beneficios', 'texto', 'precios', 'faq', 'texto', 'formulario'] },
+  { nombre: 'formulario temprano', secuencia: ['encabezado', 'formulario', 'beneficios', 'faq', 'boton'] },
+  { nombre: 'editorial', secuencia: ['encabezado', 'texto', 'texto', 'beneficios', 'boton'] },
+  { nombre: 'problema y solución', secuencia: ['encabezado', 'texto', 'beneficios', 'precios', 'boton'] },
+  { nombre: 'confianza primero', secuencia: ['encabezado', 'beneficios', 'faq', 'texto', 'formulario'] },
 ];
 
 const AESTHETICS = [
@@ -46,14 +48,25 @@ const PALETTES = [
 const pick = <T>(list: readonly T[], seed: string, salt: string): T => list[hash(`${salt}:${seed}`) % list.length] as T;
 
 export interface CreativeBrief {
+  /** Cómo se llama la estructura y qué bloques lleva, en orden. */
   estructura: string;
   estetica: string;
   paleta: string;
+  /** Formas y fondo sugeridos para el encabezado y los bloques con variantes. */
+  formas: string;
 }
 
 /** El punto de partida creativo de esta página: distinto en cada generación. */
 export function creativeBrief(seed: string): CreativeBrief {
-  return { estructura: pick(STRUCTURES, seed, 'e'), estetica: pick(AESTHETICS, seed, 'a'), paleta: pick(PALETTES, seed, 'p') };
+  const e = pick(STRUCTURES, seed, 'e');
+  const hints = randomHints(seed);
+  const formas = Object.entries(hints.variants).filter(([tipo]) => e.secuencia.includes(tipo)).map(([tipo, v]) => `${tipo}: ${v}`);
+  return {
+    estructura: `${e.nombre}: ${e.secuencia.join(' > ')}`,
+    estetica: pick(AESTHETICS, seed, 'a'),
+    paleta: pick(PALETTES, seed, 'p'),
+    formas: `encabezado ${hints.hero.variant} sobre fondo ${hints.hero.background}; ${formas.filter((f) => !f.startsWith('encabezado')).join(', ')}`,
+  };
 }
 
 /** Ejemplos de diseños bien resueltos (solo para fijar el nivel de calidad: la IA no debe copiarlos). */

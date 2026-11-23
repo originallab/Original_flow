@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { creativeBrief, describeDesign, qualityExamples } from '../src/funnel-types/creative.js';
 import { BACKGROUNDS, BLOCK_VARIANTS, BODY_FONTS, HEADING_FONTS, SINGLE_WEIGHT_FONTS, sanitizeLook } from '../src/funnel-types/design.js';
 import { DIRECTIONS, hash } from '../src/funnel-types/directions.js';
-import { contrast, fallbackDesign, paletteReads, pickPalette, polishBlocks, randomHints, repairPalette } from '../src/funnel-types/polish.js';
+import { contrast, diversifyHeading, fallbackDesign, paletteReads, pickPalette, polishBlocks, randomHints, repairPalette } from '../src/funnel-types/polish.js';
 import { TEMPLATES } from '../src/funnel-types/templates.js';
 import { generatePageMessages } from '../src/integrations/ai-engine/prompts.js';
 
@@ -92,6 +92,21 @@ describe('paleta', () => {
     const ids = new Set(Array.from({ length: 30 }, (_, i) => fallbackDesign(`s${i}`).fonts.heading));
     expect(ids.size).toBeGreaterThan(4);
     expect(HEADING_FONTS).toContain(fallbackDesign('x').fonts.heading);
+  });
+});
+
+describe('tipografías que no se repiten', () => {
+  it('si otra página del negocio ya usa la de títulos, se cambia por otra de su misma familia', () => {
+    const nueva = diversifyHeading('Cormorant Garamond', ['Cormorant Garamond'], 's1');
+    expect(nueva).not.toBe('Cormorant Garamond');
+    expect(['Playfair Display', 'Lora', 'Fraunces', 'Libre Baskerville', 'Merriweather', 'Bitter', 'Spectral', 'Crimson Pro', 'Zilla Slab', 'Young Serif', 'Instrument Serif', 'Gloock', 'Prata', 'DM Serif Display', 'Abril Fatface']).toContain(nueva);
+    expect(diversifyHeading('Anton', ['Anton'], 's1')).toMatch(/Oswald|Bebas Neue|Archivo Black/);
+  });
+
+  it('no cambia nada si no se repite, y si ya se usaron todas las de su familia la deja', () => {
+    expect(diversifyHeading('Syne', ['Lora'], 's')).toBe('Syne');
+    expect(diversifyHeading('Anton', ['Anton', 'Oswald', 'Bebas Neue', 'Archivo Black'], 's')).toBe('Anton');
+    expect(diversifyHeading('Syne', [], 's')).toBe('Syne');
   });
 });
 

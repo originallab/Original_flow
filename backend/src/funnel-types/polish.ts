@@ -98,6 +98,24 @@ export function randomHints(seed: string): StyleHints {
   };
 }
 
+/** Familias de tipografías de títulos con carácter parecido: se cambia dentro de la misma para no alterar el tono. */
+const HEADING_FAMILIES: string[][] = [
+  ['Playfair Display', 'Lora', 'Fraunces', 'Cormorant Garamond', 'Libre Baskerville', 'Merriweather', 'Bitter', 'Spectral', 'Crimson Pro', 'Zilla Slab', 'Young Serif', 'Instrument Serif', 'Gloock', 'Prata', 'DM Serif Display', 'Abril Fatface'],
+  ['Poppins', 'Montserrat', 'Space Grotesk', 'Raleway', 'Sora', 'Syne', 'Unbounded', 'Rubik', 'Manrope', 'Outfit', 'Plus Jakarta Sans', 'Josefin Sans', 'Bricolage Grotesque', 'Epilogue', 'Lexend', 'Urbanist'],
+  ['Oswald', 'Bebas Neue', 'Anton', 'Archivo Black'],
+];
+
+/**
+ * Si la tipografía de títulos ya la usa otra página del negocio, se cambia por otra de su misma familia (serif, sans
+ * geométrica o display) que no se haya usado; si ya se usaron todas, se deja como está.
+ */
+export function diversifyHeading(heading: string, used: string[], seed: string): string {
+  if (!used.includes(heading)) return heading;
+  const family = HEADING_FAMILIES.find((f) => f.includes(heading)) ?? [];
+  const free = family.filter((f) => !used.includes(f));
+  return free.length > 0 ? (free[hash(`h:${seed}`) % free.length] as string) : heading;
+}
+
 /** Una paleta de respaldo (de una de las direcciones de ejemplo) para cuando la IA no propone ninguna. */
 export function fallbackDesign(seed: string): Pick<Direction, 'template' | 'fonts' | 'look' | 'palette'> {
   const d = DIRECTIONS[hash(`f:${seed}`) % DIRECTIONS.length] as Direction;

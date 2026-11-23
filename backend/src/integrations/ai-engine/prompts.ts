@@ -63,7 +63,7 @@ function artDirection(input: GeneratePageInput): string {
   - ${STYLE_RULES}`;
   }
   const creative = input.creative ? `
-  - Punto de partida creativo de ESTA página (úsalo como inspiración, adáptalo al negocio, no lo copies al pie de la letra): estructura ${input.creative.estructura}; estética ${input.creative.estetica}; paleta ${input.creative.paleta}.` : '';
+  - Punto de partida creativo de ESTA página (síguelo salvo que el negocio pida otra cosa): estructura ${input.creative.estructura} (respeta ese orden y carácter; puedes quitar o agregar hasta dos bloques si el negocio lo pide, por ejemplo no uses "precios" si no hay precio); estética ${input.creative.estetica}; paleta ${input.creative.paleta}; formas sugeridas: ${input.creative.formas}.` : '';
   const avoid = input.avoid && input.avoid.length > 0 ? `
   - Otras páginas del mismo negocio ya usan estos diseños: ${input.avoid.map((a) => `[${a}]`).join(' ')}. Esta debe verse y estructurarse claramente distinta (otras tipografías, otros colores, otro orden de bloques).` : '';
   const examples = input.examples && input.examples.length > 0 ? `
@@ -71,7 +71,7 @@ function artDirection(input: GeneratePageInput): string {
   return `Diseño: tú diseñas esta página desde cero, como un director de arte. No hay plantillas fijas: cada página debe verse y estructurarse distinta a cualquier otra, según el rubro, el público y el tono.${creative}${avoid}${examples}
   - "designSpec.fonts": {"heading": una de [${HEADING_FONTS.join(', ')}], "body": una de [${BODY_FONTS.join(', ')}]}. Combina con intención (por ejemplo una serif expresiva con una sans neutra, o una display potente con una de lectura cómoda) y no repitas siempre las mismas.
   - "designSpec.look": {"radius": ${RADII.join('|')}, "density": ${DENSITIES.join('|')}, "align": ${ALIGNS.join('|')}, "headingCase": ${HEADING_CASES.join('|')}, "headingWeight": ${HEADING_WEIGHTS.join('|')}}. Decide con criterio: esquinas rectas y mayúsculas para algo contundente; redondeadas y aire para algo cercano; "airy" para marcas premium; "compact" para mucha información.
-  - Estructura: tú eliges qué bloques lleva la página y en qué orden (puedes repetir tipos, por ejemplo dos textos, y mezclar el orden), de 4 a 10 bloques. No uses siempre la misma secuencia.
+  - Estructura: parte de la secuencia sugerida arriba; puedes repetir tipos (por ejemplo dos textos) y ajustar el orden, de 4 a 10 bloques. Nunca uses la misma secuencia ni las mismas formas que las otras páginas.
   - ${STYLE_RULES}`;
 }
 

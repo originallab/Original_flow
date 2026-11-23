@@ -66,7 +66,8 @@ export function resolveTheme(design: DesignSpec | null | undefined): PageTheme {
       headingTransform: (own.headingCase ?? base.headingCase) === 'upper' ? 'uppercase' : 'none',
       spacing: DENSITY_FACTOR[own.density ?? base.density] ?? 1,
     },
-    surface: { background: '#FFFFFF80', border: `${palette.secondary}22` },
+    // Sobre una página de fondo oscuro, las tarjetas son un velo claro tenue (no un blanco que dejaría el texto ilegible).
+    surface: brightness(palette.background) < 110 ? { background: '#FFFFFF14', border: '#FFFFFF2E' } : { background: '#FFFFFF80', border: `${palette.secondary}22` },
   };
 }
 
