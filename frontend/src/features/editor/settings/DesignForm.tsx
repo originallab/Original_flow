@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { resolveTheme } from '@/features/pageRenderer/theme';
 import { saveDesignSpec, type Funnel } from '@/services/funnels';
 import type { DesignSpec } from '@/shared/blocks/types';
-import { ALIGNS, BODY_FONTS, DENSITIES, HEADING_CASES, HEADING_FONTS, HEADING_WEIGHTS, RADII, type PageLook } from '@/shared/design';
+import { ALIGNS, BACKDROPS, BODY_FONTS, BUTTONS, DENSITIES, DIVIDERS, EFFECTS, HEADING_CASES, HEADING_FONTS, HEADING_WEIGHTS, RADII, SURFACES, type PageLook } from '@/shared/design';
 import { SelectField } from '@/shared/ui/SelectField';
 
 interface Props {
@@ -15,6 +15,11 @@ const RADIUS_LABELS: Record<(typeof RADII)[number], string> = { none: 'Rectas', 
 const DENSITY_LABELS: Record<(typeof DENSITIES)[number], string> = { compact: 'Compacto', normal: 'Normal', airy: 'Con mucho aire' };
 const ALIGN_LABELS: Record<(typeof ALIGNS)[number], string> = { left: 'A la izquierda', center: 'Centrado' };
 const CASE_LABELS: Record<(typeof HEADING_CASES)[number], string> = { normal: 'Normales', upper: 'En mayúsculas' };
+const SURFACE_LABELS: Record<(typeof SURFACES)[number], string> = { flat: 'Planas', outline: 'Con borde', elevated: 'Con sombra', glass: 'De vidrio', glow: 'Con brillo' };
+const EFFECT_LABELS: Record<(typeof EFFECTS)[number], string> = { none: 'Sin efecto', gradient: 'Con degradado', glow: 'Con brillo', underline: 'Subrayados' };
+const BACKDROP_LABELS: Record<(typeof BACKDROPS)[number], string> = { plain: 'Liso', gradient: 'Degradado suave', grid: 'Cuadrícula', dots: 'Puntos', glow: 'Resplandor' };
+const DIVIDER_LABELS: Record<(typeof DIVIDERS)[number], string> = { none: 'Rectos', slant: 'En diagonal' };
+const BUTTON_LABELS: Record<(typeof BUTTONS)[number], string> = { solid: 'Sólidos', gradient: 'Con degradado', glow: 'Con brillo' };
 const WEIGHT_LABELS: Record<(typeof HEADING_WEIGHTS)[number], string> = { 500: 'Ligeros', 600: 'Medios', 700: 'Gruesos', 800: 'Muy gruesos' };
 
 /**
@@ -116,6 +121,46 @@ export function DesignForm({ funnel, token, onSaved }: Props) {
         {HEADING_WEIGHTS.map((value) => (
           <option key={value} value={value}>
             {WEIGHT_LABELS[value]}
+          </option>
+        ))}
+      </SelectField>
+      <SelectField label="Tarjetas" disabled={busy} value={look.surface ?? ''} onChange={(e) => setLook('surface', e.target.value as PageLook['surface'] | '')}>
+        <option value="">Las de la plantilla</option>
+        {SURFACES.map((value) => (
+          <option key={value} value={value}>
+            {SURFACE_LABELS[value]}
+          </option>
+        ))}
+      </SelectField>
+      <SelectField label="Efecto de los títulos" disabled={busy} value={look.effect ?? ''} onChange={(e) => setLook('effect', e.target.value as PageLook['effect'] | '')}>
+        <option value="">Ninguno</option>
+        {EFFECTS.filter((value) => value !== 'none').map((value) => (
+          <option key={value} value={value}>
+            {EFFECT_LABELS[value]}
+          </option>
+        ))}
+      </SelectField>
+      <SelectField label="Fondo de la página" disabled={busy} value={look.backdrop ?? ''} onChange={(e) => setLook('backdrop', e.target.value as PageLook['backdrop'] | '')}>
+        <option value="">Liso</option>
+        {BACKDROPS.filter((value) => value !== 'plain').map((value) => (
+          <option key={value} value={value}>
+            {BACKDROP_LABELS[value]}
+          </option>
+        ))}
+      </SelectField>
+      <SelectField label="Corte entre secciones" disabled={busy} value={look.divider ?? ''} onChange={(e) => setLook('divider', e.target.value as PageLook['divider'] | '')}>
+        <option value="">Rectos</option>
+        {DIVIDERS.filter((value) => value !== 'none').map((value) => (
+          <option key={value} value={value}>
+            {DIVIDER_LABELS[value]}
+          </option>
+        ))}
+      </SelectField>
+      <SelectField label="Botones" disabled={busy} value={look.button ?? ''} onChange={(e) => setLook('button', e.target.value as PageLook['button'] | '')}>
+        <option value="">Sólidos</option>
+        {BUTTONS.filter((value) => value !== 'solid').map((value) => (
+          <option key={value} value={value}>
+            {BUTTON_LABELS[value]}
           </option>
         ))}
       </SelectField>

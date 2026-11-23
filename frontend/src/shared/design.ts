@@ -9,7 +9,9 @@ export const HEADING_FONTS = [
   'Poppins', 'Montserrat', 'Playfair Display', 'DM Serif Display', 'Space Grotesk', 'Raleway', 'Oswald', 'Lora', 'Sora', 'Fraunces',
   'Cormorant Garamond', 'Libre Baskerville', 'Syne', 'Unbounded', 'Bitter', 'Merriweather', 'Rubik', 'Manrope', 'Outfit', 'Plus Jakarta Sans',
   'Josefin Sans', 'Bricolage Grotesque', 'Epilogue', 'Lexend', 'Urbanist', 'Spectral', 'Crimson Pro', 'Zilla Slab',
+  'Orbitron', 'Rajdhani', 'Exo 2', 'Chakra Petch', 'Cinzel', 'Fredoka', 'Baloo 2', 'Caveat', 'Dancing Script', 'Space Mono',
   'Bebas Neue', 'Abril Fatface', 'Anton', 'Archivo Black', 'Gloock', 'Prata', 'Young Serif', 'Instrument Serif',
+  'Audiowide', 'Russo One', 'Press Start 2P', 'Bungee', 'Pacifico', 'Righteous', 'Marcellus', 'Alfa Slab One',
 ] as const;
 export const BODY_FONTS = [
   'Inter', 'Open Sans', 'Lato', 'Source Sans 3', 'Nunito', 'DM Sans', 'Work Sans', 'Manrope', 'Outfit', 'Plus Jakarta Sans', 'Rubik', 'Karla',
@@ -17,13 +19,23 @@ export const BODY_FONTS = [
 ] as const;
 
 /** Tipografías de un solo grosor (solo el normal): se piden sin pesos a Google Fonts y sus títulos no se «engrosan». */
-export const SINGLE_WEIGHT_FONTS: readonly string[] = ['DM Serif Display', 'Bebas Neue', 'Abril Fatface', 'Anton', 'Archivo Black', 'Gloock', 'Prata', 'Young Serif', 'Instrument Serif'];
+export const SINGLE_WEIGHT_FONTS: readonly string[] = ['DM Serif Display', 'Bebas Neue', 'Abril Fatface', 'Anton', 'Archivo Black', 'Gloock', 'Prata', 'Young Serif', 'Instrument Serif', 'Audiowide', 'Russo One', 'Press Start 2P', 'Bungee', 'Pacifico', 'Righteous', 'Marcellus', 'Alfa Slab One'];
 
 export const RADII = ['none', 'sm', 'md', 'lg', 'pill'] as const;
 export const DENSITIES = ['compact', 'normal', 'airy'] as const;
 export const ALIGNS = ['left', 'center'] as const;
 export const HEADING_CASES = ['normal', 'upper'] as const;
 export const HEADING_WEIGHTS = [500, 600, 700, 800] as const;
+/** Cómo se dibujan las tarjetas: planas, con borde, con sombra, de vidrio o con brillo de neón. */
+export const SURFACES = ['flat', 'outline', 'elevated', 'glass', 'glow'] as const;
+/** Efecto de los títulos: ninguno, degradado, brillo o subrayado de color. */
+export const EFFECTS = ['none', 'gradient', 'glow', 'underline'] as const;
+/** Decoración detrás de toda la página: lisa, degradado suave, cuadrícula, puntos o resplandor. */
+export const BACKDROPS = ['plain', 'gradient', 'grid', 'dots', 'glow'] as const;
+/** Corte entre franjas de color: recto o en diagonal. */
+export const DIVIDERS = ['none', 'slant'] as const;
+/** Botones: sólidos, con degradado o con brillo. */
+export const BUTTONS = ['solid', 'gradient', 'glow'] as const;
 
 export interface PageLook {
   radius?: (typeof RADII)[number];
@@ -31,6 +43,11 @@ export interface PageLook {
   align?: (typeof ALIGNS)[number];
   headingCase?: (typeof HEADING_CASES)[number];
   headingWeight?: (typeof HEADING_WEIGHTS)[number];
+  surface?: (typeof SURFACES)[number];
+  effect?: (typeof EFFECTS)[number];
+  backdrop?: (typeof BACKDROPS)[number];
+  divider?: (typeof DIVIDERS)[number];
+  button?: (typeof BUTTONS)[number];
 }
 
 export const BACKGROUNDS = ['base', 'alt', 'accent', 'dark'] as const;

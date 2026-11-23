@@ -1,7 +1,7 @@
 import { validateBlockContent, BLOCK_TYPES, type BlockType } from '../funnel-types/blocks.js';
 import { cleanProposalDesign } from '../funnel-types/design.js';
 import { creativeBrief, describeDesign, qualityExamples } from '../funnel-types/creative.js';
-import { diversifyHeading, fallbackDesign, pickPalette, polishBlocks, randomHints } from '../funnel-types/polish.js';
+import { diversifyHeading, fallbackDesign, guardLook, pickPalette, polishBlocks, randomHints } from '../funnel-types/polish.js';
 import { randomUUID } from 'node:crypto';
 import { getFunnelType } from '../funnel-types/index.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -141,13 +141,15 @@ export function createAiService({ funnels, funnelService, workspaces, assets, en
       // La paleta: la de la marca si la tiene, si no la de la IA (corregida si no se leía bien).
       const proposed = parsed.data.designSpec;
       const backup = fallbackDesign(seed);
+      const palette = pickPalette(backup.palette, brandPalette, proposed?.palette);
+      const look = guardLook(proposed?.look ?? (proposed?.fonts ? undefined : backup.look), palette);
       const designSpec: DesignSpecBody = keepDesign
         ? { ...(keepDesign as DesignSpecBody), template: (keepDesign.template ?? backup.template) as DesignSpecBody['template'], ...(brandPalette ? { palette: brandPalette } : {}) }
         : {
             template: proposed?.template ?? backup.template,
             fonts: { ...(proposed?.fonts ?? backup.fonts), heading: diversifyHeading((proposed?.fonts ?? backup.fonts).heading, usedHeadings, seed) },
-            ...(proposed?.look ? { look: proposed.look } : proposed?.fonts ? {} : { look: backup.look }),
-            palette: pickPalette(backup.palette, brandPalette, proposed?.palette),
+            ...(look ? { look } : {}),
+            palette,
           };
       await funnels.applyGenerated(
         funnel.id,

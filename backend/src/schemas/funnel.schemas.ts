@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { BLOCK_TYPES, validateBlockContent } from '../funnel-types/blocks.js';
-import { ALIGNS, DENSITIES, HEADING_CASES, RADII } from '../funnel-types/design.js';
+import { ALIGNS, BACKDROPS, BUTTONS, DENSITIES, DIVIDERS, EFFECTS, HEADING_CASES, RADII, SURFACES } from '../funnel-types/design.js';
 import { TEMPLATES } from '../funnel-types/templates.js';
 import { paginationQuerySchema } from '../lib/pagination.js';
 import { SLUG_PATTERN } from '../lib/slug.js';
@@ -119,6 +119,11 @@ const lookSchema = z.object({
   align: z.enum(ALIGNS).optional(),
   headingCase: z.enum(HEADING_CASES).optional(),
   headingWeight: z.union([z.literal(500), z.literal(600), z.literal(700), z.literal(800)]).optional(),
+  surface: z.enum(SURFACES).optional(),
+  effect: z.enum(EFFECTS).optional(),
+  backdrop: z.enum(BACKDROPS).optional(),
+  divider: z.enum(DIVIDERS).optional(),
+  button: z.enum(BUTTONS).optional(),
 });
 
 export const designSpecBodySchema = z.object({

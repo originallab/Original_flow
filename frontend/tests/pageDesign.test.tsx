@@ -1,10 +1,10 @@
 import { render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { PageRenderer } from '@/features/pageRenderer/PageRenderer';
-import { fontsHref, readableOn, resolveTheme, toneOf } from '@/features/pageRenderer/theme';
+import { backdropStyle, buttonFill, fontsHref, headingStyle, readableOn, resolveTheme, toneOf } from '@/features/pageRenderer/theme';
 import type { Block, DesignSpec } from '@/shared/blocks/types';
 import * as back from '../../backend/src/funnel-types/design';
-import { BACKGROUNDS, BLOCK_VARIANTS, BODY_FONTS, HEADING_FONTS, SINGLE_WEIGHT_FONTS, backgroundOf, variantOf } from '@/shared/design';
+import { BACKDROPS, BACKGROUNDS, BLOCK_VARIANTS, BODY_FONTS, BUTTONS, DIVIDERS, EFFECTS, SURFACES, HEADING_FONTS, SINGLE_WEIGHT_FONTS, backgroundOf, variantOf } from '@/shared/design';
 
 const PALETA = { primary: '#7725BE', secondary: '#4A3B63', accent: '#F59E0B', background: '#FFFFFF', text: '#1F1A2B' };
 const DISENO: DesignSpec = { template: 'claridad', palette: PALETA };
@@ -63,6 +63,7 @@ describe('tipografías', () => {
     expect([...SINGLE_WEIGHT_FONTS]).toEqual([...back.SINGLE_WEIGHT_FONTS]);
     expect(BLOCK_VARIANTS).toEqual(back.BLOCK_VARIANTS);
     expect([...BACKGROUNDS]).toEqual([...back.BACKGROUNDS]);
+    expect([[...SURFACES], [...EFFECTS], [...BACKDROPS], [...DIVIDERS], [...BUTTONS]]).toEqual([[...back.SURFACES], [...back.EFFECTS], [...back.BACKDROPS], [...back.DIVIDERS], [...back.BUTTONS]]);
   });
 
   it('las de un solo grosor se piden sin pesos (Google Fonts rechazaría toda la petición) y no se engrosan', () => {
@@ -70,6 +71,65 @@ describe('tipografías', () => {
     expect(fontsHref({ heading: 'Syne', body: 'Open Sans' })).toBe('https://fonts.googleapis.com/css2?family=Syne:wght@500;600;700;800&family=Open+Sans:wght@400;600&display=swap');
     expect(resolveTheme({ template: 'impacto', fonts: { heading: 'Bebas Neue', body: 'Inter' } }).look.headingWeight).toBe(400);
     expect(resolveTheme({ template: 'impacto', fonts: { heading: 'Syne', body: 'Inter' } }).look.headingWeight).toBe(800);
+  });
+});
+
+describe('recursos visuales por tema', () => {
+  const OSCURA = { primary: '#22D3EE', secondary: '#A78BFA', accent: '#F472B6', background: '#0A0A12', text: '#E6E6F0' };
+  const tema = (look: object, palette = PALETA) => resolveTheme({ template: 'claridad', palette, look });
+
+  it('cada estilo de tarjeta se dibuja distinto y se adapta al fondo', () => {
+    const estilos = (['flat', 'outline', 'elevated', 'glass', 'glow'] as const).map((surface) => JSON.stringify(tema({ surface }).surface));
+    expect(new Set(estilos).size).toBe(5);
+    expect(tema({ surface: 'elevated' }).surface.shadow).toBeTruthy();
+    expect(tema({ surface: 'glass' }).surface.blur).toBeTruthy();
+    expect(tema({ surface: 'glow' }).surface.border).toBe(PALETA.primary);
+    expect(tema({ surface: 'outline' }).surface.background).toBe('transparent');
+    expect(JSON.stringify(tema({ surface: 'elevated' }, OSCURA).surface)).not.toBe(JSON.stringify(tema({ surface: 'elevated' }).surface));
+  });
+
+  it('el efecto de los títulos: degradado, brillo o subrayado, y ninguno por defecto', () => {
+    expect(headingStyle(tema({ effect: 'gradient' })).backgroundImage).toContain('linear-gradient');
+    expect(headingStyle(tema({ effect: 'gradient' })).color).toBe('transparent');
+    expect(headingStyle(tema({ effect: 'glow' }, OSCURA)).textShadow).toContain(OSCURA.primary);
+    expect(headingStyle(tema({ effect: 'underline' })).textDecoration).toBe('underline');
+    expect(headingStyle(tema({}))).toEqual({ fontWeight: 700, textTransform: 'none' });
+  });
+
+  it('el fondo de la página: cuadrícula, puntos, degradado y resplandor; liso por defecto', () => {
+    expect(backdropStyle(tema({ backdrop: 'grid' })).backgroundSize).toBe('36px 36px');
+    expect(backdropStyle(tema({ backdrop: 'dots' })).backgroundImage).toContain('radial-gradient');
+    expect(backdropStyle(tema({ backdrop: 'gradient' })).backgroundImage).toContain('linear-gradient');
+    expect(backdropStyle(tema({ backdrop: 'glow' }, OSCURA)).backgroundImage).toContain('ellipse');
+    expect(backdropStyle(tema({}))).toEqual({});
+  });
+
+  it('los botones: sólido, con degradado o con brillo', () => {
+    expect(buttonFill(tema({})).background).toBe(PALETA.primary);
+    expect(buttonFill(tema({ button: 'gradient' })).background).toContain('linear-gradient');
+    expect(buttonFill(tema({ button: 'glow' })).boxShadow).toContain(PALETA.primary);
+  });
+
+  it('la página aplica la decoración de fondo, el efecto de títulos y el corte en diagonal', () => {
+    const bloques = [bloque('h', 'encabezado', { title: 'Hola' }, { background: 'dark' }, 1), bloque('t', 'texto', { body: 'Texto' }, {}, 2)];
+    const { container } = render(<PageRenderer blocks={bloques} design={{ ...DISENO, palette: OSCURA, look: { backdrop: 'grid', effect: 'glow', divider: 'slant', surface: 'glow' } }} />);
+    const pagina = screen.getByRole('article', { name: 'Página' });
+    expect(pagina.style.backgroundImage).toContain('linear-gradient');
+    expect(within(container).getByRole('heading', { level: 1 }).style.textShadow).toContain(OSCURA.primary);
+    const franja = container.querySelector<HTMLElement>('[data-block-key="h"]')!;
+    expect(franja.style.clipPath).toContain('polygon');
+    // la última franja no se corta
+    expect(container.querySelector<HTMLElement>('[data-block-key="t"]')!.style.clipPath).toBe('');
+  });
+
+  it('en la página publicada la franja en diagonal sigue ocupando todo el ancho', () => {
+    const { container } = render(<PageRenderer mode="public" blocks={[bloque('h', 'encabezado', { title: 'Hola' }, { background: 'dark' }, 1), bloque('t', 'texto', { body: 'x' }, {}, 2)]} design={{ ...DISENO, look: { divider: 'slant' } }} />);
+    expect(container.querySelector<HTMLElement>('[data-block-key="h"]')!.style.clipPath).toContain('100vmax');
+  });
+
+  it('las tarjetas toman el estilo elegido', () => {
+    const { container } = render(<PageRenderer blocks={[bloque('b', 'beneficios', { title: 'T', items: ITEMS })]} design={{ ...DISENO, look: { surface: 'elevated' } }} />);
+    expect(container.querySelector<HTMLElement>('.p-5')!.style.boxShadow).toBeTruthy();
   });
 });
 

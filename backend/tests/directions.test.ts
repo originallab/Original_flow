@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { creativeBrief, describeDesign, qualityExamples } from '../src/funnel-types/creative.js';
 import { BACKGROUNDS, BLOCK_VARIANTS, BODY_FONTS, HEADING_FONTS, SINGLE_WEIGHT_FONTS, sanitizeLook } from '../src/funnel-types/design.js';
 import { DIRECTIONS, hash } from '../src/funnel-types/directions.js';
-import { contrast, diversifyHeading, fallbackDesign, paletteReads, pickPalette, polishBlocks, randomHints, repairPalette } from '../src/funnel-types/polish.js';
+import { contrast, diversifyHeading, fallbackDesign, guardLook, paletteReads, pickPalette, polishBlocks, randomHints, repairPalette } from '../src/funnel-types/polish.js';
 import { TEMPLATES } from '../src/funnel-types/templates.js';
 import { generatePageMessages } from '../src/integrations/ai-engine/prompts.js';
 
@@ -92,6 +92,32 @@ describe('paleta', () => {
     const ids = new Set(Array.from({ length: 30 }, (_, i) => fallbackDesign(`s${i}`).fonts.heading));
     expect(ids.size).toBeGreaterThan(4);
     expect(HEADING_FONTS).toContain(fallbackDesign('x').fonts.heading);
+  });
+});
+
+describe('recursos visuales por tema', () => {
+  const clara = { primary: '#1E3A5F', secondary: '#3A4A5E', accent: '#B8893B', background: '#FFFFFF', text: '#14213D' };
+  const oscura = { primary: '#22D3EE', secondary: '#A78BFA', accent: '#F472B6', background: '#0A0A12', text: '#E6E6F0' };
+
+  it('el aspecto acepta superficie, efecto, fondo, corte y botones del catálogo y descarta lo demás', () => {
+    expect(sanitizeLook({ surface: 'glow', effect: 'gradient', backdrop: 'grid', divider: 'slant', button: 'glow' })).toEqual({ surface: 'glow', effect: 'gradient', backdrop: 'grid', divider: 'slant', button: 'glow' });
+    expect(sanitizeLook({ surface: 'neon', effect: 'rainbow', backdrop: 'x', divider: 'wave', button: 'laser', radius: 'sm' })).toEqual({ radius: 'sm' });
+  });
+
+  it('sobre fondo claro, el brillo de neón en títulos y botones y el vidrio sin nada detrás se suavizan', () => {
+    expect(guardLook({ effect: 'glow', button: 'glow', surface: 'glass' }, clara)).toEqual({ effect: 'underline', button: 'gradient', surface: 'elevated' });
+    expect(guardLook({ surface: 'glass', backdrop: 'gradient' }, clara)).toEqual({ surface: 'glass', backdrop: 'gradient' });
+  });
+
+  it('sobre fondo oscuro, los recursos de neón se conservan, y sin aspecto no hace nada', () => {
+    const look = { effect: 'glow', button: 'glow', surface: 'glass', backdrop: 'grid' } as const;
+    expect(guardLook(look, oscura)).toEqual(look);
+    expect(guardLook(undefined, clara)).toBeUndefined();
+  });
+
+  it('las instrucciones traen la guía por tema (profesional, videojuegos, lujo...) y los nuevos recursos', () => {
+    const texto = generatePageMessages({ objective: 'venta', language: 'es', name: 'Pixel', blockTypes: ['encabezado'] as never, baseBlocks: ['encabezado'] as never })[0]!.content;
+    for (const frase of ['Profesional, corporativo', 'Videojuegos, esports', 'Lujo, joyería', 'Infantil', 'Bienestar', 'Orbitron', '"surface": flat|outline|elevated|glass|glow', '"backdrop": plain|gradient|grid|dots|glow', 'reflejar el TEMA y el TONO']) expect(texto).toContain(frase);
   });
 });
 

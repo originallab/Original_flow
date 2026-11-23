@@ -30,6 +30,15 @@ const RADIUS_PX: Record<NonNullable<PageLook['radius']>, string> = { none: '0px'
 /** El relleno vertical de cada franja, como multiplicador del base. */
 const DENSITY_FACTOR: Record<NonNullable<PageLook['density']>, number> = { compact: 0.7, normal: 1, airy: 1.6 };
 
+/** Cómo se dibujan las tarjetas sobre el fondo donde están. */
+export interface Surface {
+  background: string;
+  border: string;
+  shadow?: string;
+  /** Desenfoque del fondo (vidrio). */
+  blur?: string;
+}
+
 export interface PageTheme {
   palette: BrandPalette;
   look: {
@@ -40,11 +49,36 @@ export interface PageTheme {
     headingTransform: CSSProperties['textTransform'];
     /** Cuánto se multiplica el relleno vertical de las franjas. */
     spacing: number;
+    /** Estilo de las tarjetas (`undefined`: el de siempre). */
+    surfaceKind?: NonNullable<PageLook['surface']>;
+    effect: NonNullable<PageLook['effect']>;
+    backdrop: NonNullable<PageLook['backdrop']>;
+    divider: NonNullable<PageLook['divider']>;
+    button: NonNullable<PageLook['button']>;
   };
   fonts: { heading: string; body: string };
   template: TemplateId;
-  /** El fondo de las tarjetas y su borde, según el fondo del bloque donde están. */
-  surface: { background: string; border: string };
+  /** El fondo de las tarjetas y su borde, según el estilo elegido y el fondo del bloque donde están. */
+  surface: Surface;
+}
+
+/** Las tarjetas según su estilo; `ink` es el color del texto y `mark` el de la marca; `onDark` dice si el fondo es oscuro. */
+function surfaceFor(kind: PageLook['surface'] | undefined, ink: string, mark: string, onDark: boolean, secondary: string): Surface {
+  switch (kind) {
+    case 'flat':
+      return { background: onDark ? '#FFFFFF14' : `${ink}0D`, border: 'transparent' };
+    case 'outline':
+      return { background: 'transparent', border: onDark ? '#FFFFFF55' : `${ink}55` };
+    case 'elevated':
+      return { background: onDark ? '#FFFFFF12' : '#FFFFFFCC', border: onDark ? '#FFFFFF1F' : `${ink}12`, shadow: onDark ? '0 10px 30px #00000066' : '0 12px 32px #00000024' };
+    case 'glass':
+      return { background: onDark ? '#FFFFFF1F' : '#FFFFFF73', border: onDark ? '#FFFFFF3D' : '#FFFFFFB3', shadow: onDark ? '0 8px 32px #00000055' : '0 8px 28px #0000001A', blur: '14px' };
+    case 'glow':
+      return { background: onDark ? '#FFFFFF0A' : '#FFFFFFB3', border: mark, shadow: `0 0 22px ${mark}66` };
+    default:
+      // El de siempre: velo tenue sobre fondos oscuros y blanco translúcido sobre claros.
+      return onDark ? { background: '#FFFFFF14', border: '#FFFFFF2E' } : { background: '#FFFFFF80', border: `${secondary}22` };
+  }
 }
 
 /** La paleta y el estilo de una página: lo que dice su diseño, o los de la plantilla por defecto. */
@@ -65,9 +99,13 @@ export function resolveTheme(design: DesignSpec | null | undefined): PageTheme {
       headingWeight: SINGLE_WEIGHT_FONTS.includes(fonts.heading) ? 400 : (own.headingWeight ?? base.headingWeight),
       headingTransform: (own.headingCase ?? base.headingCase) === 'upper' ? 'uppercase' : 'none',
       spacing: DENSITY_FACTOR[own.density ?? base.density] ?? 1,
+      surfaceKind: own.surface,
+      effect: own.effect ?? 'none',
+      backdrop: own.backdrop ?? 'plain',
+      divider: own.divider ?? 'none',
+      button: own.button ?? 'solid',
     },
-    // Sobre una página de fondo oscuro, las tarjetas son un velo claro tenue (no un blanco que dejaría el texto ilegible).
-    surface: brightness(palette.background) < 110 ? { background: '#FFFFFF14', border: '#FFFFFF2E' } : { background: '#FFFFFF80', border: `${palette.secondary}22` },
+    surface: surfaceFor(own.surface, palette.text, palette.primary, brightness(palette.background) < 110, palette.secondary),
   };
 }
 
@@ -75,6 +113,47 @@ export function resolveTheme(design: DesignSpec | null | undefined): PageTheme {
 function brightness(color: string): number {
   const value = Number.parseInt(color.slice(1), 16);
   return 0.299 * ((value >> 16) & 255) + 0.587 * ((value >> 8) & 255) + 0.114 * (value & 255);
+}
+
+/** El segundo color de un degradado: el de acento si se distingue del fondo y, si no, el secundario. */
+function secondStop(palette: BrandPalette): string {
+  return Math.abs(brightness(palette.accent) - brightness(palette.background)) > 60 ? palette.accent : palette.secondary;
+}
+
+/** El estilo de los títulos: grosor, mayúsculas y el efecto que eligió la página (degradado, brillo o subrayado). */
+export function headingStyle(theme: PageTheme): CSSProperties {
+  const { palette, look } = theme;
+  const base: CSSProperties = { fontWeight: look.headingWeight, textTransform: look.headingTransform };
+  if (look.effect === 'gradient') return { ...base, backgroundImage: `linear-gradient(90deg, ${palette.primary}, ${secondStop(palette)})`, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', WebkitTextFillColor: 'transparent' };
+  if (look.effect === 'glow') return { ...base, textShadow: `0 0 22px ${palette.primary}AA, 0 0 3px ${palette.primary}66` };
+  if (look.effect === 'underline') return { ...base, textDecoration: 'underline', textDecorationColor: palette.primary, textDecorationThickness: '0.12em', textUnderlineOffset: '0.2em' };
+  return base;
+}
+
+/** La decoración detrás de toda la página (cuadrícula, puntos, degradado o resplandor). */
+export function backdropStyle(theme: PageTheme): CSSProperties {
+  const { palette, look } = theme;
+  switch (look.backdrop) {
+    case 'grid':
+      return { backgroundImage: `linear-gradient(${palette.text}14 1px, transparent 1px), linear-gradient(90deg, ${palette.text}14 1px, transparent 1px)`, backgroundSize: '36px 36px' };
+    case 'dots':
+      return { backgroundImage: `radial-gradient(${palette.text}26 1.2px, transparent 1.2px)`, backgroundSize: '22px 22px' };
+    case 'gradient':
+      return { backgroundImage: `linear-gradient(165deg, ${palette.background} 0%, ${palette.primary}26 100%)` };
+    case 'glow':
+      return { backgroundImage: `radial-gradient(ellipse 70% 40% at 15% 0%, ${palette.primary}44, transparent 70%), radial-gradient(ellipse 60% 35% at 92% 30%, ${secondStop(palette)}33, transparent 70%)` };
+    default:
+      return {};
+  }
+}
+
+/** El relleno de los botones principales según el estilo de la página (sólido, degradado o con brillo). */
+export function buttonFill(theme: PageTheme): CSSProperties {
+  const { palette, look } = theme;
+  const color = readableOn(palette.primary, palette);
+  if (look.button === 'gradient') return { background: `linear-gradient(135deg, ${palette.primary}, ${secondStop(palette)})`, color };
+  if (look.button === 'glow') return { background: palette.primary, color, boxShadow: `0 0 24px ${palette.primary}99` };
+  return { background: palette.primary, color };
 }
 
 /** Un color de la página con el que se ve bien el texto encima (blanco o el texto de la paleta). */
@@ -106,7 +185,7 @@ export function toneOf(theme: PageTheme, background: BlockBackground): Tone {
   const toned: PageTheme = {
     ...theme,
     palette: { ...palette, background: bg, text: fg, primary: mark, accent: mark, secondary: fg },
-    surface: { background: fg === '#FFFFFF' ? '#FFFFFF1F' : '#FFFFFF99', border: `${fg}33` },
+    surface: theme.look.surfaceKind ? surfaceFor(theme.look.surfaceKind, fg, mark, fg === '#FFFFFF', fg) : { background: fg === '#FFFFFF' ? '#FFFFFF1F' : '#FFFFFF99', border: `${fg}33` },
   };
   return { background: bg, theme: toned, color: fg };
 }

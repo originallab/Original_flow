@@ -1,5 +1,5 @@
 import type { BlockType } from './blocks.js';
-import { BACKGROUNDS, BLOCK_VARIANTS, sanitizeBlockStyle, type BlockBackground } from './design.js';
+import { BACKGROUNDS, BLOCK_VARIANTS, sanitizeBlockStyle, type BlockBackground, type PageLook } from './design.js';
 import { DIRECTIONS, hash, type Direction, type Palette } from './directions.js';
 
 /**
@@ -96,6 +96,20 @@ export function randomHints(seed: string): StyleHints {
     variants,
     bands: choose(cycles, 'bands'),
   };
+}
+
+/**
+ * Pasada de calidad del aspecto: los recursos que solo lucen sobre fondo oscuro no se dejan sobre uno claro
+ * (un brillo de neón en los títulos se ve sucio; las tarjetas de vidrio sin nada detrás no se distinguen).
+ */
+export function guardLook(look: PageLook | undefined, palette: Palette): PageLook | undefined {
+  if (!look) return look;
+  const dark = luminance(palette.background) < 0.18;
+  const next: PageLook = { ...look };
+  if (!dark && next.effect === 'glow') next.effect = 'underline';
+  if (!dark && next.surface === 'glass' && (!next.backdrop || next.backdrop === 'plain')) next.surface = 'elevated';
+  if (!dark && next.button === 'glow') next.button = 'gradient';
+  return next;
 }
 
 /** Familias de tipografías de títulos con carácter parecido: se cambia dentro de la misma para no alterar el tono. */

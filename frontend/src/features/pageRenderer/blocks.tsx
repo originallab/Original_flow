@@ -4,7 +4,7 @@ import type { Block } from '@/shared/blocks/types';
 import { variantOf } from '@/shared/design';
 import { safeHttpUrl } from '@/shared/utils/safeUrl';
 import { buttonStyle, CtaButton, LiveCountdown, PublicButtonLink, PublicForm, type PublicContext } from './public';
-import { readableOn, type PageTheme } from './theme';
+import { headingStyle, readableOn, type PageTheme } from './theme';
 
 /**
  * Cómo se dibuja cada tipo de bloque dentro de la página. Usan solo los colores y el estilo de la
@@ -39,7 +39,7 @@ function Section({ theme, children, style, pad = 2.5 }: { theme: PageTheme; chil
 
 function Heading({ theme, children, size = 'text-2xl' }: { theme: PageTheme; children: ReactNode; size?: string }) {
   return (
-    <h2 className={`${size} font-heading leading-tight`} style={{ fontWeight: theme.look.headingWeight, textTransform: theme.look.headingTransform }}>
+    <h2 className={`${size} font-heading leading-tight`} style={headingStyle(theme)}>
       {children}
     </h2>
   );
@@ -54,7 +54,13 @@ function PrimaryButton({ theme, children, variant }: { theme: PageTheme; childre
 }
 
 const cardRadius = (theme: PageTheme) => (theme.look.radius === '999px' ? '24px' : theme.look.radius);
-const card = (theme: PageTheme): CSSProperties => ({ borderRadius: cardRadius(theme), border: `1px solid ${theme.surface.border}`, background: theme.surface.background });
+const card = (theme: PageTheme): CSSProperties => ({
+  borderRadius: cardRadius(theme),
+  border: `1px solid ${theme.surface.border}`,
+  background: theme.surface.background,
+  ...(theme.surface.shadow ? { boxShadow: theme.surface.shadow } : {}),
+  ...(theme.surface.blur ? { backdropFilter: `blur(${theme.surface.blur})`, WebkitBackdropFilter: `blur(${theme.surface.blur})` } : {}),
+});
 
 function Countdown({ endsAt }: { endsAt: string }) {
   const remaining = Math.max(0, Date.parse(endsAt) - Date.now());
@@ -87,7 +93,7 @@ export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
       const title = (
         <h1
           className={`${variant === 'grande' ? 'text-5xl sm:text-7xl' : 'text-4xl'} font-heading leading-tight`}
-          style={{ fontWeight: theme.look.headingWeight, textTransform: theme.look.headingTransform }}
+          style={headingStyle(theme)}
         >
           {str(c.title)}
         </h1>

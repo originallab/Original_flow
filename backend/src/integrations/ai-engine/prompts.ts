@@ -1,5 +1,5 @@
 import type { BlockType } from '../../funnel-types/blocks.js';
-import { ALIGNS, BACKGROUNDS, BLOCK_VARIANTS, BODY_FONTS, DENSITIES, HEADING_CASES, HEADING_FONTS, HEADING_WEIGHTS, RADII } from '../../funnel-types/design.js';
+import { ALIGNS, BACKDROPS, BACKGROUNDS, BLOCK_VARIANTS, BODY_FONTS, BUTTONS, DENSITIES, DIVIDERS, EFFECTS, HEADING_CASES, HEADING_FONTS, HEADING_WEIGHTS, RADII, SURFACES } from '../../funnel-types/design.js';
 import { TEMPLATES } from '../../funnel-types/templates.js';
 import type { GeneratePageInput, RegenerateBlockInput } from './types.js';
 
@@ -56,6 +56,19 @@ function imageRule(input: GeneratePageInput): string {
   return `- La persona subió imágenes (en "imagenes"). Intégralas en la página con bloques "imagen" colocados donde mejor funcionen (por ejemplo, la del producto cerca del encabezado). Forma: ${IMAGE_SHAPE}. Usa cada dirección tal cual, sin cambiarla, y no inventes otras. No es obligatorio usarlas todas.${logo}`;
 }
 
+/** Qué recursos de diseño corresponden a cada tema o tono: la IA los toma como guía, no como plantillas. */
+const THEME_GUIDE = `Guía de ejemplos (adáptalos y mezcla con criterio):
+    * Profesional, corporativo, legal, finanzas, consultoría: sobrio y de confianza. Colores contenidos (azul marino, gris, un acento discreto), fondo claro, "surface": outline o flat, "effect": none, "backdrop": plain, "button": solid, esquinas sm o none, títulos serif (Lora, Libre Baskerville, Merriweather) o sans neutra; nada de brillos ni degradados.
+    * Videojuegos, esports, streaming, tecnología futurista: fondo OSCURO (background casi negro), acentos de neón (cian, magenta, verde lima), "surface": glow o glass, "effect": glow o gradient, "backdrop": grid o glow, "button": glow o gradient, "divider": slant, esquinas none o sm, títulos en mayúsculas con Orbitron, Rajdhani, Chakra Petch, Exo 2, Audiowide, Russo One o Press Start 2P.
+    * Lujo, joyería, moda, belleza premium: elegante y pausado, fondo marfil o negro, un solo acento dorado, "density": airy, "surface": outline, "effect": underline o none, títulos serif (Playfair Display, Cormorant Garamond, Cinzel, Prata, Marcellus), "align": center.
+    * Infantil, juegos, comunidad, diversión: colores vivos y alegres, esquinas pill o lg, "surface": elevated, "button": gradient, títulos redondeados (Fredoka, Baloo 2, Bungee, Righteous), "backdrop": dots.
+    * Bienestar, salud, naturaleza, terapia: suave y orgánico, verdes, tierras y pasteles, esquinas lg o pill, "surface": glass o flat, "backdrop": gradient, títulos serif suaves (Fraunces, Lora, Spectral) o Nunito y Quicksand.
+    * Tecnología, software, startups: limpio y moderno, un color de marca potente sobre blanco o gris, "surface": elevated, "backdrop": grid o dots, "effect": gradient (opcional), títulos Space Grotesk, Sora, Manrope, Outfit.
+    * Deportes y fitness, ofertas, impacto: contraste alto, mayúsculas gruesas (Anton, Bebas Neue, Oswald, Archivo Black), "divider": slant, esquinas none, colores energéticos.
+    * Creativo, arte, marketing, música: atrevido y con personalidad, combinaciones inesperadas, "effect": gradient, "surface": elevated o outline, tipografías con carácter (Syne, Unbounded, Bricolage Grotesque, Dancing Script, Caveat).
+    * Gastronomía, artesanal, familiar: cálido y cercano, tonos tierra y crema, serif con carácter (DM Serif Display, Young Serif, Alfa Slab One), "surface": flat o elevated.
+  Usa pocos efectos a la vez: en un diseño sobrio ninguno; en uno expresivo, dos o tres bien elegidos, no todos.`;
+
 /** La IA hace de directora de arte: diseña la página (tipografías, aspecto, paleta, estructura y estilo de cada bloque). */
 function artDirection(input: GeneratePageInput): string {
   if (input.keepDesign) {
@@ -70,7 +83,8 @@ function artDirection(input: GeneratePageInput): string {
   - Ejemplos de diseños bien resueltos, solo para que tengas el nivel de calidad (NO los copies): ${JSON.stringify(input.examples)}.` : '';
   return `Diseño: tú diseñas esta página desde cero, como un director de arte. No hay plantillas fijas: cada página debe verse y estructurarse distinta a cualquier otra, según el rubro, el público y el tono.${creative}${avoid}${examples}
   - "designSpec.fonts": {"heading": una de [${HEADING_FONTS.join(', ')}], "body": una de [${BODY_FONTS.join(', ')}]}. Combina con intención (por ejemplo una serif expresiva con una sans neutra, o una display potente con una de lectura cómoda) y no repitas siempre las mismas.
-  - "designSpec.look": {"radius": ${RADII.join('|')}, "density": ${DENSITIES.join('|')}, "align": ${ALIGNS.join('|')}, "headingCase": ${HEADING_CASES.join('|')}, "headingWeight": ${HEADING_WEIGHTS.join('|')}}. Decide con criterio: esquinas rectas y mayúsculas para algo contundente; redondeadas y aire para algo cercano; "airy" para marcas premium; "compact" para mucha información.
+  - "designSpec.look": {"radius": ${RADII.join('|')}, "density": ${DENSITIES.join('|')}, "align": ${ALIGNS.join('|')}, "headingCase": ${HEADING_CASES.join('|')}, "headingWeight": ${HEADING_WEIGHTS.join('|')}, "surface": ${SURFACES.join('|')} (tarjetas), "effect": ${EFFECTS.join('|')} (títulos), "backdrop": ${BACKDROPS.join('|')} (fondo de la página), "divider": ${DIVIDERS.join('|')} (corte entre franjas de color), "button": ${BUTTONS.join('|')}}. Decide con criterio: esquinas rectas y mayúsculas para algo contundente; redondeadas y aire para algo cercano; "airy" para marcas premium; "compact" para mucha información.
+  - El diseño debe reflejar el TEMA y el TONO del negocio, no solo el rubro. ${THEME_GUIDE}
   - Estructura: parte de la secuencia sugerida arriba; puedes repetir tipos (por ejemplo dos textos) y ajustar el orden, de 4 a 10 bloques. Nunca uses la misma secuencia ni las mismas formas que las otras páginas.
   - ${STYLE_RULES}`;
 }

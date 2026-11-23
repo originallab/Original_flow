@@ -166,6 +166,20 @@ describe.skipIf(!testDatabaseUrl)('generación con IA (esqueleto con motor simul
       expect((fake.calls.at(-1)?.input as unknown as { avoid?: string[] }).avoid).toBeUndefined();
     });
 
+    it('guarda el aspecto completo que propone la IA (tarjetas, efecto, fondo, corte, botones), y suaviza el neón si el fondo es claro', async () => {
+      const f = await funnel();
+      fake.respondPage({ ...VALID_PAGE, designSpec: { ...VALID_PAGE.designSpec, look: { surface: 'glow', effect: 'glow', backdrop: 'grid', divider: 'slant', button: 'glow' } } });
+      await generar(f.token, f.f.id);
+      // la paleta de VALID_PAGE es clara: el brillo de títulos y botones se suaviza, lo demás se conserva
+      expect((await disenoGuardado(f.f.id)).look).toEqual({ surface: 'glow', effect: 'underline', backdrop: 'grid', divider: 'slant', button: 'gradient' });
+
+      const g = await funnel();
+      const oscura = { primary: '#22D3EE', secondary: '#A78BFA', accent: '#F472B6', background: '#0A0A12', text: '#E6E6F0' };
+      fake.respondPage({ ...VALID_PAGE, designSpec: { ...VALID_PAGE.designSpec, palette: oscura, look: { surface: 'glow', effect: 'glow', backdrop: 'grid', divider: 'slant', button: 'glow' } } });
+      await generar(g.token, g.f.id);
+      expect((await disenoGuardado(g.f.id)).look).toEqual({ surface: 'glow', effect: 'glow', backdrop: 'grid', divider: 'slant', button: 'glow' });
+    });
+
     it('el estilo de cada bloque se completa y se corrige: fondos con ritmo, sin dos franjas fuertes seguidas', async () => {
       const f = await funnel();
       fake.respondPage({

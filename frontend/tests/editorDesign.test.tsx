@@ -81,4 +81,16 @@ describe('diseño de la página (Ajustes)', () => {
     await user().selectOptions(screen.getByLabelText('Espacio entre secciones'), '');
     await waitFor(async () => expect((await persistido()).designSpec?.look).toBeUndefined());
   });
+
+  it('los recursos visuales (tarjetas, efecto, fondo, corte y botones) se eligen y se guardan', async () => {
+    await abrir();
+    await irAAjustes();
+    await user().selectOptions(screen.getByLabelText('Tarjetas'), 'glow');
+    await user().selectOptions(screen.getByLabelText('Efecto de los títulos'), 'gradient');
+    await user().selectOptions(screen.getByLabelText('Fondo de la página'), 'grid');
+    await user().selectOptions(screen.getByLabelText('Corte entre secciones'), 'slant');
+    await user().selectOptions(screen.getByLabelText('Botones'), 'glow');
+    await waitFor(async () => expect((await persistido()).designSpec?.look).toEqual({ surface: 'glow', effect: 'gradient', backdrop: 'grid', divider: 'slant', button: 'glow' }));
+    expect(lienzo().style.backgroundImage).toContain('linear-gradient');
+  });
 });

@@ -5,7 +5,7 @@ import type { Block } from '@/shared/blocks/types';
 import { variantOf } from '@/shared/design';
 import { buildLeadBody, fieldForIssuePath, formFieldsOf, validateLead, type FormField, type LeadBody } from '@/shared/leads';
 import { safeHttpUrl } from '@/shared/utils/safeUrl';
-import { readableOn, type PageTheme } from './theme';
+import { buttonFill, headingStyle, readableOn, type PageTheme } from './theme';
 
 /**
  * Las partes de una página que solo funcionan en la página publicada: el formulario que manda el lead,
@@ -32,7 +32,7 @@ export const buttonStyle = (theme: PageTheme, variant?: string): CSSProperties =
   const { primary } = theme.palette;
   if (variant === 'contorno') return { background: 'transparent', color: primary, border: `2px solid ${primary}`, borderRadius: theme.look.radius };
   if (variant === 'banda') return { background: readableOn(primary, theme.palette), color: primary, borderRadius: theme.look.radius };
-  return { background: primary, color: readableOn(primary, theme.palette), borderRadius: theme.look.radius };
+  return { ...buttonFill(theme), borderRadius: theme.look.radius };
 };
 export const BUTTON = 'inline-block px-6 py-3 text-sm font-semibold transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60';
 
@@ -171,7 +171,7 @@ export function PublicForm({ block, theme, ctx }: { block: Block; theme: PageThe
   return (
     <form onSubmit={submit} noValidate aria-label={title || 'Formulario'} className="mx-auto max-w-md text-left">
       {title && (
-        <h2 className="text-2xl font-heading leading-tight" style={{ fontWeight: theme.look.headingWeight, textTransform: theme.look.headingTransform }}>
+        <h2 className="text-2xl font-heading leading-tight" style={headingStyle(theme)}>
           {title}
         </h2>
       )}
