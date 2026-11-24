@@ -73,11 +73,11 @@ export type BlockBackground = (typeof BACKGROUNDS)[number];
 
 /** Las formas de dibujar cada tipo de bloque (`style.variant`). El primero es el que se usa si no se elige ninguna. */
 export const BLOCK_VARIANTS: Partial<Record<BlockType, readonly string[]>> = {
-  encabezado: ['centrado', 'izquierda', 'dividido', 'grande'],
-  texto: ['normal', 'destacado'],
-  beneficios: ['tarjetas', 'lista', 'numerados', 'columnas'],
-  faq: ['abierto', 'tarjetas', 'compacto'],
-  precios: ['tarjetas', 'simple'],
+  encabezado: ['centrado', 'izquierda', 'dividido', 'grande', 'pancarta', 'acento', 'editorial'],
+  texto: ['normal', 'destacado', 'cita'],
+  beneficios: ['tarjetas', 'lista', 'numerados', 'columnas', 'iconos', 'alternado', 'chips'],
+  faq: ['abierto', 'tarjetas', 'compacto', 'columnas'],
+  precios: ['tarjetas', 'simple', 'destacado'],
   boton: ['solido', 'contorno', 'banda'],
 };
 

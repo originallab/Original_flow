@@ -207,6 +207,49 @@ describe.skipIf(!testDatabaseUrl)('generación con IA (esqueleto con motor simul
       expect(new Set(iconos).size).toBe(3);
     });
 
+    it('diez páginas seguidas del mismo negocio, con una IA que contesta siempre lo mismo, salen claramente distintas entre sí', async () => {
+      const f = await funnel();
+      const igual = {
+        designSpec: { template: 'claridad', fonts: { heading: 'Lora', body: 'Inter' }, look: { surface: 'elevated', backdrop: 'gradient', divider: 'slant', effect: 'underline', button: 'solid', align: 'left', radius: 'md' }, palette: { primary: '#C65A2E', secondary: '#5A3A2E', accent: '#D9A441', background: '#F7F1E8', text: '#2B2420' } },
+        seo: VALID_PAGE.seo,
+        blocks: [
+          { key: 'hero', type: 'encabezado', order: 1, content: { title: 'Hola' }, style: { variant: 'grande', background: 'gradient' } },
+          { key: 'ben', type: 'beneficios', order: 2, content: { items: [{ title: 'Uno' }, { title: 'Dos' }] }, style: { variant: 'tarjetas', background: 'alt' } },
+          { key: 'txt', type: 'texto', order: 3, content: { body: 'Texto' }, style: { variant: 'destacado', background: 'base' } },
+          { key: 'faq', type: 'faq', order: 4, content: { items: [{ question: '¿Q?', answer: 'R' }] }, style: { variant: 'abierto', background: 'base' } },
+          { key: 'pre', type: 'precios', order: 5, content: { plans: [{ name: 'Único', price: 100, features: ['a'] }] }, style: { variant: 'tarjetas', background: 'base' } },
+          { key: 'cta', type: 'formulario', order: 6, content: { fields: [{ name: 'email', label: 'Correo', type: 'email', required: true }], submitLabel: 'Enviar' }, style: { background: 'alt' } },
+        ],
+      };
+      const paginas: { look: Record<string, string>; hero: string; secuencia: string; fondo: string; primario: string; titulos: string; beneficios: string }[] = [];
+      for (let i = 0; i < 10; i += 1) {
+        fake.respondPage(igual);
+        const creado = i === 0 ? { body: f.f } : await request(app).post('/api/v1/funnels').set(encabezados(f.token)).send({ workspaceId: f.workspace.id, name: `Funnel ${i}`, objective: 'leads' });
+        await request(app).put(`/api/v1/funnels/${creado.body.id}/content`).set(encabezados(f.token)).send({ blocks: [{ key: 'hero', type: 'encabezado', order: 1, content: { title: 'T' }, style: {} }] });
+        expect((await generar(f.token, creado.body.id)).status).toBe(200);
+        const fila = await guardado(creado.body.id);
+        const d = fila.designSpec as { look: Record<string, string>; fonts: { heading: string }; palette: { background: string; primary: string } };
+        const b = (fila.content as { blocks: { type: string; style: Record<string, string> }[] }).blocks;
+        paginas.push({ look: d.look, hero: `${b[0]?.style.variant}/${b[0]?.style.background}`, secuencia: b.map((x) => x.type[0]).join(''), fondo: d.palette.background, primario: d.palette.primary, titulos: d.fonts.heading, beneficios: String(b.find((x) => x.type === 'beneficios')?.style.variant) });
+      }
+      const distintos = (f: (p: (typeof paginas)[number]) => string) => new Set(paginas.map(f)).size;
+      // ninguna página repite el aspecto de la anterior en lo que se ve más
+      for (let i = 1; i < paginas.length; i += 1) {
+        const [a, b] = [paginas[i - 1]!, paginas[i]!];
+        expect(b.look.surface === a.look.surface && b.look.backdrop === a.look.backdrop && b.look.divider === a.look.divider, `aspecto igual en ${i}`).toBe(false);
+        expect(b.hero === a.hero, `encabezado igual en ${i}`).toBe(false);
+        expect(b.titulos === a.titulos, `tipografía igual en ${i}`).toBe(false);
+      }
+      expect(distintos((p) => p.titulos)).toBeGreaterThanOrEqual(8);
+      expect(distintos((p) => p.hero)).toBeGreaterThanOrEqual(6);
+      expect(distintos((p) => `${p.look.surface}/${p.look.backdrop}/${p.look.divider}`)).toBe(10);
+      expect(distintos((p) => p.secuencia)).toBeGreaterThanOrEqual(4);
+      expect(distintos((p) => p.primario)).toBeGreaterThanOrEqual(6);
+      expect(distintos((p) => p.fondo)).toBeGreaterThanOrEqual(4);
+      expect(distintos((p) => p.beneficios)).toBeGreaterThanOrEqual(3);
+      // todas siguen siendo vistosas: la paleta se lee y hay franjas de color
+    }, 120000);
+
     it('el estilo de cada bloque se completa y se corrige: fondos con ritmo, sin dos franjas fuertes seguidas', async () => {
       const f = await funnel();
       fake.respondPage({
@@ -357,6 +400,25 @@ describe.skipIf(!testDatabaseUrl)('generación con IA (esqueleto con motor simul
       fake.respondPage({ blocks: VALID_PAGE.blocks });
       expect((await generar(f.token, f.f.id)).status).toBe(200);
       expect((await guardado(f.f.id)).seo).toEqual({ title: 'Mi título' });
+    });
+
+    it('si la primera propuesta no sirve (la IA se desvía del formato), se pide una vez más y la página se guarda', async () => {
+      const f = await funnel();
+      fake.respondOnce({ designSpec: VALID_PAGE.designSpec, blocks: [{ key: 'x', type: 'encabezado', order: 1, content: {}, style: {} }] });
+      const res = await generar(f.token, f.f.id);
+      expect(res.status).toBe(200);
+      expect(fake.calls).toHaveLength(2);
+      expect(res.body.content.blocks.map((b: { key: string }) => b.key)).toEqual(['hero', 'detalle', 'cta']);
+    });
+
+    it('si las dos propuestas no sirven, responde 503 AI_BAD_RESPONSE tras exactamente dos intentos y no guarda nada', async () => {
+      const f = await funnel();
+      fake.respondPage({ blocks: [] });
+      const res = await generar(f.token, f.f.id);
+      expect(res.status).toBe(503);
+      expect(res.body.error.code).toBe('AI_BAD_RESPONSE');
+      expect(fake.calls).toHaveLength(2);
+      expect((await guardado(f.f.id)).content).toEqual({ blocks: [{ key: 'hero', type: 'encabezado', order: 1, content: { title: 'Título original' }, style: {} }] });
     });
 
     it('una propuesta inválida (bloque malo, claves repetidas, vacía o sin forma) responde 503 AI_BAD_RESPONSE y NO guarda nada', async () => {

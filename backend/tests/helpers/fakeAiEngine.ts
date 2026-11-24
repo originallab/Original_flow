@@ -21,6 +21,8 @@ export function createFakeAiEngine() {
   let page: unknown = VALID_PAGE;
   let block: unknown = { content: { title: 'Un título nuevo', subtitle: 'Un subtítulo nuevo' } };
   let failure: Error | null = null;
+  /** Respuestas que se dan primero, una por llamada, antes de la normal. */
+  const queue: unknown[] = [];
 
   const run = async <T>(action: AiContext['action'], ctx: AiContext, input: GeneratePageInput | RegenerateBlockInput, result: T): Promise<T> => {
     calls.push({ action, ctx, input });
@@ -29,7 +31,7 @@ export function createFakeAiEngine() {
   };
 
   const engine: AiEngine = {
-    generatePage: (ctx, input) => run('generate_page', ctx, input, page),
+    generatePage: (ctx, input) => run('generate_page', ctx, input, queue.length > 0 ? queue.shift() : page),
     regenerateBlock: (ctx, input) => run('regenerate_block', ctx, input, block),
   };
 
@@ -37,12 +39,15 @@ export function createFakeAiEngine() {
     engine,
     calls,
     respondPage: (value: unknown) => void (page = value),
+    /** La próxima llamada (solo esa) responde esto; las siguientes vuelven a la normal. */
+    respondOnce: (value: unknown) => void queue.push(value),
     respondBlock: (value: unknown) => void (block = value),
     /** La próxima y siguientes llamadas lanzan este error (null lo quita). */
     failWith: (error: Error | null) => void (failure = error),
     unavailable: () => void (failure = AppError.serviceUnavailable('AI_UNAVAILABLE', 'sin servicio')),
     reset: () => {
       calls.length = 0;
+      queue.length = 0;
       page = VALID_PAGE;
       block = { content: { title: 'Un título nuevo', subtitle: 'Un subtítulo nuevo' } };
       failure = null;

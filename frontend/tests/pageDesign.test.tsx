@@ -236,6 +236,62 @@ describe('profundidad: franjas con degradado y malla, cortes, íconos y patrón'
   });
 });
 
+describe('más formas de dibujar los bloques', () => {
+  const dibujo = (type: Block['type'], content: Block['content'], variant: string) => {
+    const { container, unmount } = render(<PageRenderer blocks={[bloque('x', type, content, { variant })]} design={DISENO} />);
+    const html = container.innerHTML;
+    unmount();
+    return html;
+  };
+  const ITEMS_I = [{ title: 'Rápido', description: 'En minutos', icon: 'rocket' }, { title: 'Claro' }, { title: 'Tuyo', icon: 'heart' }];
+
+  it('cada tipo de bloque con formas se dibuja distinto en cada una (ninguna se parece a otra)', () => {
+    const contenidos: Partial<Record<Block['type'], Block['content']>> = {
+      encabezado: { title: 'Hola', subtitle: 'Sub' },
+      texto: { title: 'T', body: 'Cuerpo' },
+      beneficios: { title: 'B', items: ITEMS_I },
+      faq: { items: [{ question: '¿A?', answer: 'B' }, { question: '¿C?', answer: 'D' }] },
+      precios: { plans: [{ name: 'A', price: 1, features: ['x'] }, { name: 'B', price: 2, features: ['y'] }, { name: 'C', price: 3, features: ['z'] }] },
+      boton: { label: 'Ir' },
+    };
+    for (const [type, variantes] of Object.entries(BLOCK_VARIANTS)) {
+      const html = variantes!.map((v) => dibujo(type as Block['type'], contenidos[type as Block['type']]!, v));
+      expect(new Set(html).size, type).toBe(variantes!.length);
+    }
+  });
+
+  it('los encabezados nuevos: pancarta (círculos de fondo), con acento (barra de color) y editorial (regla y subtítulo en cursiva)', () => {
+    const e = { title: 'Hola', subtitle: 'Sub' };
+    expect(dibujo('encabezado', e, 'pancarta')).toContain('rounded-full opacity-25');
+    expect(dibujo('encabezado', e, 'acento')).toContain('h-1.5 w-20');
+    const editorial = dibujo('encabezado', e, 'editorial');
+    expect(editorial).toContain('h-1 w-24');
+    expect(editorial).toContain('italic');
+  });
+
+  it('beneficios con íconos grandes, alternados y como etiquetas', () => {
+    const iconos = dibujo('beneficios', { items: ITEMS_I }, 'iconos');
+    expect(iconos).toContain('lucide-rocket');
+    expect(iconos).toContain('>2<');
+    const alterno = dibujo('beneficios', { items: ITEMS_I }, 'alternado');
+    expect(alterno).toContain('sm:flex-row-reverse');
+    expect(alterno.match(/sm:flex-row-reverse/g)).toHaveLength(1);
+    const chips = dibujo('beneficios', { items: ITEMS_I }, 'chips');
+    expect(chips).toContain('rounded-full px-5');
+    expect(chips).toContain('lucide-heart');
+    expect(chips).toContain('lucide-check');
+  });
+
+  it('el texto en cita lleva comillas grandes; las preguntas en columnas, dos columnas; y el precio destacado resalta uno', () => {
+    expect(dibujo('texto', { body: 'Algo importante' }, 'cita')).toContain('italic');
+    expect(dibujo('faq', { items: [{ question: '¿A?', answer: 'B' }] }, 'columnas')).toContain('sm:grid-cols-2');
+    const planes = { plans: [{ name: 'A', price: 1, features: ['x'] }, { name: 'B', price: 2, features: ['y'] }, { name: 'C', price: 3, features: ['z'] }] };
+    const destacado = dibujo('precios', planes, 'destacado');
+    expect(destacado.match(/scale\(1\.05\)/g)).toHaveLength(1);
+    expect(dibujo('precios', planes, 'tarjetas')).not.toContain('scale(1.05)');
+  });
+});
+
 describe('el catálogo de diseño', () => {
   it('solo reconoce variantes y fondos de su lista', () => {
     expect(variantOf('beneficios', { variant: 'lista' })).toBe('lista');

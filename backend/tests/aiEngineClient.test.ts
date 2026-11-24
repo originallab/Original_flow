@@ -1,6 +1,6 @@
 import { createHash, createHmac } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
-import { createAiEngineClient } from '../src/integrations/ai-engine/client.js';
+import { createAiEngineClient, PAGE_TEMPERATURE } from '../src/integrations/ai-engine/client.js';
 import { extractJsonObject } from '../src/integrations/ai-engine/json.js';
 import { AI_BLOCK_TYPES, generatePageMessages, regenerateBlockMessages } from '../src/integrations/ai-engine/prompts.js';
 import { signRequest } from '../src/integrations/ai-engine/signing.js';
@@ -90,6 +90,28 @@ describe('cliente de IA Engine', () => {
     expect(llamada?.headers['x-timestamp']).toBe(String(NOW / 1000));
     expect(llamada?.headers['x-signature']).toMatch(/^sha256=[0-9a-f]{64}$/);
     expect(llamada?.body.model).toBe('gpt-5.4-mini');
+  });
+
+  it('al generar una página pide más creatividad (temperatura alta); regenerar un bloque usa la de siempre', async () => {
+    const { gateway, client } = setup();
+    gateway.say(PAGINA);
+    await client.generatePage(CTX, PAGE);
+    expect(gateway.calls[0]?.body.temperature).toBe(PAGE_TEMPERATURE);
+    expect(PAGE_TEMPERATURE).toBeGreaterThan(1);
+    expect(PAGE_TEMPERATURE).toBeLessThanOrEqual(2);
+    gateway.say({ content: { title: 'Nuevo' } });
+    await client.regenerateBlock({ ...CTX, action: 'regenerate_block' }, BLOCK);
+    expect(gateway.calls[1]?.body).not.toHaveProperty('temperature');
+  });
+
+  it('si el modelo rechaza la temperatura personalizada (400), repite la petición sin ella y sigue funcionando', async () => {
+    const { gateway, client } = setup();
+    gateway.fail(400, { detail: 'temperature no admitida' });
+    gateway.say(PAGINA);
+    expect(await client.generatePage(CTX, PAGE)).toEqual(PAGINA);
+    expect(gateway.calls).toHaveLength(2);
+    expect(gateway.calls[0]?.body.temperature).toBe(PAGE_TEMPERATURE);
+    expect(gateway.calls[1]?.body).not.toHaveProperty('temperature');
   });
 
   it('etiqueta la llamada con acción, negocio y petición (para el costo por cliente) y nunca con datos personales', async () => {

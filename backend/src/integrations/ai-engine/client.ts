@@ -38,15 +38,19 @@ class TransientError extends Error {}
  * petición; nunca datos personales) para desglosar el costo por cliente, y queda en el log operativo. Ni las
  * llaves ni los textos de la persona se escriben en los logs.
  */
+/** Temperatura (0 a 2) al generar una página: más alta que la normal para que el diseño y la estructura varíen entre páginas. */
+export const PAGE_TEMPERATURE = 1.15;
+
 export function createAiEngineClient({ baseUrl, apiKey, secretKey, model, timeoutMs, logger, operationLog, fetchFn = fetch, now = Date.now }: Deps): AiEngine {
   const root = baseUrl.replace(/\/+$/, '');
 
   /** Una petición al gateway; devuelve el texto de la respuesta del modelo. */
-  async function chatOnce(ctx: AiContext, messages: ChatMessage[]): Promise<{ text: string; truncated: boolean }> {
+  async function chatOnce(ctx: AiContext, messages: ChatMessage[], temperature?: number): Promise<{ text: string; truncated: boolean }> {
     const body = new TextEncoder().encode(
       JSON.stringify({
         model,
         messages,
+        ...(temperature === undefined ? {} : { temperature }),
         // Etiquetas para el costo por cliente: solo ids y la acción, sin datos personales.
         metadata: { app: 'original-flow', action: ctx.action, workspace_id: ctx.workspaceId, request_id: ctx.requestId },
       }),
@@ -70,6 +74,8 @@ export function createAiEngineClient({ baseUrl, apiKey, secretKey, model, timeou
       throw new TransientError('sin respuesta de IA Engine');
     }
 
+    // Algunos modelos solo aceptan la temperatura de fábrica: si la rechaza (400), se repite la misma petición sin ella.
+    if (response.status === 400 && temperature !== undefined) return chatOnce(ctx, messages);
     if (response.status >= 500) throw new TransientError(`IA Engine respondió ${response.status}`);
     if (response.status === 429) throw AppError.tooManyRequests('AI_QUOTA_EXCEEDED', 'Se alcanzó la cuota de IA; intenta más tarde');
     if (response.status === 401 || response.status === 403 || response.status === 404) {
@@ -86,13 +92,13 @@ export function createAiEngineClient({ baseUrl, apiKey, secretKey, model, timeou
   }
 
   /** Pide JSON; si la respuesta viene cortada o no es JSON, repite UNA vez (el modelo a veces se desvía). */
-  function askJson(ctx: AiContext, operation: string, messages: ChatMessage[]): Promise<unknown> {
+  function askJson(ctx: AiContext, operation: string, messages: ChatMessage[], temperature?: number): Promise<unknown> {
     return operationLog.track(
       { requestId: ctx.requestId, service: 'ia-engine', operation, workspaceId: ctx.workspaceId },
       async () => {
         try {
           for (let attempt = 0; attempt < 2; attempt += 1) {
-            const { text, truncated } = await chatOnce(ctx, messages);
+            const { text, truncated } = await chatOnce(ctx, messages, temperature);
             const value = truncated ? undefined : extractJsonObject(text);
             if (value !== undefined) return value;
           }
@@ -107,7 +113,8 @@ export function createAiEngineClient({ baseUrl, apiKey, secretKey, model, timeou
   }
 
   return {
-    generatePage: (ctx, input) => askJson(ctx, 'generate_page', generatePageMessages(input)),
+    // Al diseñar una página se pide más creatividad que la de siempre: con la temperatura por defecto el modelo tiende a repetir lo «seguro».
+    generatePage: (ctx, input) => askJson(ctx, 'generate_page', generatePageMessages(input), PAGE_TEMPERATURE),
     regenerateBlock: (ctx, input) => askJson(ctx, 'regenerate_block', regenerateBlockMessages(input)),
   };
 }

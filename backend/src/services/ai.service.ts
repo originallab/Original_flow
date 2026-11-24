@@ -1,6 +1,7 @@
 import { validateBlockContent, BLOCK_TYPES, type BlockType } from '../funnel-types/blocks.js';
 import { cleanIcons, cleanProposalDesign, fillIcons } from '../funnel-types/design.js';
 import { hash } from '../funnel-types/directions.js';
+import { noveltyHero, noveltyLook, noveltyPalette, noveltyStructure, noveltyVariants, pastPageOf } from '../funnel-types/novelty.js';
 import { creativeBrief, describeDesign, qualityExamples } from '../funnel-types/creative.js';
 import { diversifyHeading, enrichLook, fallbackDesign, guardLook, pickPalette, polishBlocks, randomHints } from '../funnel-types/polish.js';
 import { randomUUID } from 'node:crypto';
@@ -102,10 +103,16 @@ export function createAiService({ funnels, funnelService, workspaces, assets, en
       const seed = randomUUID();
       const existing = funnel.designSpec as { template?: string; fonts?: { heading: string; body: string }; look?: unknown; palette?: unknown; pattern?: unknown } | null;
       const keepDesign = existing?.fonts ? existing : undefined;
-      const recent = keepDesign ? [] : await funnels.recentDesigns(funnel.workspaceId, funnel.id, 6);
+      const recent = keepDesign ? [] : await funnels.recentDesigns(funnel.workspaceId, funnel.id, 8);
+      // Las páginas anteriores del negocio, de la más reciente a la más antigua: la nueva se diferencia de ellas.
+      const past = recent.map((r) => pastPageOf(r.designSpec, r.content));
       const avoid = keepDesign ? undefined : recent.map((r) => describeDesign(r.designSpec, r.content)).filter((d): d is string => d !== null);
       const usedHeadings = recent.map((r) => (r.designSpec as { fonts?: { heading?: unknown } } | null)?.fonts?.heading).filter((h): h is string => typeof h === 'string');
-      const proposal = await ask(funnel, ctx.requestId, 'generate_page', (aiCtx) =>
+      // Con la creatividad alta el modelo a veces se desvía del formato: si la propuesta no sirve, se pide una vez más antes de rendirse.
+      let parsed: ReturnType<typeof generatedPageSchema.safeParse> | undefined;
+      let content: ReturnType<typeof contentBodySchema.safeParse> | null = null;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const proposal = await ask(funnel, ctx.requestId, 'generate_page', (aiCtx) =>
         engine.generatePage(aiCtx, {
           objective: funnel.objective,
           language: funnel.language,
@@ -124,14 +131,22 @@ export function createAiService({ funnels, funnelService, workspaces, assets, en
           baseBlocks: def.baseBlocks,
           instruction: body.instruction,
         }),
-      );
-
-      const parsed = generatedPageSchema.safeParse(cleanProposalDesign(proposal));
-      const content = parsed.success ? contentBodySchema.safeParse({ blocks: parsed.data.blocks }) : null;
-      if (!parsed.success || !content?.success || content.data.blocks.length === 0) throw badResponse();
+        );
+        parsed = generatedPageSchema.safeParse(cleanProposalDesign(proposal));
+        content = parsed.success ? contentBodySchema.safeParse({ blocks: parsed.data.blocks }) : null;
+        if (parsed.success && content?.success && content.data.blocks.length > 0) break;
+      }
+      if (!parsed?.success || !content?.success || content.data.blocks.length === 0) throw badResponse();
 
       // El estilo de cada bloque: lo que propuso la IA (solo variantes y fondos del catálogo) completado y corregido con la dirección.
-      const blocks = polishBlocks(content.data.blocks, randomHints(seed)).map((b, i) => ({ ...b, content: fillIcons(b.type, cleanIcons(b.type, b.content as Record<string, unknown>), hash(`i:${seed}:${i}`)) }));
+      // Estructura y estilo de los bloques: se evita repetir el principio, el encabezado y las formas de las últimas páginas del negocio.
+      const reordered = noveltyStructure(content.data.blocks, past, seed);
+      const varied = noveltyVariants(
+        reordered.map((b) => (b.type === 'encabezado' ? { ...b, style: noveltyHero(b.style, past, seed) } : b)),
+        past,
+        seed,
+      );
+      const blocks = polishBlocks(varied, randomHints(seed)).map((b, i) => ({ ...b, content: fillIcons(b.type, cleanIcons(b.type, b.content as Record<string, unknown>), hash(`i:${seed}:${i}`)) }));
       // La IA solo puede usar las imágenes que la persona subió: una dirección inventada o ajena invalida la página.
       const allowedUrls = new Set([...images.map((i) => i.url), ...(logoUrl ? [logoUrl] : [])]);
       for (const b of blocks) {
@@ -142,8 +157,10 @@ export function createAiService({ funnels, funnelService, workspaces, assets, en
       // La paleta: la de la marca si la tiene, si no la de la IA (corregida si no se leía bien).
       const proposed = parsed.data.designSpec;
       const backup = fallbackDesign(seed);
-      const palette = pickPalette(backup.palette, brandPalette, proposed?.palette);
-      const look = guardLook(enrichLook(proposed?.look ?? (proposed?.fonts ? undefined : backup.look), palette, seed), palette);
+      // La paleta: la de la marca tal cual; si no, la de la IA (corregida) y diferenciada de la de las páginas anteriores.
+      const chosen = pickPalette(backup.palette, brandPalette, proposed?.palette);
+      const palette = brandPalette || keepDesign ? chosen : noveltyPalette(chosen, past, seed);
+      const look = guardLook(noveltyLook(enrichLook(proposed?.look ?? (proposed?.fonts ? undefined : backup.look), palette, seed), past, seed), palette);
       const designSpec: DesignSpecBody = keepDesign
         ? { ...(keepDesign as DesignSpecBody), template: (keepDesign.template ?? backup.template) as DesignSpecBody['template'], ...(brandPalette ? { palette: brandPalette } : {}) }
         : {

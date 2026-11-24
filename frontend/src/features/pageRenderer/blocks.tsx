@@ -105,6 +105,45 @@ export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
           {str(c.title)}
         </h1>
       );
+      const subtitle = (cls: string, centered: boolean) =>
+        str(c.subtitle) && (
+          <p className={`mt-4 max-w-2xl ${cls} opacity-80`} style={{ marginInline: centered ? 'auto' : undefined }}>
+            {str(c.subtitle)}
+          </p>
+        );
+      if (variant === 'pancarta') {
+        // Una pancarta: texto centrado con mucho aire y dos círculos de color de fondo.
+        return (
+          <Section theme={theme} pad={6} style={{ textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+            <span aria-hidden className="pointer-events-none absolute -left-16 -top-16 size-64 rounded-full opacity-25" style={{ background: palette.primary }} />
+            <span aria-hidden className="pointer-events-none absolute -bottom-20 -right-10 size-72 rounded-full opacity-20" style={{ background: palette.accent }} />
+            <div className="relative">
+              {title}
+              {subtitle('text-xl', true)}
+            </div>
+          </Section>
+        );
+      }
+      if (variant === 'acento') {
+        return (
+          <Section theme={theme} pad={4} style={{ textAlign: align }}>
+            <span aria-hidden className="mb-6 block h-1.5 w-20 rounded-full" style={{ background: `linear-gradient(90deg, ${palette.primary}, ${palette.accent})`, marginInline: align === 'center' ? 'auto' : undefined }} />
+            {title}
+            {subtitle('text-lg', align === 'center')}
+          </Section>
+        );
+      }
+      if (variant === 'editorial') {
+        return (
+          <Section theme={theme} pad={4.5} style={{ textAlign: 'left' }}>
+            <div className="mx-auto max-w-3xl">
+              <span aria-hidden className="mb-6 block h-1 w-24" style={{ background: palette.primary }} />
+              {title}
+              {str(c.subtitle) && <p className="mt-6 max-w-2xl text-xl italic leading-relaxed opacity-80">{str(c.subtitle)}</p>}
+            </div>
+          </Section>
+        );
+      }
       if (variant === 'dividido') {
         return (
           <Section theme={theme} pad={3.5} style={{ textAlign: 'left' }}>
@@ -126,6 +165,19 @@ export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
     }
 
     case 'texto':
+      if (variantOf('texto', block.style) === 'cita') {
+        return (
+          <Section theme={theme} pad={3.5} style={{ textAlign: 'center' }}>
+            <div className="mx-auto max-w-2xl">
+              <span aria-hidden className="block font-heading text-7xl leading-none" style={{ color: palette.primary }}>
+                “
+              </span>
+              {str(c.title) && <Heading theme={theme}>{str(c.title)}</Heading>}
+              <p className="mt-2 whitespace-pre-line text-2xl italic leading-relaxed">{str(c.body)}</p>
+            </div>
+          </Section>
+        );
+      }
       if (variantOf('texto', block.style) === 'destacado') {
         return (
           <Section theme={theme} pad={3}>
@@ -256,7 +308,7 @@ export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
         <Section theme={theme}>
           <div className="mx-auto grid max-w-3xl gap-4 text-left" style={{ gridTemplateColumns: `repeat(${Math.min(Math.max(list(c.plans).length, 1), 3)}, minmax(0, 1fr))` }}>
             {list(c.plans).map((plan, index) => (
-              <div key={`${str(plan.name)}-${index}`} className="p-6" style={card(theme)}>
+              <div key={`${str(plan.name)}-${index}`} className="p-6" style={variantOf('precios', block.style) === 'destacado' && index === Math.floor((list(c.plans).length - 1) / 2) ? { ...card(theme), border: `2px solid ${palette.primary}`, boxShadow: `0 18px 44px ${palette.primary}40`, transform: 'scale(1.05)' } : card(theme)}>
                 <p className="text-sm font-semibold uppercase tracking-wide opacity-70">{str(plan.name)}</p>
                 <p className="mt-2 text-3xl font-bold" style={{ color: palette.primary }}>
                   {money(plan.price)}
@@ -297,13 +349,14 @@ export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
       const variant = variantOf('faq', block.style) ?? 'abierto';
       const asCard = variant === 'tarjetas';
       const dense = variant === 'compacto';
+      const columns = variant === 'columnas';
       const itemStyle: CSSProperties | undefined = asCard ? card(theme) : undefined;
       return (
         <Section theme={theme}>
-          <div className="mx-auto max-w-2xl text-left">
+          <div className={`mx-auto text-left ${columns ? 'max-w-4xl' : 'max-w-2xl'}`}>
             <Heading theme={theme}>Preguntas frecuentes</Heading>
             {publicCtx ? (
-              <div className={asCard ? 'mt-4 space-y-3' : 'mt-4 divide-y'} style={{ borderColor: theme.surface.border }}>
+              <div className={columns ? 'mt-4 grid gap-x-10 gap-y-2 sm:grid-cols-2' : asCard ? 'mt-4 space-y-3' : 'mt-4 divide-y'} style={{ borderColor: theme.surface.border }}>
                 {list(c.items).map((item, index) => (
                   <details key={`${str(item.question)}-${index}`} className={`group ${asCard ? 'p-4' : dense ? 'py-2' : 'py-3'}`} style={itemStyle}>
                     <summary className={`cursor-pointer list-none font-semibold marker:content-none ${dense ? 'text-sm' : ''}`}>{str(item.question)}</summary>
@@ -312,7 +365,7 @@ export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
                 ))}
               </div>
             ) : (
-              <dl className={asCard ? 'mt-4 space-y-3' : dense ? 'mt-3 space-y-2' : 'mt-4 space-y-4'}>
+              <dl className={columns ? 'mt-4 grid gap-x-10 gap-y-5 sm:grid-cols-2' : asCard ? 'mt-4 space-y-3' : dense ? 'mt-3 space-y-2' : 'mt-4 space-y-4'}>
                 {list(c.items).map((item, index) => (
                   <div key={`${str(item.question)}-${index}`} className={asCard ? 'p-4' : undefined} style={itemStyle}>
                     <dt className={`font-semibold ${dense ? 'text-sm' : ''}`}>{str(item.question)}</dt>
@@ -365,6 +418,61 @@ export function BlockView({ block, theme, currency, publicCtx }: ViewProps) {
                 </li>
               ))}
             </ul>
+          </Section>
+        );
+      }
+      if (variant === 'iconos') {
+        return (
+          <Section theme={theme} style={{ textAlign: 'center' }}>
+            {str(c.title) && <Heading theme={theme}>{str(c.title)}</Heading>}
+            <div className="mx-auto mt-8 grid max-w-4xl gap-8 sm:grid-cols-3">
+              {items.map((item, index) => (
+                <div key={`${str(item.title)}-${index}`}>
+                  <span className="mx-auto mb-4 grid size-16 place-items-center rounded-full" style={{ background: `linear-gradient(135deg, ${palette.primary}, ${palette.accent})`, color: readableOn(palette.primary, palette) }}>
+                    <ItemIcon name={item.icon} size={28} fallback={<span className="text-xl font-bold">{index + 1}</span>} />
+                  </span>
+                  <p className="font-semibold font-heading">{str(item.title)}</p>
+                  {str(item.description) && <p className="mt-2 text-sm opacity-80">{str(item.description)}</p>}
+                </div>
+              ))}
+            </div>
+          </Section>
+        );
+      }
+      if (variant === 'alternado') {
+        return (
+          <Section theme={theme}>
+            {str(c.title) && <Heading theme={theme}>{str(c.title)}</Heading>}
+            <div className="mx-auto mt-8 max-w-3xl space-y-6 text-left">
+              {items.map((item, index) => (
+                <div key={`${str(item.title)}-${index}`} className={`flex items-center gap-5 p-5 ${index % 2 === 1 ? 'sm:flex-row-reverse sm:text-right' : ''}`} style={card(theme)}>
+                  <span className="grid size-16 shrink-0 place-items-center" style={{ background: palette.primary, color: readableOn(palette.primary, palette), borderRadius: cardRadius(theme) }}>
+                    <ItemIcon name={item.icon} size={26} fallback={<span className="text-xl font-bold">{index + 1}</span>} />
+                  </span>
+                  <span>
+                    <span className="block font-semibold font-heading">{str(item.title)}</span>
+                    {str(item.description) && <span className="mt-1 block text-sm opacity-80">{str(item.description)}</span>}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </Section>
+        );
+      }
+      if (variant === 'chips') {
+        return (
+          <Section theme={theme}>
+            {str(c.title) && <Heading theme={theme}>{str(c.title)}</Heading>}
+            <div className="mx-auto mt-6 flex max-w-3xl flex-wrap justify-center gap-3">
+              {items.map((item, index) => (
+                <span key={`${str(item.title)}-${index}`} title={str(item.description) || undefined} className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold" style={{ border: `1px solid ${theme.surface.border}`, background: theme.surface.background, color: 'inherit' }}>
+                  <span style={{ color: palette.primary }}>
+                    <ItemIcon name={item.icon} size={16} fallback={<Check size={16} aria-hidden />} />
+                  </span>
+                  {str(item.title)}
+                </span>
+              ))}
+            </div>
           </Section>
         );
       }

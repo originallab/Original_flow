@@ -74,11 +74,11 @@ export const BACKGROUND_LABELS: Record<BlockBackground, string> = { base: 'El de
 
 /** Las formas de dibujar cada tipo de bloque. La primera es la que se usa si no se elige ninguna. */
 export const BLOCK_VARIANTS: Partial<Record<BlockType, readonly string[]>> = {
-  encabezado: ['centrado', 'izquierda', 'dividido', 'grande'],
-  texto: ['normal', 'destacado'],
-  beneficios: ['tarjetas', 'lista', 'numerados', 'columnas'],
-  faq: ['abierto', 'tarjetas', 'compacto'],
-  precios: ['tarjetas', 'simple'],
+  encabezado: ['centrado', 'izquierda', 'dividido', 'grande', 'pancarta', 'acento', 'editorial'],
+  texto: ['normal', 'destacado', 'cita'],
+  beneficios: ['tarjetas', 'lista', 'numerados', 'columnas', 'iconos', 'alternado', 'chips'],
+  faq: ['abierto', 'tarjetas', 'compacto', 'columnas'],
+  precios: ['tarjetas', 'simple', 'destacado'],
   boton: ['solido', 'contorno', 'banda'],
 };
 
@@ -99,6 +99,13 @@ export const VARIANT_LABELS: Record<string, string> = {
   solido: 'Sólido',
   contorno: 'Contorno',
   banda: 'Banda',
+  pancarta: 'Pancarta',
+  acento: 'Con acento',
+  editorial: 'Editorial',
+  cita: 'Cita',
+  iconos: 'Íconos grandes',
+  alternado: 'Alternado',
+  chips: 'Etiquetas',
 };
 
 const includes = (list: readonly string[], value: unknown): value is string => typeof value === 'string' && list.includes(value);
